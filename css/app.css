@@ -243,6 +243,36 @@ math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { displ
 .tpl .tpl-ic { font: 26px "CMU Serif", Georgia, serif; color: var(--acc); height: 34px; }
 .tpl b { display: block; font-size: 14px; margin: 4px 0; }
 .tpl span { color: var(--mut); font-size: 12px; line-height: 1.45; }
+.tpl.has-bank b::after { content: "▸"; color: var(--acc2); margin-left: 5px; }
+
+/* ---------- Banque de sujets ---------- */
+.bank-hint { margin: 0 0 14px; color: var(--mut); line-height: 1.55; }
+.bank-hint.small { font-size: 12px; margin: 14px 0 0; }
+.niv-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.niv { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px; background: #fff; border: 1.5px solid var(--line); border-radius: 12px; transition: .12s; }
+.niv:hover { border-color: var(--acc2); box-shadow: 0 6px 20px rgba(43, 76, 126, .12); transform: translateY(-1px); }
+.niv-ic { flex: none; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 10px; background: linear-gradient(135deg, #2b4c7e, #4a74b4); color: #fff; font: italic 19px "CMU Serif", Georgia, serif; }
+.niv b { display: block; font-size: 14px; }
+.niv span { display: block; color: var(--mut); font-size: 12px; }
+.niv em { display: block; color: var(--acc2); font-size: 11.5px; font-style: normal; margin-top: 3px; }
+.bank-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.bank-lvl { flex: 1; color: var(--mut); font-size: 12.5px; }
+.btn.small { padding: 4px 10px; font-size: 12px; }
+.lnk { background: none; border: none; color: var(--acc2); font-size: 12.5px; padding: 2px 0; text-decoration: underline; }
+.lnk:hover { color: var(--acc); }
+.suj-list { max-height: 56vh; overflow: auto; padding-right: 4px; }
+.suj { display: flex; align-items: stretch; gap: 8px; margin-bottom: 7px; }
+.suj-main { flex: 1; display: flex; align-items: center; gap: 12px; text-align: left; padding: 9px 12px; background: #fff; border: 1.5px solid var(--line); border-radius: 10px; transition: .12s; }
+.suj-main:hover { border-color: var(--acc2); background: #fbfcfe; }
+.suj-dur { flex: none; width: 52px; text-align: center; font-size: 12px; font-weight: 700; color: var(--acc); background: #eef2f9; border-radius: 6px; padding: 5px 0; }
+.suj-txt b { display: block; font-size: 13.5px; }
+.suj-txt span { display: block; color: var(--mut); font-size: 12px; }
+.suj-txt em { display: block; color: #7b8494; font-size: 11.5px; font-style: italic; margin-top: 2px; }
+.suj-corr { flex: none; padding: 0 12px; font-size: 12px; color: var(--mut); background: #fff; border: 1.5px solid var(--line); border-radius: 10px; }
+.suj-corr:hover { color: var(--acc2); border-color: var(--acc2); }
+.bank-foot { margin-top: 14px; }
+#corrMenu button.on { color: var(--acc); font-weight: 600; }
+
 .welcome-hero { background: linear-gradient(135deg, #2b4c7e, #4a74b4); color: #fff; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; }
 .welcome-hero h3 { margin: 0 0 6px; font: 600 20px "CMU Serif", Georgia, serif; }
 .welcome-hero p { margin: 0; opacity: .92; line-height: 1.55; }

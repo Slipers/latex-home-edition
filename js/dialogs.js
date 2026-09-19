@@ -32,7 +32,8 @@ L.dlgTemplates = function (welcome) {
   const grid = L.h('div', { class: 'tpl-grid' });
   let dlg;
   L.TEMPLATES.forEach(t => grid.appendChild(L.h('button', {
-    class: 'tpl', onclick: () => {
+    class: 'tpl' + (t.bank ? ' has-bank' : ''), onclick: () => {
+      if (t.bank) { dlg.close(); L.dlgBank(t.bank); return; }
       if (!welcome && App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Continuer quand même ?')) return;
       dlg.close();
       App.load(t.make(), null);

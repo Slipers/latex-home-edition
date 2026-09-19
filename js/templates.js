@@ -70,8 +70,8 @@
       },
     },
     {
-      id: 'exos', icon: '✎', name: 'Feuille d\'exercices',
-      desc: 'En-tête de fiche, exercices numérotés avec questions, équations et corrigés.',
+      id: 'exos', icon: '✎', name: 'Feuille d\'exercices de maths', bank: 'fiche',
+      desc: 'Banque de fiches par niveau (1re, terminale, sup, spé) : 40 fiches thématiques, corrigé fourni.',
       make: () => doc({
         title: 'Feuille d\'exercices n° 1', subtitle: 'Suites et fonctions', institution: 'Mathématiques — Terminale', titleStyle: 'fiche', author: '',
       }, [
@@ -145,8 +145,8 @@
       ]),
     },
     {
-      id: 'controle', icon: '✓', name: 'Devoir / Contrôle',
-      desc: 'En-tête avec nom et date, barème, questions numérotées avec sous-questions.',
+      id: 'controle', icon: '✓', name: 'Contrôle / Évaluation', bank: 'ds',
+      desc: 'Banque de sujets par niveau : contrôles d\'1 h et devoirs de 2 à 3 h, barème et corrigé fournis.',
       make: () => doc({ title: 'Devoir surveillé n° 2', subtitle: 'Durée : 1 h — Calculatrice autorisée', institution: 'Physique-Chimie — 1re', titleStyle: 'fiche' }, [
         P('<b>Nom :</b> ................................................ <b>Prénom :</b> ................................................', { noindent: true }),
         H(1, 'Mouvement d\'un projectile (8 points)', { numbered: false }),

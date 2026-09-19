@@ -114,6 +114,7 @@ Object.assign(App, {
     const t = L.plain(this.doc.meta.title);
     L.$('#docName').textContent = this.fileName || (t ? t : 'Sans titre');
     document.title = (t || 'Sans titre') + ' — LaTeX Home Edition';
+    if (L.updateCorrGroup) L.updateCorrGroup();
   },
   autosave: L.debounce(() => {
     if (!App.doc) return;

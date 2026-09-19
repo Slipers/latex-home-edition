@@ -241,6 +241,10 @@ window.addEventListener('DOMContentLoaded', () => {
     'size-menu': () => App.toggleMenu('#sizeMenu'),
     'align-menu': () => App.toggleMenu('#alignMenu'),
     'list-menu': () => App.toggleMenu('#listMenu'),
+    'corr-menu': () => App.toggleMenu('#corrMenu'),
+    'corr-open': () => L.corrAction('corr-open'),
+    'corr-back': () => L.corrAction('corr-back'),
+    'corr-both': () => L.corrAction('corr-both'),
     find: () => L.FindBar.open(),
     hfill: () => { App.closeMenus(); App.insertHfill(); },
     tex: () => App.exportTex(),
@@ -259,7 +263,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]');
     if (b && acts[b.dataset.act]) {
-      if (b.closest('.menu')) L.$('#latexMenu').classList.remove('open');
+      if (b.closest('.menu')) App.closeMenus();
       acts[b.dataset.act]();
     }
     const cc = e.target.closest('[data-color]');
@@ -307,9 +311,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Reprise du dernier document (sauvegarde automatique) ou écran d'accueil
   let restored = false;
   const q = new URLSearchParams(location.search);
-  const tpl = q.get('modele') && L.TEMPLATES.find(t => t.id === q.get('modele'));
+  const suj = q.get('sujet') && L.sujetById(q.get('sujet'));
+  const tpl = suj || (q.get('modele') && L.TEMPLATES.find(t => t.id === q.get('modele')));
   if (tpl) {
-    App.load(tpl.make(), null);
+    App.load(suj ? L.sujetDoc(suj, q.get('mode') || 'sujet') : tpl.make(), null);
     if (q.get('pdf')) App.preparePrint().then(() => { document.body.dataset.ready = '1'; });
     if (q.get('apercu')) App.showPreview(true).then(() => { if (q.get('zoom')) { App.zoom = +q.get('zoom'); App.applyZoom(); } });
     return;

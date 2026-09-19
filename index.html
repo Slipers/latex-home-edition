@@ -86,6 +86,16 @@
         <button data-act="symbols" title="Chercher un symbole : maths, physique, chimie… (touche Tab)"><i class="serif">Ω</i><span>Symboles</span></button>
       </div>
       <div class="tb-spacer"></div>
+      <div class="tb-group g-corr" id="corrGrp" hidden>
+        <div class="dropdown">
+          <button data-act="corr-menu" id="btnCorr" title="Corrigé du sujet"><i>✓</i><span>Corrigé ▾</span></button>
+          <div class="menu" id="corrMenu">
+            <button data-act="corr-open">Ouvrir le corrigé du sujet</button>
+            <button data-act="corr-back">Revenir à l'énoncé</button>
+            <button data-act="corr-both">Énoncé + corrigé dans un seul document</button>
+          </div>
+        </div>
+      </div>
       <div class="tb-group">
         <button data-act="settings" title="Mise en page, titre, police, marges…"><i>⚙</i><span>Document</span></button>
         <button data-act="preview" class="toggle" id="btnPreview" title="Voir les pages comme dans le PDF final"><i>👁</i><span>Aperçu</span></button>
@@ -197,6 +207,11 @@
 <script src="js/latex.js"></script>
 <script src="js/paginate.js"></script>
 <script src="js/templates.js"></script>
+<script src="js/banque.js"></script>
+<script src="js/banque-1re.js"></script>
+<script src="js/banque-tle.js"></script>
+<script src="js/banque-sup.js"></script>
+<script src="js/banque-spe.js"></script>
 <script src="js/symbols.js"></script>
 <script src="js/sciences.js"></script>
 <script src="js/import.js"></script>

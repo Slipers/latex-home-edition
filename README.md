@@ -48,8 +48,19 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Numéro d'une question, supprimer / déplacer une question | Panneau de droite (curseur dans la question) |
 | Renommer un encadré, une figure, un tableau | Panneau de droite → « Nom affiché » / « Nom devant le numéro » |
 | Rechercher / remplacer | Ctrl+F / Ctrl+H |
+| Sujets de contrôle et fiches d'exercices prêts à l'emploi | **Nouveau** → « Contrôle / Évaluation » ou « Feuille d'exercices de maths » |
+| Corrigé d'un sujet de la banque | Menu **Corrigé** en haut à droite |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
+
+## Banque de sujets de mathématiques
+
+Le menu **Nouveau** propose deux entrées reliées à une banque de 80 documents originaux, avec leur corrigé :
+
+- **Contrôle / Évaluation** : par niveau (première, terminale, prépa 1re année, prépa 2e année), **10 sujets** — 5 contrôles d'une heure et 5 devoirs de deux à trois heures, avec barème.
+- **Feuille d'exercices de maths** : par niveau, **10 fiches thématiques** de 4 exercices.
+
+Chaque sujet s'ouvre comme un document normal : modifiable, imprimable en PDF, exportable en LaTeX. Le menu **Corrigé**, en haut à droite, bascule entre l'énoncé, le corrigé et une version « énoncé + corrigé » dans un seul document.
 
 ## Sorties
 
@@ -78,6 +89,8 @@ js/mathdock.js      éditeur visuel de formules (MathLive) et chimie (mhchem)
 js/paginate.js      mise en pages A4
 js/latex.js         export LaTeX et archive .zip
 js/templates.js     modèles de départ
+js/banque.js        banque de sujets : menus, fabrication du sujet et du corrigé
+js/banque-*.js      contenu des sujets (1re, terminale, sup, spé)
 js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
 js/import.js        conversion de code LaTeX collé en éléments modifiables
