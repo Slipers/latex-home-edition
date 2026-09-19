@@ -129,6 +129,7 @@ function checkUpdates(manual = false) {
   autoUpdater.checkForUpdates().catch(err => { if (manualCheck) send('lhe:update', { state: 'error', message: errText(err) }); });
 }
 autoUpdater.autoDownload = false;
+autoUpdater.disableWebInstaller = true;
 autoUpdater.autoInstallOnAppQuit = false;
 autoUpdater.on('update-not-available', () => { if (manualCheck) send('lhe:update', { state: 'none', version: app.getVersion() }); });
 autoUpdater.on('update-available', async info => {
