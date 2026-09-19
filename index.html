@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaTeX Home Edition</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232b4c7e'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' text-anchor='middle' fill='white' font-style='italic'%3E%E2%88%91%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="css/fonts.css">
+<link rel="stylesheet" href="css/paper.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <!-- ============ Barre du haut ============ -->
+  <header id="topbar">
+    <div class="brand"><span class="logo">∑</span><span class="brand-name">LaTeX <b>Home</b></span></div>
+    <div class="doc-name" id="docName" title="Nom du fichier">Sans titre</div>
+    <nav class="tb">
+      <div class="tb-group g-file">
+        <button data-act="new" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
+        <button data-act="open" title="Ouvrir un fichier .lhe (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
+        <button data-act="save" title="Enregistrer (Ctrl+S)"><i>💾</i><span>Enregistrer</span></button>
+      </div>
+      <div class="tb-group">
+        <button data-act="undo" title="Annuler (Ctrl+Z)"><i>↶</i></button>
+        <button data-act="redo" title="Rétablir (Ctrl+Y)"><i>↷</i></button>
+      </div>
+      <div class="tb-group fmt">
+        <button data-fmt="bold" title="Gras (Ctrl+B)"><b>G</b></button>
+        <button data-fmt="italic" title="Italique (Ctrl+I)"><i style="font-family:Georgia,serif">I</i></button>
+        <button data-fmt="underline" title="Souligné (Ctrl+U)"><u>S</u></button>
+        <button data-fmt="subscript" title="Indice">x<sub>2</sub></button>
+        <button data-fmt="superscript" title="Exposant">x<sup>2</sup></button>
+        <button data-fmt="code" title="Police machine à écrire" style="font-family:Consolas,monospace">&lt;/&gt;</button>
+      </div>
+      <div class="tb-group g-ins">
+        <button data-act="imath" class="accent" title="Formule dans le texte (Ctrl+M ou tapez $)"><i class="serif">∑</i><span>Formule</span></button>
+        <button data-act="ins-equation" title="Équation centrée numérotée (Ctrl+Maj+M)"><i class="serif">(1)</i><span>Équation</span></button>
+        <button data-act="xref" title="Référence à une section, équation, figure…"><i>🔗</i><span>Référence</span></button>
+        <button data-act="cite" title="Citer une source"><i>❝</i><span>Citation</span></button>
+        <button data-act="footnote" title="Note de bas de page"><i class="serif">¹</i><span>Note</span></button>
+      </div>
+      <div class="tb-spacer"></div>
+      <div class="tb-group">
+        <button data-act="settings" title="Mise en page, titre, police, marges…"><i>⚙</i><span>Document</span></button>
+        <button data-act="preview" class="toggle" id="btnPreview" title="Voir les pages comme dans le PDF final"><i>👁</i><span>Aperçu</span></button>
+        <button data-act="pdf" class="primary" title="Exporter en PDF (Ctrl+P)"><i>⤓</i><span>PDF</span></button>
+        <div class="dropdown">
+          <button data-act="latex-menu" title="Exporter en LaTeX"><i class="serif">T<sub>E</sub>X</i><span>LaTeX ▾</span></button>
+          <div class="menu" id="latexMenu">
+            <button data-act="tex">Télécharger le fichier .tex</button>
+            <button data-act="zip">Télécharger le projet complet (.zip, avec images)</button>
+            <button data-act="viewtex">Voir le code LaTeX généré</button>
+            <button data-act="overleaf">Ouvrir dans Overleaf…</button>
+          </div>
+        </div>
+        <button data-act="help" title="Aide et raccourcis"><i>?</i></button>
+      </div>
+    </nav>
+  </header>
+
+  <div id="main">
+    <!-- ============ Colonne gauche : insertion + plan ============ -->
+    <aside id="left">
+      <div class="tabs">
+        <button class="tab active" data-tab="insert">Insérer</button>
+        <button class="tab" data-tab="outline">Plan</button>
+      </div>
+      <div class="tab-pane active" id="pane-insert"></div>
+      <div class="tab-pane" id="pane-outline"><div id="outline"></div></div>
+    </aside>
+
+    <!-- ============ Zone centrale : la feuille ============ -->
+    <section id="desk">
+      <div id="deskInner">
+        <div id="paper" class="paper"></div>
+      </div>
+      <div id="previewWrap" hidden>
+        <div class="preview-bar">
+          <button data-act="preview">← Retour à l'édition</button>
+          <span id="pageCount"></span>
+          <span class="zoom">
+            <button data-zoom="-">−</button><span id="zoomVal">100 %</span><button data-zoom="+">+</button>
+          </span>
+          <button class="primary" data-act="print">Imprimer / Enregistrer en PDF</button>
+        </div>
+        <div id="pages"></div>
+      </div>
+    </section>
+
+    <!-- ============ Colonne droite : propriétés ============ -->
+    <aside id="right">
+      <div class="props-head">Propriétés</div>
+      <div id="props"></div>
+    </aside>
+  </div>
+</div>
+
+<!-- ============ Éditeur de formules (ancré en bas) ============ -->
+<div id="mathdock" hidden>
+  <div class="md-head">
+    <div class="md-tabs">
+      <button class="md-mode active" data-mode="math">Mathématiques</button>
+      <button class="md-mode" data-mode="chem">Chimie</button>
+    </div>
+    <div class="md-title" id="mdTitle">Formule</div>
+    <div class="md-actions">
+      <button id="mdKbd" title="Afficher le clavier mathématique virtuel">⌨ Clavier</button>
+      <button id="mdSrc" title="Voir / modifier le code LaTeX (facultatif)">Code</button>
+      <button id="mdNum" class="toggle" title="Numéroter l'équation">N° (1)</button>
+      <button id="mdDel" class="danger">Supprimer</button>
+      <button id="mdCancel">Annuler</button>
+      <button id="mdOk" class="primary">Valider ✓</button>
+    </div>
+  </div>
+  <div class="md-body">
+    <div class="md-math">
+      <div class="md-cats" id="mdCats"></div>
+      <div class="md-palette" id="mdPalette"></div>
+      <math-field id="mf" math-virtual-keyboard-policy="manual"></math-field>
+      <textarea id="mdLatex" hidden spellcheck="false" placeholder="Code LaTeX de la formule"></textarea>
+      <div class="md-tip">Astuces : tapez <kbd>/</kbd> pour une fraction, <kbd>^</kbd> exposant, <kbd>_</kbd> indice, « sqrt », « int », « sum », « alpha », « pi », « inf », « -&gt; »… <kbd>Tab</kbd> passe à la case suivante, <kbd>Entrée</kbd> valide.</div>
+    </div>
+    <div class="md-chem" hidden>
+      <div class="md-palette" id="chemPalette"></div>
+      <input id="chemIn" type="text" spellcheck="false" placeholder="Ex. : 2 H2 + O2 -> 2 H2O   ·   Cu^2+ + 2 e- -> Cu   ·   CH3COOH <=> CH3COO- + H+">
+      <div class="chem-prev" id="chemPrev"></div>
+      <div class="md-tip">Écrivez la formule naturellement : les chiffres deviennent des indices, <kbd>^2+</kbd> une charge, <kbd>-&gt;</kbd> une flèche, <kbd>&lt;=&gt;</kbd> un équilibre, <kbd>(aq)</kbd> <kbd>(s)</kbd> <kbd>(g)</kbd> les états.</div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" hidden><div class="modal-box" role="dialog" aria-modal="true"></div></div>
+<div id="slashMenu" class="popmenu" hidden></div>
+<input type="file" id="fileOpen" accept=".lhe,.json" hidden>
+<input type="file" id="fileImg" accept="image/*" hidden>
+<div id="printRoot"></div>
+
+<script src="vendor/katex/katex.min.js"></script>
+<script src="vendor/katex/contrib/mhchem.min.js"></script>
+<script src="vendor/mathlive/mathlive.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/model.js"></script>
+<script src="js/render.js"></script>
+<script src="js/latex.js"></script>
+<script src="js/paginate.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/mathdock.js"></script>
+<script src="js/dialogs.js"></script>
+<script src="js/editor.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

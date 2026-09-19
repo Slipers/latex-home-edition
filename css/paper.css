@@ -1,0 +1,179 @@
+/* =====================================================================
+   Typographie « papier » : reproduit les dimensions de la classe
+   article de LaTeX (size10/11/12.clo), d'amsthm et de babel-french.
+   ===================================================================== */
+
+.paper, .page {
+  --fs: 10.95pt; --lh: 13.6pt; --fs-small: 10pt; --fs-foot: 9pt; --lh-foot: 11pt;
+  --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt;
+  --parindent: 17pt; --stretch: 1;
+  --m-top: 37mm; --m-bottom: 45mm; --m-side: 41.5mm;
+  font-family: "CMU Serif", "Latin Modern Roman", "Computer Modern", Georgia, serif;
+  font-size: var(--fs);
+  line-height: calc(var(--lh) * var(--stretch));
+  color: #000;
+  background: #fff;
+  text-align: justify;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+  text-rendering: optimizeLegibility;
+}
+.fs-10 { --fs: 10pt; --lh: 12pt; --fs-small: 9pt; --fs-foot: 8pt; --lh-foot: 9.5pt; --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt; --parindent: 15pt; }
+.fs-11 { }
+.fs-12 { --fs: 12pt; --lh: 14.5pt; --fs-small: 10.95pt; --fs-foot: 10pt; --lh-foot: 12pt; --fs-large: 14.4pt; --fs-Large: 17.28pt; --fs-LARGE: 20.74pt; --fs-huge: 24.88pt; --parindent: 18pt; }
+.spacing-15.fs-10 { --stretch: 1.25; }
+.spacing-15.fs-11 { --stretch: 1.213; }
+.spacing-15.fs-12 { --stretch: 1.241; }
+.margins-normales { --m-top: 25mm; --m-bottom: 25mm; --m-side: 25mm; }
+.margins-etroites { --m-top: 15mm; --m-bottom: 15mm; --m-side: 15mm; }
+
+.paper .katex, .page .katex { font-size: 1em; line-height: normal; text-indent: 0; }
+.paper .katex-display, .page .katex-display { margin: 0; }
+
+/* --------- Titre (\maketitle de la classe article) --------- */
+.doc-title-block { text-align: center; padding-top: 2em; margin-bottom: 1.5em; text-indent: 0; }
+.doc-title-block .t-title { font-size: var(--fs-LARGE); line-height: 1.25; margin-bottom: 1.5em; }
+.doc-title-block .t-subtitle { font-size: var(--fs-large); line-height: 1.25; margin: -1em 0 1.5em; }
+.doc-title-block .t-author { font-size: var(--fs-large); line-height: 1.25; margin-bottom: 1em; }
+.doc-title-block .t-inst { font-size: var(--fs); line-height: 1.25; margin: -0.6em 0 1em; }
+.doc-title-block .t-date { font-size: var(--fs-large); line-height: 1.25; }
+
+/* Style « fiche d'exercices » */
+.doc-title-fiche { text-indent: 0; margin-bottom: 1.2em; }
+.doc-title-fiche .f-top { display: flex; justify-content: space-between; gap: 1em; }
+.doc-title-fiche .f-rule { border-top: 0.4pt solid #000; margin: 3pt 0 12pt; }
+.doc-title-fiche .t-title { text-align: center; font-size: var(--fs-Large); font-weight: 700; line-height: 1.25; }
+.doc-title-fiche .t-subtitle { text-align: center; font-size: var(--fs-large); line-height: 1.3; margin-top: 4pt; }
+
+/* Page de garde */
+.doc-titlepage { text-align: center; text-indent: 0; display: flex; flex-direction: column; min-height: 100%; }
+.doc-titlepage .tp-inst { font-size: var(--fs-large); text-transform: uppercase; letter-spacing: .04em; margin-top: 1em; }
+.doc-titlepage .tp-mid { margin: auto 0; }
+.doc-titlepage .tp-rule { border-top: 0.8pt solid #000; margin: 10pt 0; }
+.doc-titlepage .t-title { font-size: var(--fs-huge); font-weight: 700; line-height: 1.25; }
+.doc-titlepage .t-subtitle { font-size: var(--fs-Large); line-height: 1.3; margin-top: 10pt; }
+.doc-titlepage .t-author { font-size: var(--fs-large); margin-top: 3em; }
+.doc-titlepage .t-date { font-size: var(--fs-large); margin-bottom: 2em; }
+.paper .doc-titlepage { min-height: 180mm; border-bottom: 1px dashed #bbb; margin-bottom: 2em; padding-bottom: 2em; }
+
+/* --------- Table des matières --------- */
+.doc-toc { margin-bottom: 1.5em; text-indent: 0; }
+.doc-toc .toc-h { font-size: var(--fs-Large); font-weight: 700; line-height: 1.3; margin: 0 0 1.2em; }
+.toc-row { display: flex; align-items: baseline; }
+.toc-row.l1 { font-weight: 700; margin-top: 1em; }
+.toc-row.l2 { padding-left: 1.5em; }
+.toc-row.l3 { padding-left: 3.8em; }
+.toc-row .toc-num { display: inline-block; min-width: 1.5em; padding-right: .5em; }
+.toc-row.l2 .toc-num { min-width: 2.3em; }
+.toc-row.l3 .toc-num { min-width: 3.2em; }
+.toc-row .toc-dots { flex: 1; border-bottom: 1.2pt dotted #000; margin: 0 .4em; transform: translateY(-.25em); min-width: 1em; }
+.toc-row.l1 .toc-dots { border: none; }
+.toc-row .toc-page { min-width: 1.2em; text-align: right; }
+.toc-empty { color: #888; font-style: italic; }
+
+/* --------- Sections --------- */
+.sec { font-weight: 700; text-align: left; hyphens: manual; text-indent: 0; }
+.sec .num { display: inline-block; margin-right: 1em; }
+.sec.l1 { font-size: var(--fs-Large); line-height: 1.25; margin: calc(var(--fs) * 1.5) 0 calc(var(--fs) * 1); }
+.sec.l2 { font-size: var(--fs-large); line-height: 1.25; margin: calc(var(--fs) * 1.4) 0 calc(var(--fs) * .65); }
+.sec.l3 { font-size: var(--fs); line-height: 1.25; margin: calc(var(--fs) * 1.4) 0 calc(var(--fs) * .65); }
+.sec.l4 { font-size: var(--fs); line-height: inherit; margin: calc(var(--fs) * 1.2) 0 0; }
+.flow > .blk:first-child > .sec, .page-content > .sec:first-child { margin-top: 0; }
+
+/* --------- Paragraphes (babel-french indente aussi le 1er) --------- */
+.para { margin: 0; text-indent: var(--parindent); }
+.para.noindent, .para.center, .para.right { text-indent: 0; }
+.para.center { text-align: center; }
+.para.right { text-align: right; }
+.para.split-cont { text-indent: 0; }
+.para.split-before { text-align-last: justify; }
+.para code, .rt code { font-family: "CMU Typewriter", monospace; font-size: 1em; }
+
+/* --------- Équations centrées, numéro à droite --------- */
+.eq { position: relative; display: flex; align-items: center; margin: calc(var(--fs) * 0.9) 0; text-indent: 0; min-height: var(--lh); }
+.eq .eq-body { flex: 1; text-align: center; overflow-x: auto; overflow-y: hidden; }
+.eq .eq-spacer { display: none; }
+.eq .eq-num { position: absolute; right: 0; top: 50%; transform: translateY(-50%); white-space: nowrap; }
+.eq .eq-empty { color: #999; font-style: italic; font-family: system-ui, sans-serif; font-size: 10pt; }
+
+/* --------- Listes --------- */
+.lst { margin: calc(var(--fs) * .6) 0; padding: 0; list-style: none; text-indent: 0; }
+.lst .li { position: relative; padding-left: 2.5em; margin: calc(var(--fs) * .25) 0; }
+.lst .li.lv1 { padding-left: 4.7em; }
+.lst .li.lv2 { padding-left: 6.9em; }
+.lst .li .li-mark { position: absolute; left: 0; width: 2.1em; text-align: right; }
+.lst .li.lv1 .li-mark { left: 2.2em; }
+.lst .li.lv2 .li-mark { left: 4.4em; }
+
+/* --------- Théorèmes (amsthm) --------- */
+.env { margin: calc(var(--fs) * .75) 0; text-indent: 0; }
+.env .env-head { font-weight: 700; font-style: normal; }
+.env .env-note { font-weight: 400; font-style: normal; }
+.env.st-plain .env-body { font-style: italic; }
+.env.st-plain .env-body .sec, .env .env-body .eq { font-style: normal; }
+.env.st-remark .env-head { font-weight: 400; font-style: italic; }
+.env.st-proof .env-head { font-weight: 400; font-style: italic; }
+.env .env-body > .blk:first-child > .para,
+.env .env-body > .para:first-child { text-indent: 0; }
+.env .env-body > .blk:first-child > .para > .env-head-inline,
+.env .env-body > .para:first-child > .env-head-inline { display: inline; }
+.env .qed { float: right; margin-left: 1em; }
+.env.boxed { border: 0.6pt solid #000; padding: 6pt 8pt; }
+.env.st-abstract { margin: 0 auto calc(var(--fs) * 1.2); width: calc(100% - 2 * 2.5em); font-size: var(--fs-small); line-height: 1.24; }
+.env.st-abstract .abs-head { text-align: center; font-weight: 700; margin-bottom: .4em; font-size: var(--fs-small); }
+.env.st-abstract .env-body > .blk:first-child > .para { text-indent: var(--parindent); }
+
+/* --------- Figures et tableaux --------- */
+.fig, .tbl { margin: calc(var(--fs) * 1.1) 0; text-align: center; text-indent: 0; }
+.fig img { max-width: 100%; display: block; margin: 0 auto; }
+.caption { margin-top: 10pt; text-align: center; }
+.caption.long { text-align: justify; }
+.tbl .caption { margin: 0 0 10pt; }
+.tbl table { border-collapse: collapse; margin: 0 auto; }
+.tbl td { padding: 1.5pt 6pt; vertical-align: top; min-width: 2em; line-height: var(--lh); }
+.tbl.grille td { border: 0.4pt solid #000; }
+.tbl.pro tr:first-child td { border-top: 0.8pt solid #000; padding-top: 3pt; }
+.tbl.pro tr:last-child td { border-bottom: 0.8pt solid #000; padding-bottom: 3pt; }
+.tbl.pro.has-head tr:first-child td { border-bottom: 0.5pt solid #000; padding-bottom: 3pt; }
+.tbl.pro.has-head tr:nth-child(2) td { padding-top: 3pt; }
+.tbl.simple.has-head tr:first-child td { border-bottom: 0.4pt solid #000; }
+.tbl td.al-l { text-align: left; } .tbl td.al-c { text-align: center; } .tbl td.al-r { text-align: right; }
+.tbl.has-head tr:first-child td { font-weight: 700; }
+
+/* --------- Code (listings) --------- */
+.code { margin: calc(var(--fs) * .8) 0; text-indent: 0; text-align: left; }
+.code pre { font-family: "CMU Typewriter", monospace; font-size: var(--fs-small); line-height: 1.2; border: 0.4pt solid #000; padding: 4pt 5pt; margin: 0; white-space: pre-wrap; word-break: break-word; tab-size: 4; }
+.code .code-lines { counter-reset: ln; }
+.code .code-lines .ln { display: block; position: relative; }
+.code .code-lines .ln::before { counter-increment: ln; content: counter(ln); position: absolute; left: -2.6em; width: 2em; text-align: right; font-size: .8em; color: #000; }
+.code.numbered pre { margin-left: 2em; }
+
+/* --------- Bibliographie --------- */
+.biblio .bib-h { font-size: var(--fs-Large); font-weight: 700; margin: calc(var(--fs) * 1.5) 0 calc(var(--fs) * 1); line-height: 1.25; text-indent: 0; }
+.bib-item { display: flex; gap: .8em; margin: 0 0 calc(var(--fs) * .25); text-indent: 0; }
+.bib-item .bib-lab { min-width: 1.8em; }
+.bib-empty { color: #888; font-style: italic; font-family: system-ui, sans-serif; font-size: 10pt; }
+
+/* --------- Éléments en ligne --------- */
+.imath { white-space: nowrap; }
+.xref, .cite { white-space: nowrap; }
+.fn-mark { font-size: .7em; vertical-align: .6em; line-height: 0; }
+.rt sub, .rt sup, .para sub, .para sup { line-height: 0; }
+
+/* --------- Pages (aperçu & PDF) --------- */
+.page {
+  width: 210mm; height: 297mm; position: relative; overflow: hidden;
+  box-sizing: border-box; padding: var(--m-top) var(--m-side) 0;
+}
+.page .page-body { height: calc(297mm - var(--m-top) - var(--m-bottom)); display: flex; flex-direction: column; }
+.page .page-content { flex: none; }
+.page .page-foot { margin-top: auto; font-size: var(--fs-foot); line-height: var(--lh-foot); text-indent: 0; }
+.page .page-foot:empty { display: none; }
+.page .page-foot .fn-rule { width: 40%; border-top: 0.4pt solid #000; margin: 6pt 0 3pt; }
+.page .page-foot .fn { text-indent: 1em; margin: 0 0 1pt; }
+.page .page-foot .fn sup { font-size: .75em; }
+.page .page-num { position: absolute; left: 0; right: 0; bottom: calc(var(--m-bottom) - 30pt - var(--lh)); text-align: center; text-indent: 0; }
+.page.titlepage .page-num { display: none; }
+.page .page-content > .para:first-child.split-cont { text-indent: 0; }

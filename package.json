@@ -1,0 +1,82 @@
+{
+  "name": "latex-home-edition",
+  "productName": "LaTeX Home Edition",
+  "version": "1.0.0",
+  "description": "Éditeur scientifique visuel au rendu LaTeX, sans code",
+  "author": "Slipers",
+  "license": "MIT",
+  "homepage": "https://github.com/Slipers/latex-home-edition",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Slipers/latex-home-edition.git"
+  },
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "web": "node server.js",
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.slipers.latexhome",
+    "productName": "LaTeX Home Edition",
+    "copyright": "LaTeX Home Edition — MIT",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "index.html",
+      "css/**",
+      "js/**",
+      "vendor/**",
+      "electron/**",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "LaTeX-Home-Edition-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LaTeX Home Edition",
+      "deleteAppDataOnUninstall": false
+    },
+    "fileAssociations": [
+      {
+        "ext": "lhe",
+        "name": "Document LaTeX Home Edition",
+        "description": "Document LaTeX Home Edition",
+        "role": "Editor"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Slipers",
+        "repo": "latex-home-edition",
+        "releaseType": "release"
+      }
+    ]
+  }
+}
