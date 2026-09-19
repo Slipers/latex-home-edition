@@ -42,6 +42,7 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Couleur du texte | Bouton **A** de la barre d'outils |
 | En-têtes, pieds de page, numérotation des pages | « Document » → En-tête, pied de page (ou double-clic sur le pied de page) |
 | Forcer un numéro (ex. commencer à 0) | Panneau de droite du titre, tableau, équation… |
+| Coller du code LaTeX (texte + formules) | Ctrl+V dans le document : converti en paragraphes et équations |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
@@ -74,6 +75,7 @@ js/latex.js         export LaTeX et archive .zip
 js/templates.js     modèles de départ
 js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
+js/import.js        conversion de code LaTeX collé en éléments modifiables
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
 electron/main.js    application de bureau : fenêtre, fichiers, PDF natif, mises à jour
 electron/preload.js pont sécurisé entre la page et Windows

@@ -65,6 +65,7 @@
             <button data-act="tex">Télécharger le fichier .tex</button>
             <button data-act="zip">Télécharger le projet complet (.zip, avec images)</button>
             <button data-act="viewtex">Voir le code LaTeX généré</button>
+            <button data-act="importtex">Importer du code LaTeX (texte + formules)…</button>
             <button data-act="overleaf">Ouvrir dans Overleaf…</button>
           </div>
         </div>
@@ -135,6 +136,7 @@
       <div class="md-palette" id="mdPalette"></div>
       <math-field id="mf" math-virtual-keyboard-policy="manual"></math-field>
       <textarea id="mdLatex" hidden spellcheck="false" placeholder="Code LaTeX de la formule"></textarea>
+      <div class="md-dochint" id="mdDocHint" hidden>Ce code contient du texte et plusieurs formules : en validant, il sera converti automatiquement en paragraphes et en équations séparées.</div>
       <div class="md-tip">Astuces : tapez <kbd>/</kbd> pour une fraction, <kbd>^</kbd> exposant, <kbd>_</kbd> indice, « sqrt », « int », « sum », « alpha », « pi », « inf », « -&gt; »… <kbd>Tab</kbd> ouvre la recherche de symboles, <kbd>→</kbd> passe à la case suivante, <kbd>Entrée</kbd> valide.</div>
     </div>
     <div class="md-chem" hidden>
@@ -166,6 +168,7 @@
 <script src="js/templates.js"></script>
 <script src="js/symbols.js"></script>
 <script src="js/sciences.js"></script>
+<script src="js/import.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>
 <script src="js/editor.js"></script>

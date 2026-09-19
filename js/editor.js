@@ -40,6 +40,7 @@ L.ITEMS = [
   { g: 'Objets', key: 'cols2', label: 'Deux colonnes', icon: '▯▯', kw: 'deux colonnes cote a cote texte', make: () => L.newCols('paragraph') },
   { g: 'Objets', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
   { g: 'Objets', key: 'resume', label: 'Résumé', icon: 'Rés', kw: 'resume abstract', make: () => L.newBlock('box', { kind: 'resume' }) },
+  { g: 'Mise en page', key: 'importtex', label: 'Importer du code LaTeX', icon: 'TeX', kw: 'importer coller code latex convertir', action: () => L.dlgImportLatex() },
   { g: 'Mise en page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
   { g: 'Mise en page', key: 'bibliography', label: 'Bibliographie', icon: '[1]', kw: 'bibliographie references sources', make: () => L.newBlock('bibliography') },
   { g: 'Mise en page', key: 'toc', label: 'Table des matières', icon: '≡', kw: 'table matieres sommaire', action: () => { App.doc.meta.toc = true; App.commit(); App.render(); L.toast('Table des matières ajoutée sous le titre'); } },
@@ -637,6 +638,22 @@ Object.assign(App, {
     this.syncField(cr.field);
     this.commit();
   },
+  /* Insère du code LaTeX converti en blocs (remplace un bloc, ou après la sélection) */
+  insertLatex(src, opts = {}) {
+    const blocks = L.latexToBlocks(src);
+    if (!blocks.length) { L.toast('Rien à convertir.'); return 0; }
+    const doc = this.doc;
+    const ref = opts.replace ? L.find(doc, opts.replace) : (opts.after || this.sel) && !String(opts.after || this.sel).startsWith('__') ? L.find(doc, opts.after || this.sel) : null;
+    if (ref && (opts.replace || (ref.block.type === 'paragraph' && L.isEmptyHtml(ref.block.html)))) ref.list.splice(ref.index, 1, ...blocks);
+    else if (ref) ref.list.splice(ref.index + 1, 0, ...blocks);
+    else doc.blocks.push(...blocks);
+    this.sel = blocks[blocks.length - 1].id;
+    this.commit(); this.render();
+    const el = this.blockEl(blocks[0].id); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const n = t => blocks.filter(b => b.type === t).length;
+    L.toast('Code LaTeX converti : ' + n('paragraph') + ' paragraphe(s), ' + n('equation') + ' équation(s)' + (n('heading') ? ', ' + n('heading') + ' titre(s)' : '') + '. Ctrl+Z pour annuler.');
+    return blocks.length;
+  },
   hydrateChips() {
     const info = L.computeNumbers(this.doc);
     L.hydrate(L.$('#paper'), { mode: 'edit', nums: info.nums, bib: info.bib, fn: 0, doc: this.doc });
@@ -1155,6 +1172,13 @@ App.bindEditor = function () {
     if (!field || field.dataset.f === 'code') return;
     e.preventDefault();
     let text = (cd.getData('text/plain') || '').replace(/\r/g, '');
+    // Code LaTeX (texte + formules) collé : conversion en paragraphes et équations
+    if (L.looksLikeLatexDoc(text) && field.dataset.b !== 'meta' && field.tagName !== 'TD') {
+      const blk0 = field.closest('.blk');
+      this.syncField(field);
+      this.insertLatex(text, { after: blk0 ? blk0.dataset.id : null });
+      return;
+    }
     const blk = field.closest('.blk');
     const f = blk && L.find(this.doc, blk.dataset.id);
     const paras = text.split(/\n\s*\n/).map(s => s.replace(/\s*\n\s*/g, ' ').trim()).filter(Boolean);

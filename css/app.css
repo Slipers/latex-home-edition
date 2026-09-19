@@ -374,3 +374,5 @@ p.rt.is-empty:not(:focus):not(.ph-last)::before { content: none; }
 .hf-grid { display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 6px; align-items: center; }
 .hf-grid input { padding: 6px 8px; border: 1px solid var(--line2); border-radius: 6px; font: inherit; width: 100%; }
 .hf-grid span { font-size: 12px; color: var(--mut); font-weight: 600; }
+
+.md-dochint { margin-top: 6px; padding: 7px 10px; border-radius: 7px; background: #fff8e6; border: 1px solid #f0dca5; color: #6b5310; font-size: 12px; }

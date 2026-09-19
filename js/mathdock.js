@@ -91,7 +91,13 @@ L.MathDock = (function () {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); ok(); }
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); }
     }, { capture: true });
-    L.$('#mdLatex').addEventListener('input', e => { mf.value = e.target.value; preview(e.target.value); });
+    L.$('#mdLatex').addEventListener('input', e => {
+      const v = e.target.value;
+      const doc = L.looksLikeLatexDoc(v);
+      L.$('#mdDocHint').hidden = !doc;
+      if (doc) return;              // texte + formules : converti à la validation
+      mf.value = v; preview(v);
+    });
     L.$('#chemIn').addEventListener('input', () => chemPreview());
     L.$('#chemIn').addEventListener('keydown', e => {
       if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); openSymbols('chem'); return; }
@@ -286,6 +292,21 @@ L.MathDock = (function () {
 
   function ok() {
     if (!target) return;
+    // Du texte LaTeX complet (phrases + formules) a été collé : on le convertit en blocs
+    const raw = !L.$('#mdLatex').hidden ? L.$('#mdLatex').value : mf.value;
+    if (mode === 'math' && L.looksLikeLatexDoc(raw)) {
+      const t = target;
+      target = null;
+      dock().hidden = true;
+      if (window.mathVirtualKeyboard) try { mathVirtualKeyboard.hide(); } catch (e) {}
+      if (t.kind === 'block') App.insertLatex(raw, { replace: t.blockId });
+      else {
+        const host = t.chip.closest('[data-f]'), blk = t.chip.closest('.blk');
+        t.chip.remove(); if (host) App.syncField(host);
+        App.insertLatex(raw, { after: blk ? blk.dataset.id : null });
+      }
+      return;
+    }
     const latex = current();
     preview(latex);
     target.latexNow = latex;
