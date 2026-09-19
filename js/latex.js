@@ -415,7 +415,7 @@ L.docToLatex = function (doc) {
   }
   const HF = L.hfToLatex(L.fixMeta(m), X);
   // Style des notes de bas de page (même présentation que l'éditeur : pas de « 1. » à la française)
-  if (m.lang !== 'en') P.push('\frenchsetup{FrenchFootnotes=false}');
+  if (m.lang !== 'en') P.push('\\frenchsetup{FrenchFootnotes=false}');
   if (m.fnStyle === 'crochets') P.push('\\renewcommand{\\thefootnote}{[\\arabic{footnote}]}', '\\makeatletter\\renewcommand{\\@makefnmark}{\\mbox{\\normalfont\\@thefnmark}}\\makeatother');
   else if (m.fnStyle === 'symboles') P.push('\\renewcommand{\\thefootnote}{\\fnsymbol{footnote}}');
   P.push('', '% En-têtes, pieds de page et numérotation');
