@@ -272,7 +272,8 @@ pre.texview { background: #f7f8fa; border: 1px solid var(--line); border-radius:
 @media print {
   @page { size: A4; margin: 0; }
   html, body { height: auto; overflow: visible; background: #fff; }
-  #app, #mathdock, #modal, #slashMenu, .toast { display: none !important; }
+  /* Seules les pages du document sont imprimées : aucune mention de l'application */
+  body > *:not(#printRoot) { display: none !important; }
   #printRoot { display: block; }
   #printRoot .page { box-shadow: none; break-after: page; page-break-after: always; }
   #printRoot .page:last-child { break-after: auto; page-break-after: auto; }

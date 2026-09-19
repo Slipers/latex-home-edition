@@ -129,9 +129,15 @@ Object.assign(App, {
     L.MathDock.cancel();
     L.toast('Préparation du PDF…');
     await this.preparePrint();
-    if (window.lheDesktop) { await lheDesktop.exportPdf(this.baseName()); return; }
+    if (window.lheDesktop) {
+      // Titre du PDF = nom du document (sans le nom de l'application)
+      const old = document.title;
+      document.title = L.plain(this.doc.meta.title) || this.baseName();
+      try { await lheDesktop.exportPdf(this.baseName()); } finally { document.title = old; }
+      return;
+    }
     const old = document.title;
-    document.title = this.baseName();
+    document.title = L.plain(this.doc.meta.title) || this.baseName();
     setTimeout(() => {
       window.print();
       document.title = old;
