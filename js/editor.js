@@ -123,6 +123,7 @@ Object.assign(App, {
   /* ================= Rendu ================= */
   render() {
     const paper = L.$('#paper');
+    const anchor = this.captureAnchor();
     paper.className = 'paper ' + L.pageClasses(this.doc.meta);
     const flow = L.renderDoc(this.doc, 'edit');
     paper.replaceChildren(flow);
@@ -130,12 +131,65 @@ Object.assign(App, {
     this.updateOutline();
     this.updateProps();
     this.updateName();
+    this.layoutSheets(true);
+    this.restoreAnchor(anchor);
     if (this.focusAfter) {
       const fa = this.focusAfter; this.focusAfter = null;
       this.applyFocus(fa);
     }
-    this.drawPageMarks();
     this.pagesSoon();
+  },
+
+  /* ================= Pas de défilement parasite =================
+     Avant de redessiner, on retient où se trouve à l'écran le bloc en cours d'édition ;
+     après, on remet ce bloc exactement au même endroit. */
+  captureAnchor() {
+    const desk = L.$('#desk');
+    const ids = [];
+    const ae = document.activeElement;
+    const ab = ae && ae.closest && ae.closest('#paper .blk');
+    if (ab) ids.push(ab.dataset.id);
+    if (this.focusAfter && this.focusAfter.id) ids.push(this.focusAfter.id);
+    if (this.sel) ids.push(this.sel);
+    const top0 = desk.getBoundingClientRect().top;
+    const list = [];
+    ids.forEach(id => { const el = this.blockEl(id); if (el) list.push({ id, y: el.getBoundingClientRect().top - top0 }); });
+    // Sinon : le premier bloc visible
+    if (!list.length) {
+      const vis = L.$$('#paper .flow > .blk').find(el => el.getBoundingClientRect().bottom > top0 + 10);
+      if (vis) list.push({ id: vis.dataset.id, y: vis.getBoundingClientRect().top - top0 });
+    }
+    return { list, scroll: desk.scrollTop };
+  },
+  restoreAnchor(a) {
+    if (!a) return;
+    const desk = L.$('#desk');
+    desk.scrollTop = a.scroll;
+    const top0 = desk.getBoundingClientRect().top;
+    for (const c of a.list) {
+      const el = this.blockEl(c.id);
+      if (!el) continue;
+      desk.scrollTop += (el.getBoundingClientRect().top - top0) - c.y;
+      return;
+    }
+  },
+  /* Fait défiler du strict minimum (sans animation) pour que le curseur soit visible */
+  ensureCaretVisible(target) {
+    const desk = L.$('#desk');
+    let r = null;
+    const s = window.getSelection();
+    if (!target && s.rangeCount && L.$('#paper').contains(s.anchorNode)) {
+      r = s.getRangeAt(0).getBoundingClientRect();
+      if (!r.top && !r.bottom) r = null;
+    }
+    if (!r && target) r = target.getBoundingClientRect();
+    if (!r && s.rangeCount) { const n = s.anchorNode; const el = n && (n.nodeType === 1 ? n : n.parentElement); if (el) r = el.getBoundingClientRect(); }
+    if (!r) return;
+    const d = desk.getBoundingClientRect();
+    const dock = L.$('#mathdock');
+    const bottomLimit = d.bottom - 40 - (dock && !dock.hidden ? dock.offsetHeight : 0);
+    if (r.top < d.top + 30) desk.scrollTop -= (d.top + 30 - r.top);
+    else if (r.bottom > bottomLimit) desk.scrollTop += Math.min(r.bottom - bottomLimit, r.top - d.top - 30);
   },
 
   /* ================= Changements de page visibles pendant l'écriture ================= */
@@ -157,10 +211,24 @@ Object.assign(App, {
      insérés aux endroits exacts où la mise en page du PDF change de page, et les feuilles
      (avec en-tête et pied de page) sont dessinées derrière le texte. */
   drawPageMarks() { this.layoutSheets(); },
-  layoutSheets() {
+  layoutSheets(noAnchor) {
     const paper = L.$('#paper');
     const flow = paper.querySelector(':scope > .flow');
     if (!flow) return;
+    // Point d'ancrage : le curseur (ou le premier bloc visible), pour garder l'écran immobile
+    const desk = L.$('#desk'), dTop = desk.getBoundingClientRect().top;
+    let anc = null;
+    if (!noAnchor) {
+      const s0 = window.getSelection();
+      if (s0.rangeCount && paper.contains(s0.anchorNode)) {
+        const rg = s0.getRangeAt(0).cloneRange(), rc = rg.getBoundingClientRect();
+        if (rc.top || rc.bottom) anc = { range: rg, y: rc.top - dTop };
+      }
+      if (!anc) {
+        const vis = L.$$('#paper .flow > .blk').find(el => el.getBoundingClientRect().bottom > dTop + 10);
+        if (vis) anc = { el: vis, y: vis.getBoundingClientRect().top - dTop };
+      }
+    }
     // 1. On retire les espaces de la mise en page précédente
     paper.querySelectorAll('.pg-sp').forEach(x => x.remove());
     paper.querySelectorAll('.pg-float').forEach(x => { const p = x.parentNode; x.remove(); if (p) p.normalize(); });
@@ -205,13 +273,16 @@ Object.assign(App, {
       layer.appendChild(el);
     });
     this.sheets = sheets;
-    this.updatePageIndicator();
-    // Le curseur a été poussé sur la page suivante : on le garde visible
-    const s = window.getSelection();
-    if (s.rangeCount && paper.contains(s.anchorNode) && document.activeElement && paper.contains(document.activeElement)) {
-      const r = s.getRangeAt(0).getBoundingClientRect(), d = L.$('#desk').getBoundingClientRect();
-      if (r.bottom && r.bottom > d.bottom - 30) L.$('#desk').scrollBy({ top: r.bottom - d.bottom + 80 });
+    // Remet le point d'ancrage au même endroit de l'écran
+    if (anc) {
+      let y = null;
+      if (anc.range) { try { const rc = anc.range.getBoundingClientRect(); if (rc.top || rc.bottom) y = rc.top; } catch (e) {} }
+      else if (anc.el && document.contains(anc.el)) y = anc.el.getBoundingClientRect().top;
+      if (y !== null) desk.scrollTop += (y - dTop) - anc.y;
     }
+    this.updatePageIndicator();
+    // Si le texte a été poussé sur la page suivante, on garde le curseur visible (sans animation)
+    if (document.activeElement && paper.contains(document.activeElement)) this.ensureCaretVisible();
   },
   /* Où couper dans l'éditeur ? Début du bloc, ou début de la ligne correspondant à la coupure du PDF */
   breakPoint(paper, b) {
@@ -317,8 +388,7 @@ Object.assign(App, {
     else r.collapse(true);
     sel.removeAllRanges(); sel.addRange(r);
     if (found) this.syncField(field);
-    const rect = field.getBoundingClientRect(), desk = L.$('#desk').getBoundingClientRect();
-    if (rect.top < desk.top + 20 || rect.bottom > desk.bottom - 40) field.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    this.ensureCaretVisible();
   },
   placeCaretAfter(node) {
     const field = node.closest('[data-f]');
@@ -411,7 +481,7 @@ Object.assign(App, {
     if (block.type === 'equation') L.MathDock.open({ kind: 'block', blockId: block.id, isNew: true });
     if (block.type === 'figure' && !opts.noPick) this.pickImage(block.id);
     const el = this.blockEl(block.id);
-    if (el && !focusMap[block.type]) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    if (el && !focusMap[block.type]) this.ensureCaretVisible(el);
     return block;
   },
   removeBlock(id, focusPrev = true) {
@@ -433,7 +503,7 @@ Object.assign(App, {
     if (j < 0 || j >= f.list.length) return;
     [f.list[f.index], f.list[j]] = [f.list[j], f.list[f.index]];
     this.commit(); this.render();
-    const el = this.blockEl(id); if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const el = this.blockEl(id); if (el) this.ensureCaretVisible(el);
   },
   duplicate(id) {
     const f = L.find(this.doc, id);
@@ -652,7 +722,7 @@ Object.assign(App, {
     else doc.blocks.push(...blocks);
     this.sel = blocks[blocks.length - 1].id;
     this.commit(); this.render();
-    const el = this.blockEl(blocks[0].id); if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    const el = this.blockEl(blocks[0].id); if (el) this.ensureCaretVisible(el);
     const n = t => blocks.filter(b => b.type === t).length;
     L.toast('Code LaTeX converti : ' + n('paragraph') + ' paragraphe(s), ' + n('equation') + ' équation(s)' + (n('heading') ? ', ' + n('heading') + ' titre(s)' : '') + '. Ctrl+Z pour annuler.');
     return blocks.length;
