@@ -52,6 +52,9 @@ L.htmlToLatex = function (html, X) {
       const inner = walk(n);
       const col = Array.from(c).find(k => k.startsWith('c-') && L.TEXT_COLORS[k.slice(2)]);
       if (col) { X.colors = true; out += '\\textcolor{lhe' + col.slice(2) + '}{' + inner + '}'; return; }
+      const sz = Array.from(c).find(k => L.TEXT_SIZES[k]);
+      if (sz) { out += '{\\' + L.TEXT_SIZES[sz][1] + ' ' + inner + '}'; return; }
+      if (c.contains('hfill')) { out += '\\hfill{}'; return; }
       switch (n.tagName) {
         case 'B': case 'STRONG': out += '\\textbf{' + inner + '}'; break;
         case 'I': case 'EM': out += '\\emph{' + inner + '}'; break;
@@ -71,20 +74,24 @@ L.htmlToLatex = function (html, X) {
 const LST_LANG = { python: 'Python', c: 'C', cpp: 'C++', java: 'Java', matlab: 'Matlab', r: 'R', html: 'HTML', sql: 'SQL', bash: 'bash', javascript: '', texte: '' };
 
 /* Numéro forcé : \setcounter avant le bloc, pour que LaTeX suive la même numérotation */
-L.forceCounter = function (b) {
+L.forceCounter = function (b, X) {
   if (b.forceNum === undefined || b.forceNum === null || b.forceNum === '' || isNaN(+b.forceNum)) return '';
   let c = null;
   if (b.type === 'heading' && b.numbered && b.level <= 3) c = ['section', 'subsection', 'subsubsection'][b.level - 1];
   else if (b.type === 'equation' && b.numbered) c = 'equation';
   else if (b.type === 'table' && (b.capMode || 'num') === 'num') c = 'table';
   else if (b.type === 'figure' && (b.capMode || 'num') === 'num') c = 'figure';
-  else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) c = b.kind;
+  else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) {
+    const cn = (b.customName || '').trim(), st = (L.KINDS[b.kind] || {}).style;
+    const cu = cn && X && X.custom ? X.custom.find(x => x.name === cn && x.style === st) : null;
+    c = cu ? cu.env : b.kind;
+  }
   return c ? '\\setcounter{' + c + '}{' + (+b.forceNum - 1) + '}\n' : '';
 };
 
 L.blockToLatex = function (b, X, indent = '') {
-  const pre = L.forceCounter(b);
   const out = L.blockToLatexRaw(b, X, indent);
+  const pre = L.forceCounter(b, X);
   return out && pre ? pre + out : out;
 };
 
@@ -96,7 +103,8 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       const t = R(b.html);
       if (b.align === 'center') return '\\begin{center}\n' + t + '\n\\end{center}';
       if (b.align === 'right') return '\\begin{flushright}\n' + t + '\n\\end{flushright}';
-      return (b.noindent ? '\\noindent ' : '') + t;
+      if (b.align === 'left') return '\\begin{flushleft}\n' + t + '\n\\end{flushleft}';
+      return (b.noindent || /\\hfill/.test(t) ? '\\noindent ' : '') + t;
     }
     case 'heading': {
       const cmd = ['section', 'subsection', 'subsubsection', 'paragraph'][Math.min(b.level, 4) - 1];
@@ -117,10 +125,21 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       const k = L.KINDS[b.kind] || L.KINDS.theoreme;
       const inner = b.children.map(c => L.blockToLatex(c, X)).filter(Boolean).join('\n\n') || '\\mbox{}';
       if (k.style === 'abstract') return '\\begin{abstract}\n' + inner + '\n\\end{abstract}';
-      if (b.kind === 'preuve') return '\\begin{proof}' + (b.title ? '[' + L.texEsc(b.title) + ']' : '') + '\n' + inner + '\n\\end{proof}';
-      if (b.kind === 'solution') return '\\begin{proof}[' + L.texEsc(b.title || L.kindName('solution', X.lang)) + ']\n' + inner + '\n\\end{proof}';
-      const env = b.kind + (b.numbered ? '' : '*');
-      X.envs.add(env);
+      const cname = (b.customName || '').trim();
+      if (b.kind === 'preuve') return '\\begin{proof}' + (cname || b.title ? '[' + L.texEsc(cname || b.title) + ']' : '') + '\n' + inner + '\n\\end{proof}';
+      if (b.kind === 'solution') return '\\begin{proof}[' + L.texEsc(cname || b.title || L.kindName('solution', X.lang)) + ']\n' + inner + '\n\\end{proof}';
+      let env;
+      if (cname) {
+        // Nom personnalisé : un environnement dédié (même style que le type d'origine)
+        X.custom = X.custom || [];
+        let c = X.custom.find(x => x.name === cname && x.style === k.style);
+        if (!c) { c = { name: cname, style: k.style, env: 'lhecustom' + String.fromCharCode(97 + X.custom.length % 26) + (X.custom.length >= 26 ? 'x' : ''), star: false, num: false }; X.custom.push(c); }
+        if (b.numbered) c.num = true; else c.star = true;
+        env = c.env + (b.numbered ? '' : '*');
+      } else {
+        env = b.kind + (b.numbered ? '' : '*');
+        X.envs.add(env);
+      }
       return '\\begin{' + env + '}' + (b.title ? '[' + L.texEsc(b.title) + ']' : '') +
         (b.numbered ? '\\label{' + L.labelOf(b) + '}' : '') + '\n' + inner + '\n\\end{' + env + '}';
     }
@@ -184,6 +203,8 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       return '\\begin{lstlisting}' + (opts.length ? '[' + opts.join(', ') + ']' : '') + '\n' + (b.code || '') + '\n\\end{lstlisting}';
     }
     case 'tabvar': return L.tabvarToLatex(b, X);
+    case 'rule': return '\\par\\noindent\\rule{\\linewidth}{0.4pt}\\par';
+    case 'vspace': return '\\par' + (L.VSPACES[b.size || 'moyen'] || L.VSPACES.moyen)[1];
     case 'cols': {
       const r = (b.ratio || 50) / 100;
       const ws = [r - 0.02, 1 - r - 0.02];
@@ -227,8 +248,10 @@ L.captionToLatex = function (b, X, kind) {
   if (mode === 'none') return '';
   const t = L.htmlToLatex(b.caption, X);
   if (mode === 'nonum') return kind === 'table' ? t + '\\par\\vspace{10pt}' : '\\vspace{10pt}' + t + '\\par';
-  if (X.inCols) { X.pk.add('capt-of'); return '\\captionof{' + kind + '}{' + t + '}\\label{' + L.labelOf(b) + '}'; }
-  return '\\caption{' + t + '}\\label{' + L.labelOf(b) + '}';
+  // Nom propre à cet objet (« Graphique 1 – ») : redéfini localement
+  const own = (b.capLabel || '').trim() ? '\\renewcommand{\\' + kind + 'name}{' + L.texEsc(b.capLabel.trim()) + '}' : '';
+  if (X.inCols) { X.pk.add('capt-of'); return own + '\\captionof{' + kind + '}{' + t + '}\\label{' + L.labelOf(b) + '}'; }
+  return own + '\\caption{' + t + '}\\label{' + L.labelOf(b) + '}';
 };
 
 /* En-têtes et pieds de page (fancyhdr) + numérotation des pages */
@@ -238,7 +261,8 @@ L.hfToLatex = function (m, X) {
   if (fmt === 'none' && !hasText) return { pre: ['\\pagestyle{empty}'], empty: true };
   const lang = m.lang || 'fr';
   const P = lang === 'en' ? 'Page' : 'Page', S = lang === 'en' ? 'of' : 'sur';
-  const num = { arabic: '\\thepage', 'n/N': '\\thepage/\\pageref{LastPage}', page: P + '~\\thepage', 'page-sur': P + '~\\thepage{} ' + S + ' \\pageref{LastPage}', tirets: '--~\\thepage~--' }[fmt] || '';
+  const num0 = { arabic: '\\thepage', 'n/N': '\\thepage/\\pageref{LastPage}', page: P + '~\\thepage', 'page-sur': P + '~\\thepage{} ' + S + ' \\pageref{LastPage}', tirets: '--~\\thepage~--' }[fmt] || '';
+  const num = !num0 ? '' : m.numStyle === 'gras' ? '\\textbf{' + num0 + '}' : m.numStyle === 'cadre' ? '\\fbox{' + num0 + '}' : num0;
   const tok = s => L.texEsc(s || '')
     .replace(/\\\{titre\\\}/g, L.texEsc(L.plain(m.title))).replace(/\\\{auteur\\\}/g, L.texEsc(L.plain(m.author)))
     .replace(/\\\{date\\\}/g, L.texEsc(L.plain(m.date)));
@@ -268,7 +292,8 @@ L.listToLatex = function (b, X) {
     alpha: ['\\alph*)', '\\roman*.', '\\Alph*.'],
     roman: ['\\roman*)', '\\alph*.', '\\Alph*.'],
   }[b.style];
-  const envOf = lv => lab ? '\\begin{enumerate}[label=' + lab[lv] + ']' : '\\begin{itemize}';
+  const start = b.start !== undefined && b.start !== '' && !isNaN(+b.start) ? Math.trunc(+b.start) : 1;
+  const envOf = lv => lab ? '\\begin{enumerate}[label=' + lab[lv] + (lv === 0 && start !== 1 ? ', start=' + start : '') + ']' : '\\begin{itemize}';
   const endOf = () => lab ? '\\end{enumerate}' : '\\end{itemize}';
   let out = [], cur = -1;
   b.items.forEach(it => {
@@ -276,6 +301,8 @@ L.listToLatex = function (b, X) {
     const target = Math.min(lv, cur + 1);
     while (cur < target) { cur++; out.push('  '.repeat(cur) + envOf(cur)); }
     while (cur > target) { out.push('  '.repeat(cur) + endOf()); cur--; }
+    // Numéro choisi pour cette question
+    if (lab && it.num !== undefined && it.num !== '' && !isNaN(+it.num)) out.push('  '.repeat(cur + 1) + '\\setcounter{enum' + ['i', 'ii', 'iii'][cur] + '}{' + (Math.trunc(+it.num) - 1) + '}');
     out.push('  '.repeat(cur + 1) + '\\item ' + (L.htmlToLatex(it.html, X) || '\\mbox{}'));
   });
   while (cur >= 0) { out.push('  '.repeat(cur) + endOf()); cur--; }
@@ -336,8 +363,9 @@ L.docToLatex = function (doc) {
   if (X.pk.has('tkz-tab')) P.push('\\usepackage{tkz-tab}');
   if (/\\coloneqq/.test(body)) P.push('\\usepackage{mathtools}');
   if (/\\cancel\{/.test(body)) P.push('\\usepackage{cancel}');
-  if (m.margins === 'normales') P.push('\\usepackage[a4paper,margin=2.5cm]{geometry}');
-  else if (m.margins === 'etroites') P.push('\\usepackage[a4paper,margin=1.5cm]{geometry}');
+  // footskip : pied de page à ~12 mm du bord (mêmes valeurs que l'éditeur)
+  if (m.margins === 'normales') P.push('\\usepackage[a4paper,margin=2.5cm,footskip=13mm]{geometry}');
+  else if (m.margins === 'etroites') P.push('\\usepackage[a4paper,margin=1.5cm,bottom=2.2cm,footskip=10mm]{geometry}');
   if (m.spacing === 1.5) P.push('\\usepackage{setspace}\n\\onehalfspacing');
   if (m.boxedThm && X.envs.size) P.push('\\usepackage{mdframed}');
   if (X.pk.has('listings')) {
@@ -374,6 +402,15 @@ L.docToLatex = function (doc) {
       });
     }
     if (m.boxedThm) X.envs.forEach(env => P.push('\\surroundwithmdframed{' + env + '}'));
+  }
+  if (X.custom && X.custom.length) {
+    P.push('% Encadrés aux noms personnalisés');
+    X.custom.forEach(c => {
+      P.push('\\theoremstyle{' + (['plain', 'definition', 'remark'].includes(c.style) ? c.style : 'plain') + '}');
+      if (c.num) P.push('\\newtheorem{' + c.env + '}{' + L.texEsc(c.name) + '}' + (m.thmBySection ? '[section]' : ''));
+      if (c.star) P.push('\\newtheorem*{' + c.env + '*}{' + L.texEsc(c.name) + '}');
+      if (m.boxedThm) { if (c.num) P.push('\\surroundwithmdframed{' + c.env + '}'); if (c.star) P.push('\\surroundwithmdframed{' + c.env + '*}'); }
+    });
   }
   const HF = L.hfToLatex(L.fixMeta(m), X);
   P.push('', '% En-têtes, pieds de page et numérotation');

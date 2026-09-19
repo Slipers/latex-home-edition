@@ -14,7 +14,7 @@ L.listMark = function (style, level, n, lang) {
 };
 
 L.hydrate = function (root, ctx) {
-  root.querySelectorAll('.imath, .xref, .cite, .fn, .timg').forEach(el => {
+  root.querySelectorAll('.imath, .xref, .cite, .fn, .timg, .hfill').forEach(el => {
     if (ctx.mode === 'edit') el.setAttribute('contenteditable', 'false');
     if (el.classList.contains('timg')) {
       const doc = ctx.doc || (window.App && App.doc);
@@ -33,6 +33,8 @@ L.hydrate = function (root, ctx) {
     } else if (el.classList.contains('cite')) {
       const n = ctx.bib[el.dataset.ref];
       el.textContent = '[' + (n || '?') + ']';
+    } else if (el.classList.contains('hfill')) {
+      el.textContent = '';
     } else if (el.classList.contains('fn')) {
       ctx.fn = (ctx.fn || 0) + 1;
       el.dataset.n = ctx.fn;
@@ -162,7 +164,7 @@ L.R = {
   unknown: (b) => L.h('div', { text: 'Bloc inconnu : ' + b.type }),
 
   paragraph(b, ctx) {
-    const cls = 'para' + (b.noindent ? ' noindent' : '') + (b.align && b.align !== 'justify' ? ' ' + b.align : '');
+    const cls = 'para' + (b.noindent ? ' noindent' : '') + (b.align && b.align !== 'justify' ? ' ' + b.align : '') + (/class="hfill"/.test(b.html || '') ? ' has-hfill' : '');
     const p = L.rich(ctx, 'p', cls, b.html, b.id, 'html', 'Écrivez ici…  (tapez « / » pour insérer un élément)');
     if (ctx.mode === 'edit' && ctx.lastEmpty === b.id) p.classList.add('ph-last');
     return p;
@@ -190,10 +192,11 @@ L.R = {
 
   list(b, ctx) {
     const el = L.h('div', { class: 'lst lst-' + b.style });
-    const counters = [0, 0, 0];
+    const start = b.start !== undefined && b.start !== '' && !isNaN(+b.start) ? Math.trunc(+b.start) : 1;
+    const counters = [start - 1, 0, 0];
     b.items.forEach((it, i) => {
       const lv = Math.min(it.level || 0, 2);
-      counters[lv]++;
+      counters[lv] = it.num !== undefined && it.num !== '' && !isNaN(+it.num) ? Math.trunc(+it.num) : counters[lv] + 1;
       for (let k = lv + 1; k < 3; k++) counters[k] = 0;
       const mark = L.listMark(b.style, lv, counters[lv], ctx.lang);
       el.appendChild(L.h('div', { class: 'li lv' + lv, 'data-i': i },
@@ -215,7 +218,7 @@ L.R = {
     if (k.style !== 'abstract') {
       const n = ctx.nums[b.id];
       head = L.h('span', { class: 'env-head-inline' },
-        L.h('span', { class: 'env-head', text: L.kindName(b.kind, lang) + (n ? ' ' + n.num : '') }),
+        L.h('span', { class: 'env-head', text: ((b.customName || '').trim() || L.kindName(b.kind, lang)) + (n ? ' ' + n.num : '') }),
         b.title ? L.h('span', { class: 'env-note', text: ' (' + b.title + ')' }) : null,
         L.h('span', { class: 'env-head' }, '.'), ' ');
       if (ctx.mode !== 'edit') L.typo(head, lang);
@@ -324,9 +327,9 @@ L.caption = function (b, ctx, kind, ph) {
   const mode = b.capMode || 'num';
   if (mode === 'none') return null;
   const n = ctx.nums[b.id];
-  const cn = L.capName(ctx.meta, kind);
+  const cn = L.capName(ctx.meta, kind, b);
   const box = L.h('div', { class: 'caption' });
-  if (mode === 'num') box.appendChild(L.h('span', { class: 'cap-lab' + (cn.custom || ctx.lang === 'en' ? '' : ' sc'), contenteditable: ctx.mode === 'edit' ? 'false' : null },
+  if (mode === 'num') box.appendChild(L.h('span', { class: 'cap-lab' + (ctx.lang === 'en' ? '' : ' sc'), contenteditable: ctx.mode === 'edit' ? 'false' : null },
     L.h('span', { class: 'cap-name', text: cn.text }), ' ' + (n ? n.num : '') + ' – '));
   box.appendChild(L.rich(ctx, 'span', 'cap-text', b.caption, b.id, 'caption', ph));
   return box;
@@ -344,6 +347,11 @@ L.R.cols = function (b, ctx) {
   });
   return el;
 };
+
+/* Ligne de séparation et espace vertical */
+L.R.rule = (b, ctx) => L.h('div', { class: 'hrule' }, L.h('div', { class: 'hrule-line' }));
+L.R.vspace = (b, ctx) => L.h('div', { class: 'vspace vs-' + (b.size || 'moyen') },
+  ctx.mode === 'edit' ? L.h('span', { class: 'vspace-lab', contenteditable: 'false', text: 'Espace ' + (L.VSPACES[b.size || 'moyen'] || ['moyen'])[0].toLowerCase() }) : null);
 
 L.bibHtml = function (e) {
   const parts = [];

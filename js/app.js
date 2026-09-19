@@ -231,7 +231,12 @@ window.addEventListener('DOMContentLoaded', () => {
     pdf: () => App.print(),
     print: () => App.print(),
     'latex-menu': () => L.$('#latexMenu').classList.toggle('open'),
-    'color-menu': () => L.$('#colorMenu').classList.toggle('open'),
+    'color-menu': () => App.toggleMenu('#colorMenu'),
+    'size-menu': () => App.toggleMenu('#sizeMenu'),
+    'align-menu': () => App.toggleMenu('#alignMenu'),
+    'list-menu': () => App.toggleMenu('#listMenu'),
+    find: () => L.FindBar.open(),
+    hfill: () => { App.closeMenus(); App.insertHfill(); },
     tex: () => App.exportTex(),
     zip: () => App.exportZip(),
     viewtex: () => L.dlgViewTex(),
@@ -241,9 +246,9 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   document.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-act], [data-fmt]');
-    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
-    if (e.target.closest('[data-color]')) e.preventDefault();
-    if (!e.target.closest('.dropdown')) { L.$('#latexMenu').classList.remove('open'); L.$('#colorMenu').classList.remove('open'); }
+    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu', 'size-menu', 'align-menu', 'list-menu', 'hfill'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
+    if (e.target.closest('[data-color], [data-size], [data-align], [data-list]')) e.preventDefault();
+    if (!e.target.closest('.dropdown')) App.closeMenus();
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]');
@@ -252,7 +257,13 @@ window.addEventListener('DOMContentLoaded', () => {
       acts[b.dataset.act]();
     }
     const cc = e.target.closest('[data-color]');
-    if (cc) { L.$('#colorMenu').classList.remove('open'); App.setColor(cc.dataset.color); }
+    if (cc) { App.closeMenus(); App.setColor(cc.dataset.color); }
+    const sz = e.target.closest('[data-size]');
+    if (sz) { App.closeMenus(); App.setSize(sz.dataset.size); }
+    const al = e.target.closest('[data-align]');
+    if (al) { App.closeMenus(); App.setAlign(al.dataset.align); }
+    const li = e.target.closest('[data-list]');
+    if (li) { App.closeMenus(); App.toList(li.dataset.list); }
     const f = e.target.closest('[data-fmt]');
     if (f) App.format(f.dataset.fmt);
     const z = e.target.closest('[data-zoom]');
@@ -277,6 +288,8 @@ window.addEventListener('DOMContentLoaded', () => {
     else if (k === 'o') { e.preventDefault(); App.open(); }
     else if (k === 'p') { e.preventDefault(); App.print(); }
     else if (k === 'm' && e.shiftKey) { e.preventDefault(); App.insertBlock(L.newBlock('equation')); }
+    else if (k === 'f' || k === 'h') { e.preventDefault(); L.FindBar.open(k === 'h'); }
+    else if (['e', 'l', 'r', 'j'].includes(k) && !e.shiftKey && !e.altKey) { e.preventDefault(); App.setAlign({ e: 'center', l: 'left', r: 'right', j: 'justify' }[k]); }
     else if (k === 'm') { e.preventDefault(); App.insertInlineMath(); }
   });
 

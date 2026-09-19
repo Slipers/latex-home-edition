@@ -25,6 +25,7 @@
       <div class="tb-group">
         <button data-act="undo" title="Annuler (Ctrl+Z)"><i>↶</i></button>
         <button data-act="redo" title="Rétablir (Ctrl+Y)"><i>↷</i></button>
+        <button data-act="find" title="Rechercher et remplacer (Ctrl+F)"><i>⌕</i></button>
       </div>
       <div class="tb-group fmt">
         <button data-fmt="bold" title="Gras (Ctrl+B)"><b>G</b></button>
@@ -43,6 +44,36 @@
             <button data-color="orange" title="Orange" style="color:#E07000">A</button>
             <button data-color="violet" title="Violet" style="color:#7B2FBE">A</button>
             <button data-color="gris" title="Gris" style="color:#6B6B6B">A</button>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button data-act="size-menu" title="Taille du texte sélectionné"><span style="font-size:11px">A</span><span style="font-size:15px;margin-left:-3px">A</span></button>
+          <div class="menu mini-menu" id="sizeMenu">
+            <button data-size="s-small"><small>Petit</small></button>
+            <button data-size="">Normal</button>
+            <button data-size="s-large" style="font-size:15px">Grand</button>
+            <button data-size="s-Large" style="font-size:17px">Très grand</button>
+            <button data-size="s-LARGE" style="font-size:20px">Énorme</button>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button data-act="align-menu" title="Alignement du paragraphe (Ctrl+J / L / E / R)" class="ic-align">☰</button>
+          <div class="menu mini-menu" id="alignMenu">
+            <button data-align="justify">▤ Justifié <kbd>Ctrl+J</kbd></button>
+            <button data-align="left">⫷ À gauche <kbd>Ctrl+L</kbd></button>
+            <button data-align="center">☰ Centré <kbd>Ctrl+E</kbd></button>
+            <button data-align="right">⫸ À droite <kbd>Ctrl+R</kbd></button>
+            <hr>
+            <button data-act="hfill">⟷ Espace extensible <small>(pousse la suite à droite)</small></button>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button data-act="list-menu" title="Listes et questions">≔</button>
+          <div class="menu mini-menu" id="listMenu">
+            <button data-list="bullet">–  Liste à puces</button>
+            <button data-list="number">1.  Questions numérotées</button>
+            <button data-list="alpha">a)  Questions a), b), c)</button>
+            <button data-list="roman">i)  Questions i), ii), iii)</button>
           </div>
         </div>
       </div>
@@ -169,6 +200,7 @@
 <script src="js/symbols.js"></script>
 <script src="js/sciences.js"></script>
 <script src="js/import.js"></script>
+<script src="js/find.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>
 <script src="js/editor.js"></script>

@@ -7,7 +7,7 @@
   --fs: 10.95pt; --lh: 13.6pt; --fs-small: 10pt; --fs-foot: 9pt; --lh-foot: 11pt;
   --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt;
   --parindent: 17pt; --stretch: 1;
-  --m-top: 37mm; --m-bottom: 45mm; --m-side: 41.5mm;
+  --m-top: 37mm; --m-bottom: 45mm; --m-side: 41.5mm; --footskip: 30pt;
   font-family: "CMU Serif", "Latin Modern Roman", "Computer Modern", Georgia, serif;
   font-size: var(--fs);
   line-height: calc(var(--lh) * var(--stretch));
@@ -26,8 +26,8 @@
 .spacing-15.fs-10 { --stretch: 1.25; }
 .spacing-15.fs-11 { --stretch: 1.213; }
 .spacing-15.fs-12 { --stretch: 1.241; }
-.margins-normales { --m-top: 25mm; --m-bottom: 25mm; --m-side: 25mm; }
-.margins-etroites { --m-top: 15mm; --m-bottom: 15mm; --m-side: 15mm; }
+.margins-normales { --m-top: 25mm; --m-bottom: 25mm; --m-side: 25mm; --footskip: 13mm; }
+.margins-etroites { --m-top: 15mm; --m-bottom: 22mm; --m-side: 15mm; --footskip: 10mm; }
 
 .paper .katex, .page .katex { font-size: 1em; line-height: normal; text-indent: 0; }
 .paper .katex-display, .page .katex-display { margin: 0; }
@@ -192,7 +192,7 @@
 .page .page-foot .fn sup { font-size: .75em; }
 /* En-têtes et pieds de page (fancyhdr : headsep 25pt, footskip 30pt) */
 .page .page-head, .sheet .page-head { position: absolute; left: var(--m-side); right: var(--m-side); top: calc(var(--m-top) - 25pt - var(--lh)); height: var(--lh); display: grid; grid-template-columns: 1fr auto 1fr; gap: 1em; text-indent: 0; line-height: var(--lh); }
-.page .page-hfoot, .sheet .page-hfoot { position: absolute; left: var(--m-side); right: var(--m-side); bottom: calc(var(--m-bottom) - 30pt - var(--lh)); height: var(--lh); display: grid; grid-template-columns: 1fr auto 1fr; gap: 1em; text-indent: 0; line-height: var(--lh); margin: 0; font-size: var(--fs); }
+.page .page-hfoot, .sheet .page-hfoot { position: absolute; left: var(--m-side); right: var(--m-side); bottom: calc(var(--m-bottom) - var(--footskip) - 0.25 * var(--lh)); height: var(--lh); display: grid; grid-template-columns: 1fr auto 1fr; gap: 1em; text-indent: 0; line-height: var(--lh); margin: 0; font-size: var(--fs); }
 .page-head.ruled { border-bottom: 0.4pt solid #000; padding-bottom: 3pt; }
 .page-hfoot.ruled { border-top: 0.4pt solid #000; padding-top: 3pt; }
 .hf-l { text-align: left; } .hf-c { text-align: center; } .hf-r { text-align: right; }
@@ -209,3 +209,16 @@
 .tv-v { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; line-height: 1; }
 .tv-v.tv-zero { background: #fff; padding: 0 2px; }
 .doc-titlepage .t-extra { margin-top: .8em; }
+
+/* --------- Alignement, tailles, espaces --------- */
+.para.left { text-align: left; text-indent: 0; }
+.para.has-hfill { display: flex; align-items: baseline; text-indent: 0; }
+.hfill { flex: 1 1 auto; display: inline-block; min-width: .5em; }
+.s-small { font-size: var(--fs-small); } .s-large { font-size: var(--fs-large); }
+.s-Large { font-size: var(--fs-Large); } .s-LARGE { font-size: var(--fs-LARGE); }
+.hrule { margin: calc(var(--fs) * .6) 0; text-indent: 0; }
+.hrule-line { border-top: 0.4pt solid #000; }
+.vspace { position: relative; text-indent: 0; }
+.vspace.vs-petit { height: 3pt; } .vspace.vs-moyen { height: 6pt; } .vspace.vs-grand { height: 12pt; } .vspace.vs-tresgrand { height: 1cm; }
+.pn-gras { font-weight: 700; }
+.pn-cadre { border: 0.4pt solid #000; padding: 0 3pt; }

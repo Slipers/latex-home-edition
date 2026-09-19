@@ -135,6 +135,8 @@ L.dlgSettings = function (section) {
       L.h('div', { class: 'field' }, L.h('label', { text: 'Format des numéros' }), sel('numFormat', L.NUM_FORMATS)),
       L.h('div', { class: 'field' }, L.h('label', { text: 'Position du numéro' }), sel('numPos', [['foot-c', 'Pied, centre'], ['foot-r', 'Pied, droite'], ['foot-l', 'Pied, gauche'], ['head-r', 'En-tête, droite'], ['head-c', 'En-tête, centre'], ['head-l', 'En-tête, gauche']])),
       L.h('div', { class: 'field' }, L.h('label', { text: 'Premier numéro de page' }), start)),
+    L.h('div', { class: 'grid3' },
+      L.h('div', { class: 'field' }, L.h('label', { text: 'Style du numéro' }), sel('numStyle', [['normal', 'Normal'], ['gras', 'Gras'], ['cadre', 'Encadré']]))),
     chk('headRule', 'Trait sous l\'en-tête'),
     chk('footRule', 'Trait au-dessus du pied de page'),
     chk('hfFirst', 'Afficher l\'en-tête et le pied de page sur la première page'));

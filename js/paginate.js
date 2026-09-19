@@ -232,12 +232,13 @@ L.renderHF = function (m, n, total) {
     const obj = where === 'head' ? m.header : m.footer;
     const cells = ['l', 'c', 'r'].map(k => {
       let t = tok(obj && obj[k]);
-      if (fmt !== 'none' && pos === where + '-' + k) { const p = L.pageNumText(fmt, n, total, m.lang); t = t ? t + ' – ' + p : p; }
-      return t;
+      if (fmt !== 'none' && pos === where + '-' + k) return { t, num: L.pageNumText(fmt, n, total, m.lang) };
+      return { t };
     });
-    if (!cells.some(Boolean) && !(where === 'head' ? m.headRule : m.footRule)) continue;
+    if (!cells.some(c => c.t || c.num) && !(where === 'head' ? m.headRule : m.footRule)) continue;
     const box = L.h('div', { class: (where === 'head' ? 'page-head' : 'page-hfoot') + ((where === 'head' ? m.headRule : m.footRule) ? ' ruled' : '') },
-      ...cells.map((t, i) => L.h('span', { class: 'hf-' + 'lcr'[i], text: t })));
+      ...cells.map((c, i) => L.h('span', { class: 'hf-' + 'lcr'[i] }, c.t || '', c.t && c.num ? ' – ' : '',
+        c.num ? L.h('span', { class: 'pn pn-' + (m.numStyle || 'normal'), text: c.num }) : null)));
     L.typo(box, m.lang);
     out.push(box);
   }

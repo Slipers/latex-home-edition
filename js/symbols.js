@@ -128,6 +128,12 @@
     ['\\mathbf{#0}', 'Gras', 'gras bold'], ['\\mathrm{#0}', 'Droit', 'romain'], ['\\mathcal{#0}', 'Calligraphié', 'cursif ronde'], ['\\mathbb{#0}', 'Ajouré', 'double barre'],
     ['\\boxed{#0}', 'Encadré', 'resultat cadre'], ['\\cancel{#0}', 'Barré', 'simplifier'],
   ]);
+  add('Espaces', [
+    ['\\,', 'Espace fine', 'espace petite fine unite', 'a\\,b'], ['\\:', 'Espace moyenne', 'espace moyenne', 'a\\:b'], ['\\;', 'Espace', 'espace grande', 'a\\;b'],
+    ['\\quad', 'Grand espace (quad)', 'espace quad large', 'a\\quad b'], ['\\qquad', 'Très grand espace (qquad)', 'espace qquad double', 'a\\qquad b'],
+    ['\\!', 'Espace négative (rapprocher)', 'espace negative rapprocher', 'a\\!b'], ['\\text{ et }', 'Mot « et » dans la formule', 'texte et espace', 'a\\text{ et }b'],
+    ['\\text{ soit }', 'Mot « soit » dans la formule', 'texte soit espace', 'a\\text{ soit }b'], ['\\text{ donc }', 'Mot « donc » dans la formule', 'texte donc', 'a\\text{ donc }b'],
+  ]);
   add('Divers', [
     ['\\checkmark', 'Coche', 'valide'], ['\\star', 'Étoile', ''], ['\\dagger', 'Croix', 'dague'], ['\\square', 'Carré', 'fin'], ['\\circ', 'Rond / composition', 'rond'],
     ['\\bullet', 'Puce', 'point'], ['\\aleph', 'Aleph', 'hebreu'], ['\\Re', 'Partie réelle', 're'], ['\\Im', 'Partie imaginaire', 'im'],

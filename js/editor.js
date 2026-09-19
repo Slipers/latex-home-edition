@@ -41,6 +41,9 @@ L.ITEMS = [
   { g: 'Objets', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
   { g: 'Objets', key: 'resume', label: 'Résumé', icon: 'Rés', kw: 'resume abstract', make: () => L.newBlock('box', { kind: 'resume' }) },
   { g: 'Mise en page', key: 'importtex', label: 'Importer du code LaTeX', icon: 'TeX', kw: 'importer coller code latex convertir', action: () => L.dlgImportLatex() },
+  { g: 'Mise en page', key: 'rule', label: 'Ligne de séparation', icon: '―', kw: 'ligne trait separation horizontale', make: () => L.newBlock('rule') },
+  { g: 'Mise en page', key: 'vspace', label: 'Espace vertical', icon: '↕', kw: 'espace vertical blanc saut ligne', make: () => L.newBlock('vspace') },
+  { g: 'Mise en page', key: 'hfill', label: 'Espace extensible', icon: '⟷', kw: 'espace extensible droite aligner hfill tabulation', action: () => App.insertHfill() },
   { g: 'Mise en page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
   { g: 'Mise en page', key: 'bibliography', label: 'Bibliographie', icon: '[1]', kw: 'bibliographie references sources', make: () => L.newBlock('bibliography') },
   { g: 'Mise en page', key: 'toc', label: 'Table des matières', icon: '≡', kw: 'table matieres sommaire', action: () => { App.doc.meta.toc = true; App.commit(); App.render(); L.toast('Table des matières ajoutée sous le titre'); } },
@@ -49,7 +52,7 @@ L.ITEMS = [
 const TYPE_INFO = {
   paragraph: ['¶', 'Paragraphe'], heading: ['§', 'Titre'], equation: ['(1)', 'Équation'], list: ['1.', 'Liste'],
   box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'],
-  tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
+  tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], rule: ['―', 'Ligne de séparation'], vspace: ['↕', 'Espace vertical'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
 };
 
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -481,7 +484,7 @@ Object.assign(App, {
       const aid = 'img' + L.uid('');
       this.doc.assets[aid] = data;
       f.block.src = aid;
-      if (!f.block.caption) f.block.caption = L.escHtml(file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '));
+
       this.sel = id;
       this.commit(); this.render();
     } catch (e) { L.toast('Impossible de lire cette image.', 'err'); }
@@ -753,7 +756,7 @@ Object.assign(App, {
       if (b.numbered && b.level <= 3) P.append(forceRow());
     } else if (b.type === 'paragraph') {
       P.append(
-        row('Alignement', seg([['justify', 'Justifié'], ['center', 'Centré'], ['right', 'À droite']], b.align || 'justify', v => upd(() => { b.align = v; }))),
+        row('Alignement', seg([['justify', 'Justifié'], ['left', 'Gauche'], ['center', 'Centré'], ['right', 'Droite']], b.align || 'justify', v => upd(() => { b.align = v; }))),
         row('', chk('Sans alinéa (pas de retrait)', b.noindent, v => upd(() => { b.noindent = v; }))),
         row('Transformer en', L.h('div', { class: 'btn-row' },
           btn('Section', () => this.convertParagraph(b.id, 'h1')), btn('Sous-section', () => this.convertParagraph(b.id, 'h2')),
@@ -768,6 +771,8 @@ Object.assign(App, {
     } else if (b.type === 'list') {
       P.append(
         row('Style', seg([['bullet', '–  Puces'], ['number', '1.'], ['alpha', 'a)'], ['roman', 'i)']], b.style, v => upd(() => { b.style = v; }))),
+        b.style !== 'bullet' ? row('Commencer à', (() => { const i = L.h('input', { type: 'number', value: b.start ?? 1, style: { width: '90px' } }); i.onchange = () => upd(() => { if (i.value === '' || +i.value === 1) delete b.start; else b.start = Math.trunc(+i.value); }); return i; })()) : '',
+        this.listItemRow(b, row, btn, upd),
         row('', btn('+ Ajouter un élément', () => { b.items.push({ html: '', level: 0 }); this.focusAfter = { id: b.id, f: 'items.' + (b.items.length - 1) + '.html' }; upd(() => {}); })),
         L.h('div', { class: 'pp-help', html: '<p><kbd>Tab</kbd> décale un élément vers la droite (sous-question), <kbd>Maj</kbd>+<kbd>Tab</kbd> vers la gauche. <kbd>Entrée</kbd> sur un élément vide termine la liste.</p>' }));
     } else if (b.type === 'box') {
@@ -779,6 +784,9 @@ Object.assign(App, {
       const title = L.h('input', { type: 'text', value: b.title || '', placeholder: 'Ex. : de Pythagore' });
       title.oninput = () => { b.title = title.value; this.commitSoon(); this.renderSoon(); };
       P.append(row('Type', kinds));
+      const cname = L.h('input', { type: 'text', value: b.customName || '', placeholder: L.kindName(b.kind, doc.meta.lang) + ' (par défaut)' });
+      cname.oninput = () => { b.customName = cname.value; this.commitSoon(); this.renderSoon(); };
+      if (b.kind !== 'resume') P.append(row('Nom affiché', cname, L.h('div', { class: 'pp-help', text: 'Ex. : « Attention », « Loi », « À retenir »… Il remplace « ' + L.kindName(b.kind, doc.meta.lang) + ' ».' })));
       if (b.kind !== 'resume') P.append(row('Titre (facultatif)', title));
       if (!(L.KINDS[b.kind] || {}).fixed) P.append(row('', chk('Numéroté', b.numbered, v => upd(() => { b.numbered = v; }))));
       if (b.numbered && !(L.KINDS[b.kind] || {}).fixed) P.append(forceRow());
@@ -810,6 +818,7 @@ Object.assign(App, {
       }
       P.append(
         capRow(),
+        (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'table') : '',
         (b.capMode || 'num') === 'num' ? forceRow() : '',
         row('Style', seg([['pro', 'Professionnel'], ['grille', 'Grille'], ['simple', 'Simple']], b.style, v => upd(() => { b.style = v; }))),
         row('', chk('Première ligne en en-tête (gras)', b.head, v => upd(() => { b.head = v; }))),
@@ -840,12 +849,16 @@ Object.assign(App, {
         row('', btn(b.src ? '🖼  Changer l\'image' : '🖼  Choisir une image', () => this.pickImage(b.id), 'primary')),
         row('Taille', rng, lab),
         capRow(),
+        (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'figure') : '',
+        row('', L.h('div', { class: 'pp-help', text: 'Le texte de la légende se modifie directement sous l\'image, sur la feuille.' })),
         (b.capMode || 'num') === 'num' ? forceRow() : '');
     } else if (b.type === 'code') {
       const s = L.h('select', null, ...[['python', 'Python'], ['c', 'C'], ['cpp', 'C++'], ['java', 'Java'], ['javascript', 'JavaScript'], ['matlab', 'Matlab / Octave'], ['r', 'R'], ['sql', 'SQL'], ['bash', 'Terminal (bash)'], ['html', 'HTML'], ['texte', 'Texte brut']]
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
+    } else if (b.type === 'vspace') {
+      P.append(row('Hauteur', seg(Object.entries(L.VSPACES).map(([k, v]) => [k, v[0]]), b.size || 'moyen', v => upd(() => { b.size = v; }))));
     } else if (b.type === 'cols') {
       const addTo = (i, lab) => row('Ajouter dans la colonne ' + lab, L.h('div', { class: 'btn-row' },
         ...[['Tableau', 'table'], ['Image', 'figure'], ['Paragraphe', 'paragraph'], ['Équation', 'equation'], ['Liste', 'list']].map(([t, ty]) =>
@@ -944,6 +957,8 @@ App.bindEditor = function () {
       this.lastRange = s.getRangeAt(0).cloneRange();
       const blk = field.closest('.blk');
       if (blk) this.select(blk.dataset.id);
+      const li = /^items\.(\d+)\./.exec(field.dataset.f || '');
+      if (li && (this._lastItem !== field.dataset.b + ':' + li[1])) { this._lastItem = field.dataset.b + ':' + li[1]; this.updateProps(); }
       if (field.tagName === 'TD') {
         const nl = { id: field.dataset.b, r: +field.dataset.r, c: +field.dataset.c };
         const changed = !this.lastCell || this.lastCell.id !== nl.id || this.lastCell.r !== nl.r || this.lastCell.c !== nl.c;
@@ -1073,6 +1088,19 @@ App.bindEditor = function () {
       return;
     }
 
+    // Suppr à la fin d'une question : rattache la question suivante
+    if (e.key === 'Delete' && b && b.type === 'list' && this.caretAt(field, 'end')) {
+      const i = +fd.split('.')[1];
+      if (i < b.items.length - 1) {
+        e.preventDefault();
+        this.syncField(field);
+        b.items[i].html = (b.items[i].html || '') + PUA + (b.items[i + 1].html || '');
+        b.items.splice(i + 1, 1);
+        this.focusAfter = { id: b.id, f: 'items.' + i + '.html' };
+        this.commit(); this.render();
+      }
+      return;
+    }
     if (e.key === 'Backspace' && b && this.caretAt(field, 'start')) {
       if (b.type === 'paragraph') {
         e.preventDefault();
@@ -1321,3 +1349,88 @@ L.newCols = function (type) {
   });
   return c;
 };
+
+/* ================= Mise en forme (barre d'outils) ================= */
+Object.assign(App, {
+  toggleMenu(sel) { const m = L.$(sel); const was = m.classList.contains('open'); this.closeMenus(); if (!was) m.classList.add('open'); },
+  closeMenus() { L.$$('.tb .menu.open').forEach(m => m.classList.remove('open')); },
+  /* Bloc(s) où se trouve le curseur */
+  caretBlock() {
+    const cr = this.currentRichRange();
+    const blk = cr && cr.field.closest('.blk');
+    return blk && !blk.dataset.id.startsWith('__') ? L.find(this.doc, blk.dataset.id) : (this.sel && !this.sel.startsWith('__') ? L.find(this.doc, this.sel) : null);
+  },
+  setAlign(a) {
+    const f = this.caretBlock();
+    if (!f || f.block.type !== 'paragraph') return L.toast('Placez le curseur dans un paragraphe.');
+    const cr = this.currentRichRange();
+    if (cr) { const s = window.getSelection(); if (s.rangeCount) { const r = s.getRangeAt(0); r.insertNode(document.createTextNode('\uE000')); this.syncField(cr.field); } }
+    f.block.align = a;
+    this.focusAfter = { id: f.block.id };
+    this.commit(); this.render();
+  },
+  setSize(cls) {
+    const cr = this.currentRichRange();
+    if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
+    const s = window.getSelection();
+    if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
+    const r = s.getRangeAt(0);
+    if (r.collapsed) return L.toast('Sélectionnez d\'abord du texte.');
+    const frag = r.extractContents();
+    frag.querySelectorAll('span.s-small, span.s-large, span.s-Large, span.s-LARGE').forEach(x => x.replaceWith(...x.childNodes));
+    let node = frag;
+    if (cls) { const sp = document.createElement('span'); sp.className = cls; sp.appendChild(frag); node = sp; }
+    r.insertNode(node);
+    this.syncField(cr.field);
+    this.commit(); this.pagesSoon();
+  },
+  toList(style) {
+    const f = this.caretBlock();
+    if (f && f.block.type === 'list') { f.block.style = style; this.commit(); this.render(); return; }
+    if (f && f.block.type === 'paragraph') {
+      const nb = L.newBlock('list', { style, items: [{ html: f.block.html || '', level: 0 }] });
+      this.replaceBlock(f.block.id, nb, 'end');
+      return;
+    }
+    this.insertBlock(L.newBlock('list', { style }));
+  },
+  insertHfill() {
+    const cr = this.currentRichRange();
+    if (!cr || !cr.field.matches('p')) return L.toast('Placez le curseur dans un paragraphe, là où la suite doit être poussée à droite.');
+    const chip = L.h('span', { class: 'hfill', contenteditable: 'false' });
+    this.insertChip(chip);
+    this.syncField(cr.field);
+    const blk = cr.field.closest('.blk');
+    this.commit();
+    if (blk) this.focusAfter = { id: blk.dataset.id, where: 'end' };
+    this.render();
+  },
+  /* Question (élément de liste) où se trouve le curseur : numéro, déplacement, suppression */
+  listItemRow(b, row, btn, upd) {
+    const cr = this.currentRichRange();
+    const fd = cr && cr.field.dataset.b === b.id ? cr.field.dataset.f : null;
+    const i = fd && /^items\.(\d+)\./.test(fd) ? +fd.split('.')[1] : null;
+    if (i === null || !b.items[i]) return L.h('div', { class: 'pp-help', text: 'Cliquez dans une question pour choisir son numéro, la déplacer ou la supprimer.' });
+    const it = b.items[i];
+    const box = L.h('div', { class: 'pp-sub' });
+    const numIn = L.h('input', { type: 'number', value: it.num ?? '', placeholder: 'auto', style: { width: '80px' } });
+    numIn.onchange = () => upd(() => { if (numIn.value === '') delete it.num; else it.num = Math.trunc(+numIn.value); });
+    const keep = n => { this.focusAfter = { id: b.id, f: 'items.' + n + '.html', where: 'end' }; };
+    if (b.style !== 'bullet') box.appendChild(row('Numéro de cette question', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, numIn, L.h('span', { class: 'pp-help', text: 'vide = automatique ; les suivantes continuent.' }))));
+    box.appendChild(L.h('div', { class: 'btn-row' },
+      btn('↑', () => { if (i > 0) upd(() => { b.items.splice(i - 1, 0, b.items.splice(i, 1)[0]); keep(i - 1); }); }),
+      btn('↓', () => { if (i < b.items.length - 1) upd(() => { b.items.splice(i + 1, 0, b.items.splice(i, 1)[0]); keep(i + 1); }); }),
+      btn('→ Décaler', () => upd(() => { it.level = Math.min(2, (it.level || 0) + 1); keep(i); })),
+      btn('← Ramener', () => upd(() => { it.level = Math.max(0, (it.level || 0) - 1); keep(i); })),
+      btn('Supprimer cette question', () => {
+        if (b.items.length === 1) { this.removeBlock(b.id); return; }
+        upd(() => { b.items.splice(i, 1); this.lastRange = null; keep(Math.max(0, i - 1)); });
+      }, 'danger')));
+    return row('Question ' + (i + 1) + ' (où se trouve le curseur)', box);
+  },
+  capLabelRow(b, row, kind) {
+    const i = L.h('input', { type: 'text', value: b.capLabel || '', placeholder: L.capName(this.doc.meta, kind).text + ' (par défaut)' });
+    i.oninput = () => { b.capLabel = i.value; this.commitSoon(); this.renderSoon(); };
+    return row('Nom devant le numéro', i, L.h('div', { class: 'pp-help', text: 'Pour cet objet seulement (ex. « Graphique », « Schéma », « Photo »).' }));
+  },
+});

@@ -46,10 +46,14 @@ L.defaultMeta = () => ({
   tableName: '', figureName: '',            // vide = nom par défaut (« Table », « Figure »)
   numFormat: 'arabic', numPos: 'foot-c', pageStart: 1,   // numérotation des pages
   header: { l: '', c: '', r: '' }, footer: { l: '', c: '', r: '' },
-  headRule: false, footRule: false, hfFirst: true,
+  headRule: false, footRule: false, hfFirst: true, numStyle: 'normal',
 });
 
 /* Couleurs de texte et de fond (mêmes valeurs dans l'aperçu et dans le LaTeX exporté) */
+/* Tailles de texte ponctuelles (= commandes LaTeX \small, \large…) */
+L.TEXT_SIZES = { 's-small': ['Petit', 'small'], 's-large': ['Grand', 'large'], 's-Large': ['Très grand', 'Large'], 's-LARGE': ['Énorme', 'LARGE'] };
+/* Espaces verticaux */
+L.VSPACES = { petit: ['Petit', '\\smallskip', '3pt'], moyen: ['Moyen', '\\medskip', '6pt'], grand: ['Grand', '\\bigskip', '12pt'], tresgrand: ['Très grand', '\\vspace{1cm}', '1cm'] };
 L.TEXT_COLORS = { rouge: 'E00000', bleu: '1F4FBF', vert: '1E8E3E', orange: 'E07000', violet: '7B2FBE', gris: '6B6B6B' };
 L.HEAD_COLORS = { gris: 'E8E8E8', bleu: 'E3E4F8', vert: 'E2F2E5', jaune: 'FFF3C4', rose: 'FBE3E8' };
 
@@ -84,6 +88,8 @@ L.newBlock = function (type, opts = {}) {
     figure: () => ({ src: '', width: 60, caption: '' }),
     code: () => ({ lang: 'python', code: '', numbers: false }),
     tabvar: () => ({ xlabel: 'x', xs: ['-inf', '+inf'], rows: [] }),
+    rule: () => ({}),
+    vspace: () => ({ size: 'moyen' }),
     cols: () => ({ ratio: 50, children: [L.newBlock('col'), L.newBlock('col')] }),
     col: () => ({ children: [L.newBlock('paragraph')] }),
     pagebreak: () => ({}),
@@ -149,8 +155,10 @@ L.computeNumbers = function (doc) {
     } else if (b.type === 'table' && (b.capMode || 'num') === 'num') {
       tab = fn !== null ? fn : tab + 1; nums[b.id] = { num: String(tab), ref: String(tab) };
     } else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) {
-      kindCount[b.kind] = fn !== null ? fn : (kindCount[b.kind] || 0) + 1;
-      const n = (m.thmBySection ? sec[0] + '.' : '') + kindCount[b.kind];
+      const key = b.customName ? 'c:' + b.customName.trim() : b.kind;   // nom personnalisé = compteur à part
+      kindCount[key] = fn !== null ? fn : (kindCount[key] || 0) + 1;
+      kindCount[b.kind] = kindCount[b.kind] || 0;
+      const n = (m.thmBySection ? sec[0] + '.' : '') + kindCount[key];
       nums[b.id] = { num: n, ref: n };
     }
   });
@@ -176,7 +184,7 @@ L.refTargets = function (doc) {
 
 /* ---------- Texte enrichi : nettoyage / sérialisation ---------- */
 const INLINE_OK = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', SUB: 'sub', SUP: 'sup', CODE: 'code' };
-const CHIPS = ['imath', 'xref', 'cite', 'fn', 'timg'];
+const CHIPS = ['imath', 'xref', 'cite', 'fn', 'timg', 'hfill'];
 
 L.sanitizeNode = function (node) {
   let out = '';
@@ -190,12 +198,15 @@ L.sanitizeNode = function (node) {
       else if (chip === 'xref') out += '<span class="xref" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
       else if (chip === 'cite') out += '<span class="cite" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
       else if (chip === 'fn') out += '<span class="fn" data-text="' + L.escHtml(n.dataset.text || '') + '"></span>';
+      else if (chip === 'hfill') out += '<span class="hfill"></span>';
       else if (chip === 'timg') out += '<span class="timg" data-src="' + L.escHtml(n.dataset.src || '') + '" data-w="' + L.escHtml(n.dataset.w || '3') + '"></span>';
       return;
     }
     if (cls && (cls.contains('li-mark') || cls.contains('env-head-inline') || cls.contains('num') || cls.contains('pg-float'))) return;
     const col = cls && Array.from(cls).find(c => c.startsWith('c-') && L.TEXT_COLORS[c.slice(2)]);
     if (col && n.tagName === 'SPAN') { const inner = L.sanitizeNode(n); if (inner) out += '<span class="' + col + '">' + inner + '</span>'; return; }
+    const sz = cls && Array.from(cls).find(c => L.TEXT_SIZES[c]);
+    if (sz && n.tagName === 'SPAN') { const inner = L.sanitizeNode(n); if (inner) out += '<span class="' + sz + '">' + inner + '</span>'; return; }
     if (n.tagName === 'BR') { out += '<br>'; return; }
     const inner = L.sanitizeNode(n);
     const t = INLINE_OK[n.tagName];
@@ -242,8 +253,8 @@ L.shiftSpans = function (b, from, delta) {
 };
 
 /* Nom affiché devant le numéro des légendes : « Table 1 – », « Tableau 1 – »… */
-L.capName = function (meta, kind) {
-  const custom = (kind === 'table' ? meta.tableName : meta.figureName) || '';
+L.capName = function (meta, kind, b) {
+  const custom = (b && b.capLabel) || (kind === 'table' ? meta.tableName : meta.figureName) || '';
   return { text: custom.trim() || (L.NAMES[meta.lang] || L.NAMES.fr)[kind], custom: !!custom.trim() };
 };
 

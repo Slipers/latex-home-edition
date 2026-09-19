@@ -81,6 +81,7 @@ L.MathDock = (function () {
       MathfieldElement.plonkSound = null;
     }
     try { mf.smartFence = true; mf.smartSuperscript = true; mf.menuItems = []; } catch (e) {}
+    try { mf.mathModeSpace = '\\:'; } catch (e) {}   // la touche Espace insère une espace dans la formule
     mf.addEventListener('input', () => {
       const v = mf.value;
       if (!L.$('#mdLatex').hidden) L.$('#mdLatex').value = v;
