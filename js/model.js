@@ -47,6 +47,7 @@ L.defaultMeta = () => ({
   numFormat: 'arabic', numPos: 'foot-c', pageStart: 1,   // numérotation des pages
   header: { l: '', c: '', r: '' }, footer: { l: '', c: '', r: '' },
   headRule: false, footRule: false, hfFirst: true, numStyle: 'normal',
+  fnStyle: 'sup',                            // notes de bas de page : ¹ (sup), [1] (crochets), * (symboles)
 });
 
 /* Couleurs de texte et de fond (mêmes valeurs dans l'aperçu et dans le LaTeX exporté) */
@@ -89,6 +90,7 @@ L.newBlock = function (type, opts = {}) {
     code: () => ({ lang: 'python', code: '', numbers: false }),
     tabvar: () => ({ xlabel: 'x', xs: ['-inf', '+inf'], rows: [] }),
     rule: () => ({}),
+    pnote: () => ({ text: '' }),
     vspace: () => ({ size: 'moyen' }),
     cols: () => ({ ratio: 50, children: [L.newBlock('col'), L.newBlock('col')] }),
     col: () => ({ children: [L.newBlock('paragraph')] }),
@@ -260,3 +262,11 @@ L.capName = function (meta, kind, b) {
 
 /* Premier numéro de page (peut être 0) */
 L.pageStart = m => (m.pageStart === '' || m.pageStart === null || m.pageStart === undefined || isNaN(+m.pageStart)) ? 1 : Math.trunc(+m.pageStart);
+
+/* Marque d'une note de bas de page selon le style choisi */
+L.FN_SYMBOLS = ['*', '†', '‡', '§', '¶', '‖', '**', '††', '‡‡'];
+L.fnMark = function (n, style) {
+  if (style === 'crochets') return '[' + n + ']';
+  if (style === 'symboles') return L.FN_SYMBOLS[(n - 1) % L.FN_SYMBOLS.length];
+  return String(n);
+};

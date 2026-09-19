@@ -136,7 +136,8 @@ L.dlgSettings = function (section) {
       L.h('div', { class: 'field' }, L.h('label', { text: 'Position du numéro' }), sel('numPos', [['foot-c', 'Pied, centre'], ['foot-r', 'Pied, droite'], ['foot-l', 'Pied, gauche'], ['head-r', 'En-tête, droite'], ['head-c', 'En-tête, centre'], ['head-l', 'En-tête, gauche']])),
       L.h('div', { class: 'field' }, L.h('label', { text: 'Premier numéro de page' }), start)),
     L.h('div', { class: 'grid3' },
-      L.h('div', { class: 'field' }, L.h('label', { text: 'Style du numéro' }), sel('numStyle', [['normal', 'Normal'], ['gras', 'Gras'], ['cadre', 'Encadré']]))),
+      L.h('div', { class: 'field' }, L.h('label', { text: 'Style du numéro' }), sel('numStyle', [['normal', 'Normal'], ['gras', 'Gras'], ['cadre', 'Encadré']])),
+      L.h('div', { class: 'field' }, L.h('label', { text: 'Notes de bas de page' }), sel('fnStyle', [['sup', 'Numéro en exposant ¹'], ['crochets', 'Entre crochets [1]'], ['symboles', 'Symboles * † ‡']]))),
     chk('headRule', 'Trait sous l\'en-tête'),
     chk('footRule', 'Trait au-dessus du pied de page'),
     chk('hfFirst', 'Afficher l\'en-tête et le pied de page sur la première page'));
@@ -224,7 +225,7 @@ L.dlgBib = function () {
 };
 
 /* ---------- Note de bas de page ---------- */
-L.dlgFootnote = function (initial, onOk, onDelete) {
+L.dlgFootnote = function (initial, onOk, onDelete, pageText) {
   const ta = L.h('textarea', { rows: 3, placeholder: 'Texte de la note…' });
   ta.value = initial || '';
   ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dlg.box.querySelector('.mb-foot .primary').click(); } });
@@ -232,7 +233,7 @@ L.dlgFootnote = function (initial, onOk, onDelete) {
   if (onDelete) foot.push({ text: 'Supprimer la note', cls: 'danger', onClick: c => { c(); onDelete(); } });
   foot.push({ text: 'Annuler', onClick: c => c() });
   foot.push({ text: 'Valider', cls: 'primary', onClick: c => { const v = ta.value.trim(); c(); if (v) onOk(v); else if (onDelete) onDelete(); } });
-  const dlg = L.modal({ title: 'Note de bas de page', body: L.h('div', { class: 'field' }, L.h('label', { text: 'La note apparaîtra en bas de la page, numérotée automatiquement.' }), ta), foot });
+  const dlg = L.modal({ title: pageText ? 'Texte en bas de page' : 'Note de bas de page', body: L.h('div', { class: 'field' }, L.h('label', { text: pageText ? 'Ce texte apparaîtra en bas de la page où se trouve le repère ↧, sans numéro.' : 'La note apparaîtra en bas de la page, numérotée automatiquement.' }), ta), foot });
 };
 
 /* ---------- Code LaTeX généré ---------- */

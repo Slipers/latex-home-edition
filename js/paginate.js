@@ -35,11 +35,15 @@ L.paginate = async function (doc, host) {
     lh = parseFloat(getComputedStyle(content).lineHeight) || 18;
   };
 
+  const fnStyle = m.fnStyle || 'sup';
   const addNotes = el => {
     const added = [];
-    el.querySelectorAll('.fn').forEach(f => {
+    const list = el.matches && el.matches('.pnote-src') ? [el] : Array.from(el.querySelectorAll('.fn, .pnote-src'));
+    list.forEach(f => {
       if (!foot.firstChild) { const r = L.h('div', { class: 'fn-rule' }); foot.appendChild(r); added.push(r); }
-      const p = L.h('p', { class: 'fn' }, L.h('sup', { text: f.dataset.n }), ' ' + (f.dataset.text || ''));
+      const pn = f.classList.contains('pnote-src');
+      const mark = pn ? null : fnStyle === 'crochets' ? L.h('span', { class: 'fn-lab', text: f.dataset.mark || '[' + f.dataset.n + ']' }) : L.h('sup', { text: f.dataset.mark || f.dataset.n });
+      const p = L.h('p', { class: 'fn' + (pn ? ' pn' : ''), 'data-fn': pn ? null : f.dataset.n, 'data-pnote': pn ? (f.dataset.id || '') : null }, mark, (mark ? ' ' : '') + (f.dataset.text || ''));
       foot.appendChild(p); added.push(p);
     });
     return added;
@@ -195,7 +199,9 @@ L.paginate = async function (doc, host) {
     const first = pg.querySelector('.page-content > *');
     if (first) breaks.push({ page: i + 1, id: first.dataset.id || null, offset: first._splitOffset || 0 });
   });
-  L.lastPagination = { count: pages.length, breaks };
+  // Notes de chaque page (affichées en bas des feuilles dans l'éditeur)
+  const notes = pages.map(pg => Array.from(pg.querySelectorAll('.page-foot .fn')).map(p => ({ html: p.innerHTML, fn: p.dataset.fn || null, pnote: p.dataset.pnote || null })));
+  L.lastPagination = { count: pages.length, breaks, notes };
 
   // Numéros de page, en-têtes et pieds (la page de garde n'en a pas, comme titlepage)
   L.fixMeta(m);

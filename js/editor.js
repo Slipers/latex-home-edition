@@ -41,6 +41,7 @@ L.ITEMS = [
   { g: 'Objets', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
   { g: 'Objets', key: 'resume', label: 'Résumé', icon: 'Rés', kw: 'resume abstract', make: () => L.newBlock('box', { kind: 'resume' }) },
   { g: 'Mise en page', key: 'importtex', label: 'Importer du code LaTeX', icon: 'TeX', kw: 'importer coller code latex convertir', action: () => L.dlgImportLatex() },
+  { g: 'Mise en page', key: 'pnote', label: 'Texte en bas de page', icon: '↧', kw: 'bas de page pied note remarque texte page', make: () => L.newBlock('pnote') },
   { g: 'Mise en page', key: 'rule', label: 'Ligne de séparation', icon: '―', kw: 'ligne trait separation horizontale', make: () => L.newBlock('rule') },
   { g: 'Mise en page', key: 'vspace', label: 'Espace vertical', icon: '↕', kw: 'espace vertical blanc saut ligne', make: () => L.newBlock('vspace') },
   { g: 'Mise en page', key: 'hfill', label: 'Espace extensible', icon: '⟷', kw: 'espace extensible droite aligner hfill tabulation', action: () => App.insertHfill() },
@@ -52,7 +53,7 @@ L.ITEMS = [
 const TYPE_INFO = {
   paragraph: ['¶', 'Paragraphe'], heading: ['§', 'Titre'], equation: ['(1)', 'Équation'], list: ['1.', 'Liste'],
   box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'],
-  tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], rule: ['―', 'Ligne de séparation'], vspace: ['↕', 'Espace vertical'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
+  tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], rule: ['―', 'Ligne de séparation'], pnote: ['↧', 'Texte en bas de page'], vspace: ['↕', 'Espace vertical'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
 };
 
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -270,6 +271,16 @@ Object.assign(App, {
       const skip = n === null || n === undefined || (i === firstNum && m.hfFirst === false && m.titleStyle !== 'pagegarde');
       if (!skip) L.renderHF(m, n, total).forEach(x => el.appendChild(x));
       el.addEventListener('dblclick', e => { if (e.target.closest('.page-head, .page-hfoot')) L.dlgSettings('hf'); });
+      const pn = info && info.notes ? info.notes[i] : null;
+      if (pn && pn.length) {
+        const box = L.h('div', { class: 'sheet-notes' }, L.h('div', { class: 'fn-rule' }));
+        pn.forEach(nt => {
+          const p = L.h('p', { class: 'fn' + (nt.pnote !== null && nt.fn === null ? ' pn' : ''), html: nt.html, title: 'Cliquer pour modifier' });
+          p.addEventListener('click', () => this.editNote(nt));
+          box.appendChild(p);
+        });
+        el.appendChild(box);
+      }
       layer.appendChild(el);
     });
     this.sheets = sheets;
@@ -480,6 +491,7 @@ Object.assign(App, {
     this.render();
     if (block.type === 'equation') L.MathDock.open({ kind: 'block', blockId: block.id, isNew: true });
     if (block.type === 'figure' && !opts.noPick) this.pickImage(block.id);
+    if (block.type === 'pnote' && !block.text) L.dlgFootnote('', v => { block.text = v; this.commit(); this.render(); }, () => this.removeBlock(block.id, false), true);
     const el = this.blockEl(block.id);
     if (el && !focusMap[block.type]) this.ensureCaretVisible(el);
     return block;
@@ -927,6 +939,11 @@ Object.assign(App, {
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
+    } else if (b.type === 'pnote') {
+      const ta = L.h('textarea', { rows: 4, placeholder: 'Texte affiché en bas de cette page…', style: { width: '100%', padding: '7px 9px', border: '1px solid var(--line2)', borderRadius: '7px', font: 'inherit' } });
+      ta.value = b.text || '';
+      ta.oninput = () => { b.text = ta.value; this.commitSoon(); this.renderSoon(); };
+      P.append(row('Texte en bas de page', ta), L.h('div', { class: 'pp-help', html: '<p>Ce texte, sans numéro, apparaît en bas de la page où se trouve ce repère ↧. Pour une note numérotée liée à un mot, utilisez plutôt le bouton <b>¹ Note</b>.</p>' }));
     } else if (b.type === 'vspace') {
       P.append(row('Hauteur', seg(Object.entries(L.VSPACES).map(([k, v]) => [k, v[0]]), b.size || 'moyen', v => upd(() => { b.size = v; }))));
     } else if (b.type === 'cols') {
@@ -1314,6 +1331,8 @@ App.bindEditor = function () {
         () => { chip.remove(); this.syncField(field); this.commit(); this.render(); });
       return;
     }
+    const pna = t.closest('.pnote-anchor');
+    if (pna) { const f = L.find(this.doc, pna.closest('.blk').dataset.id); if (f) this.editNote({ pnote: f.block.id }); return; }
     const timg = t.closest('.timg');
     if (timg && paper.contains(timg)) { this.editInlineImage(timg); return; }
     const cadd = t.closest('.col-add');
@@ -1497,6 +1516,20 @@ Object.assign(App, {
         upd(() => { b.items.splice(i, 1); this.lastRange = null; keep(Math.max(0, i - 1)); });
       }, 'danger')));
     return row('Question ' + (i + 1) + ' (où se trouve le curseur)', box);
+  },
+  /* Modifier une note depuis le bas de la feuille */
+  editNote(nt) {
+    if (nt.fn) {
+      const chip = L.$('#paper .fn[data-n="' + nt.fn + '"]');
+      if (!chip) return;
+      const field = chip.closest('[data-f]');
+      L.dlgFootnote(chip.dataset.text, v => { chip.dataset.text = v; this.syncField(field); this.commit(); this.render(); },
+        () => { chip.remove(); this.syncField(field); this.commit(); this.render(); });
+      return;
+    }
+    const f = nt.pnote && L.find(this.doc, nt.pnote);
+    if (!f) return;
+    L.dlgFootnote(f.block.text, v => { f.block.text = v; this.commit(); this.render(); }, () => this.removeBlock(f.block.id, false), true);
   },
   capLabelRow(b, row, kind) {
     const i = L.h('input', { type: 'text', value: b.capLabel || '', placeholder: L.capName(this.doc.meta, kind).text + ' (par défaut)' });

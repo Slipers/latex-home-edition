@@ -1,3 +1,5 @@
-## Correction
+## Nouveautés
 
-- **Plus de défilement parasite** : après un retour à la ligne, un effacement ou la suppression d'un élément, l'écran reste exactement où il était. Il ne défile que du strict nécessaire (sans animation) si le curseur sort de l'écran, par exemple quand le texte passe sur la page suivante.
+- **Notes de bas de page visibles dans l'éditeur**, en bas de leur page comme dans Word. Cliquez sur une note en bas de la feuille pour la modifier ou la supprimer.
+- **Style des notes au choix** : ¹ (exposant), **[1]** (crochets) ou * † ‡ (symboles) — menu « Document » → En-tête, pied de page.
+- **Texte en bas de page** (colonne Insérer → Mise en page) : une remarque sans numéro affichée en bas de la page où vous la placez. Mettez-en une sur chaque page voulue.

@@ -203,6 +203,7 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       return '\\begin{lstlisting}' + (opts.length ? '[' + opts.join(', ') + ']' : '') + '\n' + (b.code || '') + '\n\\end{lstlisting}';
     }
     case 'tabvar': return L.tabvarToLatex(b, X);
+    case 'pnote': return b.text ? '{\\renewcommand{\\thefootnote}{}\\footnotetext{' + L.texEsc(b.text) + '}}' : '';
     case 'rule': return '\\par\\noindent\\rule{\\linewidth}{0.4pt}\\par';
     case 'vspace': return '\\par' + (L.VSPACES[b.size || 'moyen'] || L.VSPACES.moyen)[1];
     case 'cols': {
@@ -413,6 +414,10 @@ L.docToLatex = function (doc) {
     });
   }
   const HF = L.hfToLatex(L.fixMeta(m), X);
+  // Style des notes de bas de page (même présentation que l'éditeur : pas de « 1. » à la française)
+  if (m.lang !== 'en') P.push('\frenchsetup{FrenchFootnotes=false}');
+  if (m.fnStyle === 'crochets') P.push('\\renewcommand{\\thefootnote}{[\\arabic{footnote}]}', '\\makeatletter\\renewcommand{\\@makefnmark}{\\mbox{\\normalfont\\@thefnmark}}\\makeatother');
+  else if (m.fnStyle === 'symboles') P.push('\\renewcommand{\\thefootnote}{\\fnsymbol{footnote}}');
   P.push('', '% En-têtes, pieds de page et numérotation');
   HF.pre.forEach(l => P.push(l));
   // Noms des légendes (« Tableau 1 – » au lieu de « Table 1 – »)
