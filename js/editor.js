@@ -898,6 +898,10 @@ Object.assign(App, {
         s.onchange = () => upd(() => { b.colw = b.colw || []; b.colw[c] = s.value; });
         wRow.appendChild(s);
       }
+      if (b.avc) P.append(row('', btn('⚗  Modifier le tableau d’avancement', () => L.dlgAvancement(nb => {
+        ['rows', 'spans', 'align', 'style', 'headColor', 'caption', 'capMode', 'avc', 'head'].forEach(k => { b[k] = nb[k]; });
+        this.commit(); this.render();
+      }, b.avc), 'primary')));
       P.append(
         capRow(),
         (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'table') : '',

@@ -177,7 +177,9 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       });
       if (b.style === 'pro') lines.push('\\bottomrule');
       const env = fill ? 'tabularx' : 'tabular';
-      const tab = '  \\begin{' + env + '}' + (fill ? '{\\linewidth}' : '') + (X.inCols ? '[t]' : '') + '{' + spec + '}\n' + lines.map(l => '    ' + l).join('\n') + '\n  \\end{' + env + '}';
+      let tab = '  \\begin{' + env + '}' + (fill ? '{\\linewidth}' : '') + (X.inCols ? '[t]' : '') + '{' + spec + '}\n' + lines.map(l => '    ' + l).join('\n') + '\n  \\end{' + env + '}';
+      // Un tableau trop large est réduit pour tenir dans la largeur de la page (jamais agrandi)
+      if (!fill) { X.pk.add('adjustbox'); tab = '  \\begin{adjustbox}{max width=\\linewidth' + (X.inCols ? ',valign=t' : '') + '}\n' + tab + '\n  \\end{adjustbox}'; }
       const cap = L.captionToLatex(b, X, 'table');
       if (X.inCols) return '{\\centering\n' + (cap ? '  ' + cap + '\n' : '') + tab + '\\par}';
       return '\\begin{table}[H]\n  \\centering\n' + (cap ? '  ' + cap + '\n' : '') + tab + '\n\\end{table}';
@@ -359,6 +361,7 @@ L.docToLatex = function (doc) {
   }
   if (X.pk.has('tabularx')) P.push('\\usepackage{tabularx}');
   if (X.pk.has('capt-of')) P.push('\\usepackage{capt-of}');
+  if (X.pk.has('adjustbox')) P.push('\\usepackage{adjustbox}');
   if (/\\ce\{/.test(body)) P.push('\\usepackage[version=4]{mhchem}');
   if (X.pk.has('booktabs')) P.push('\\usepackage{booktabs}');
   if (X.pk.has('tkz-tab')) P.push('\\usepackage{tkz-tab}');

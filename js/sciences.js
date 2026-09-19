@@ -223,80 +223,183 @@ L.dlgTabvar = function (block) {
 };
 
 /* ---------- Générateur de tableau d'avancement ---------- */
-L.dlgAvancement = function (onDone) {
-  const sp = [
-    { role: 'r', a: '2', f: 'H2', n: '2,0' },
-    { role: 'r', a: '1', f: 'O2', n: '1,5' },
-    { role: 'p', a: '2', f: 'H2O', n: '0' },
-  ];
-  let unit = 'mol', compute = true;
+L.AVC_UNITS = {
+  n: [['mol', '\\mathrm{mol}'], ['mmol', '\\mathrm{mmol}'], ['µmol', '\\mu\\mathrm{mol}'], ['kmol', '\\mathrm{kmol}']],
+  c: [['mol·L⁻¹', '\\mathrm{mol\\cdot L^{-1}}'], ['mmol·L⁻¹', '\\mathrm{mmol\\cdot L^{-1}}'], ['µmol·L⁻¹', '\\mu\\mathrm{mol\\cdot L^{-1}}'], ['mol/L', '\\mathrm{mol/L}']],
+};
+L.AVC_SYMBOLS = [['x', 'x', 'x'], ['xi', 'ξ (ksi)', '\\xi'], ['y', 'y', 'y'], ['xv', 'xᵥ (volumique)', 'x_v']];
+
+/* cfg (facultatif) : réglages d'un tableau déjà créé, pour le modifier */
+L.dlgAvancement = function (onDone, cfg) {
+  const DEF = {
+    sp: [
+      { role: 'r', a: '2', f: 'H2', n: '2,0', excess: false },
+      { role: 'r', a: '1', f: 'O2', n: '1,5', excess: false },
+      { role: 'p', a: '2', f: 'H2O', n: '0', excess: false },
+    ],
+    qty: 'n', unit: 0, sym: 'x', finalRow: 'max', xf: '', compute: true, sig: 'auto', unitWhere: 'header', labels: 'long', style: 'grille',
+    arrow: '->', showCours: true, inter: false, xi: '', limit: true, caption: 'Tableau d’avancement de la réaction', capMode: 'num', headColor: '',
+  };
+  const C = Object.assign(DEF, JSON.parse(JSON.stringify(cfg || {})));
+  const sp = C.sp;
   const body = L.h('div', { class: 'avc' });
   const prev = L.h('div', { class: 'avc-prev' });
-  const num = s => { const v = parseFloat(String(s).replace(',', '.')); return isNaN(v) ? null : v; };
-  const fr = v => String(Math.round(v * 1000) / 1000).replace('.', '{,}');
+  const num = s => { const v = parseFloat(String(s ?? '').replace(',', '.').replace(/\s/g, '')); return isNaN(v) ? null : v; };
+  const fr2 = v => String(Math.round(v * 1000) / 1000).replace('.', '{,}');
+  // Nombre → LaTeX (virgule française, chiffres significatifs, puissances de 10)
+  const fr = v => {
+    if (Math.abs(v) < 1e-12) return '0';
+    if (C.sig === 'auto') {
+      if (Math.abs(v) < 1e-3) { const e = Math.floor(Math.log10(Math.abs(v))); return fr2(v / Math.pow(10, e)) + '\\times 10^{' + e + '}'; }
+      return String(Math.round(v * 1e6) / 1e6).replace('.', '{,}');
+    }
+    const s = Number(v).toPrecision(+C.sig);
+    if (/e/.test(s)) { const [m, e] = s.split('e'); return m.replace('.', '{,}') + '\\times 10^{' + (+e) + '}'; }
+    return s.replace('.', '{,}');
+  };
   const tex = s => L.quickTex(String(s || '').trim()).replace(/\b([a-zA-Z])(\d+)\b/g, '$1_{$2}');
   const coef = a => (!a || a === '1') ? '' : String(a).replace(',', '{,}');
-  const eqLatex = () => '\\ce{' + sp.filter(s => s.role === 'r').map(s => ((s.a && s.a !== '1') ? s.a + ' ' : '') + s.f).join(' + ') + ' -> ' +
-    sp.filter(s => s.role === 'p').map(s => ((s.a && s.a !== '1') ? s.a + ' ' : '') + s.f).join(' + ') + '}';
+  const symTex = () => (L.AVC_SYMBOLS.find(s => s[0] === C.sym) || L.AVC_SYMBOLS[0])[2];
+  const sub = k => { const s = symTex(); return s === 'x_v' ? 'x_{v,' + k + '}' : s + '_{' + k + '}'; };
+  const unitTex = () => (L.AVC_UNITS[C.qty][C.unit] || L.AVC_UNITS[C.qty][0])[1];
+  const side = role => sp.filter(s => s.role === role && s.f.trim()).map(s => ((s.a && s.a !== '1') ? s.a + ' ' : '') + s.f).join(' + ');
+  const eqLatex = () => '\\ce{' + side('r') + ' ' + (C.arrow || '->') + ' ' + side('p') + '}';
+
   const build = () => {
     const S = sp.filter(s => s.f.trim());
-    const ns = S.length;
+    const ns = Math.max(1, S.length);
     const M = l => '<span class="imath" data-latex="' + L.escHtml(l) + '"></span>';
+    const U = unitTex();
+    // Unité dans la case : (4,0 − 2x) mmol plutôt que 4,0 − 2x mmol
+    const val = v => M(C.unitWhere === 'cells' ? (/ [-+] /.test(v) && !/=/.test(v) ? '\\left(' + v + '\\right)' : v) + '\\,' + U : v);
+    const x = symTex();
     let xmax = null;
-    const reacts = S.filter(s => s.role === 'r');
-    if (compute && reacts.length && reacts.every(s => num(s.n) !== null && num(s.a || '1'))) xmax = Math.min(...reacts.map(s => num(s.n) / num(s.a || '1')));
-    const expr = (s, x) => {
+    const reacts = S.filter(s => s.role === 'r' && !s.excess);
+    if (C.compute && reacts.length && reacts.every(s => num(s.n) !== null && num(s.a || '1'))) xmax = Math.min(...reacts.map(s => num(s.n) / num(s.a || '1')));
+    const expr = (s, xs) => {
       const a = coef(s.a), n0 = String(s.n || '').trim();
-      if (s.role === 'r') return (n0 ? tex(n0) : 'n_0') + ' - ' + a + x;
-      return (!n0 || num(n0) === 0) ? a + x : tex(n0) + ' + ' + a + x;
+      if (s.role === 'r') return (n0 ? tex(n0) : 'n_0') + ' - ' + a + xs;
+      return (!n0 || num(n0) === 0) ? a + xs : tex(n0) + ' + ' + a + xs;
     };
+    const stateCells = (xs, xv) => S.map(s => {
+      if (s.excess) return 'excès';
+      const n0 = String(s.n || '').trim() === '' && s.role === 'p' ? 0 : num(s.n);
+      if (C.compute && xv !== null && n0 !== null) {
+        const a = num(s.a || '1');
+        return val(fr(Math.max(0, s.role === 'r' ? n0 - a * xv : n0 + a * xv)));
+      }
+      return val(expr(s, xs));
+    });
+    const lab = C.labels === 'court' ? ['EI', 'EC', 'EF'] : ['État initial', 'En cours', 'État final'];
+    const qtyHead = C.qty === 'c' ? 'Concentrations' : 'Quantités de matière';
+    const avHead = C.qty === 'c' ? 'Avancement volumique' : 'Avancement';
+    const uh = C.unitWhere === 'header' ? ' (' + M(U) + ')' : '';
     const rows = [
       ['Équation de la réaction', '', M(eqLatex()), ...Array(ns - 1).fill('')],
-      ['État du système', 'Avancement (' + unit + ')', 'Quantités de matière (' + unit + ')', ...Array(ns - 1).fill('')],
-      ['État initial', M('x = 0'), ...S.map(s => M(tex(s.n) || '0'))],
-      ['En cours', M('x'), ...S.map(s => M(expr(s, 'x')))],
-      ['État final', M(xmax !== null ? 'x_{\\max} = ' + fr(xmax) : 'x_{\\max}'),
-        ...S.map(s => M(xmax !== null ? fr(Math.max(0, s.role === 'r' ? num(s.n) - num(s.a || '1') * xmax : (num(s.n) || 0) + num(s.a || '1') * xmax)) : expr(s, 'x_{\\max}')))],
+      ['État du système', avHead + uh, qtyHead + uh, ...Array(ns - 1).fill('')],
+      [lab[0], val(x + ' = 0'), ...S.map(s => s.excess ? 'excès' : val(tex(s.n) || '0'))],
     ];
+    if (C.showCours !== false) rows.push([lab[1], val(x), ...S.map(s => s.excess ? 'excès' : val(expr(s, x)))]);
+    const xiv = num(C.xi);
+    if (C.inter) rows.push([C.labels === 'court' ? 'EInt' : 'État intermédiaire', val(xiv !== null ? sub('1') + ' = ' + fr(xiv) : sub('1')), ...stateCells(sub('1'), xiv)]);
+    const xfv = num(C.xf);
+    if (C.finalRow === 'max' || C.finalRow === 'both')
+      rows.push([C.finalRow === 'both' ? lab[2] + (C.labels === 'court' ? ' (max)' : ' théorique') : lab[2],
+        val(xmax !== null ? sub('\\max') + ' = ' + fr(xmax) : sub('\\max')), ...stateCells(sub('\\max'), xmax)]);
+    if (C.finalRow === 'f' || C.finalRow === 'both')
+      rows.push([C.finalRow === 'both' ? lab[2] + (C.labels === 'court' ? ' (réel)' : ' réel') : lab[2],
+        val(xfv !== null ? sub('f') + ' = ' + fr(xfv) : sub('f')), ...stateCells(sub('f'), xfv)]);
     const spans = { '0:0': 2 };
     if (ns > 1) { spans['0:2'] = ns; spans['1:2'] = ns; }
-    return L.newBlock('table', { head: false, style: 'grille', align: Array(ns + 2).fill('c'), spans, rows, caption: 'Tableau d\'avancement de la réaction' });
+    // Réactif limitant (ou mélange stœchiométrique)
+    if (C.limit !== false && C.compute && xmax !== null && reacts.length) {
+      const lim = reacts.filter(s => Math.abs(num(s.n) / num(s.a || '1') - xmax) <= 1e-9 * Math.max(1, Math.abs(xmax)));
+      const txt = lim.length === reacts.length && reacts.length > 1
+        ? 'Mélange stœchiométrique : tous les réactifs sont entièrement consommés (' + M(sub('\\max') + ' = ' + fr(xmax) + '\\,' + U) + ')'
+        : 'Réactif limitant : ' + lim.map(s => M('\\ce{' + s.f + '}')).join(' et ') + ' (' + M(sub('\\max') + ' = ' + fr(xmax) + '\\,' + U) + ')';
+      rows.push([txt, ...Array(ns + 1).fill('')]);
+      spans[(rows.length - 1) + ':0'] = ns + 2;
+    }
+    return L.newBlock('table', {
+      head: false, style: C.style, align: Array(ns + 2).fill('c'), spans, rows, headColor: C.headColor || '',
+      caption: C.caption || '', capMode: C.capMode || 'num', avc: JSON.parse(JSON.stringify(C)),
+    });
   };
+
   const refresh = () => {
     const b = build();
     const ctx = { doc: App.doc, mode: 'view', nums: {}, bib: {}, lang: App.doc.meta.lang, meta: App.doc.meta, fn: 0 };
     const el = L.R.table(b, ctx);
-    el.querySelector('.caption').remove();
     prev.replaceChildren(L.h('div', { class: 'paper ' + L.pageClasses(App.doc.meta), style: { padding: '8px' } }, el));
   };
+  const sel = (key, opts, onch) => {
+    const s = L.h('select', null, ...opts.map(([v, t]) => { const o = L.h('option', { value: String(v), text: t }); if (String(C[key]) === String(v)) o.selected = true; return o; }));
+    s.onchange = () => { C[key] = key === 'unit' ? +s.value : s.value; if (onch) onch(); refresh(); };
+    return s;
+  };
+  const seg = (key, opts, onch) => {
+    const s = L.h('div', { class: 'seg' });
+    opts.forEach(([v, t]) => { const b = L.h('button', { class: C[key] === v ? 'on' : '', text: t }); b.onclick = () => { C[key] = v; if (onch) onch(); draw(); refresh(); }; s.appendChild(b); });
+    return s;
+  };
+  const chk = (key, label, redraw) => { const c = L.h('input', { type: 'checkbox' }); c.checked = C[key] !== false && !!C[key]; c.onchange = () => { C[key] = c.checked; if (redraw) draw(); refresh(); }; return L.h('label', { class: 'chk' }, c, label); };
+  const txt = (key, ph) => { const i = L.h('input', { type: 'text', value: C[key] || '', placeholder: ph }); i.oninput = () => { C[key] = i.value; refresh(); }; return i; };
+  const field = (label, el) => L.h('div', { class: 'field' }, L.h('label', { text: label }), el);
+
   const draw = () => {
     body.innerHTML = '';
     const tbl = L.h('div', { class: 'avc-list' });
-    tbl.appendChild(L.h('div', { class: 'avc-row avc-h' }, L.h('span', { text: 'Espèce' }), L.h('span', { text: 'Coefficient' }), L.h('span', { text: 'Formule' }), L.h('span', { text: 'Quantité initiale' }), L.h('span')));
+    tbl.appendChild(L.h('div', { class: 'avc-row avc-h' }, L.h('span', { text: 'Espèce' }), L.h('span', { text: 'Coefficient' }), L.h('span', { text: 'Formule' }),
+      L.h('span', { text: C.qty === 'c' ? 'Concentration initiale' : 'Quantité initiale' }), L.h('span', { text: 'En excès' }), L.h('span')));
     sp.forEach((s, i) => {
-      const inp = (k, ph) => { const x = L.h('input', { type: 'text', value: s[k], placeholder: ph }); x.oninput = () => { s[k] = x.value; refresh(); }; return x; };
+      const inp = (k, ph) => { const x = L.h('input', { type: 'text', value: s[k] ?? '', placeholder: ph }); x.oninput = () => { s[k] = x.value; refresh(); }; return x; };
+      const ex = L.h('input', { type: 'checkbox', title: 'Espèce en excès (ex. le solvant) : « excès » dans toutes les cases' }); ex.checked = !!s.excess;
+      ex.onchange = () => { s.excess = ex.checked; refresh(); };
       tbl.appendChild(L.h('div', { class: 'avc-row' },
         L.h('span', { class: 'avc-role ' + s.role, text: s.role === 'r' ? 'Réactif' : 'Produit' }),
-        inp('a', '1'), inp('f', 'ex. CuSO4'), inp('n', s.role === 'r' ? 'ex. 2,0 ou n1' : '0'),
+        inp('a', '1'), inp('f', 'ex. CuSO4'), inp('n', s.role === 'r' ? (C.qty === 'c' ? 'ex. 0,10 ou c1' : 'ex. 2,0 ou n1') : '0'),
+        L.h('label', { class: 'avc-ex' }, ex),
         L.h('button', { class: 'btn danger', text: '×', title: 'Retirer', onclick: () => { sp.splice(i, 1); draw(); refresh(); } })));
     });
-    const unitSel = L.h('select', null, ...['mol', 'mmol', 'µmol'].map(u => { const o = L.h('option', { value: u, text: u }); if (u === unit) o.selected = true; return o; }));
-    unitSel.onchange = () => { unit = unitSel.value; refresh(); };
-    const chk = L.h('input', { type: 'checkbox' }); chk.checked = compute; chk.onchange = () => { compute = chk.checked; refresh(); };
     body.append(
-      L.h('p', { class: 'pp-help', html: 'Saisissez les réactifs et les produits : le tableau (équation, états initial / en cours / final) est construit automatiquement. Formules chimiques en écriture simple : <b>H2O</b>, <b>Cu^2+</b>, <b>SO4^2-</b>.' }),
+      L.h('p', { class: 'pp-help', html: 'Saisissez les réactifs et les produits : le tableau est construit automatiquement. Formules chimiques en écriture simple : <b>H2O</b>, <b>Cu^2+</b>, <b>SO4^2-</b>, avec l’état si besoin : <b>Cu^2+(aq)</b>. Cochez « En excès » pour un réactif en excès ou le solvant (ex. l’eau).' }),
       tbl,
       L.h('div', { class: 'btn-row', style: { margin: '8px 0 12px' } },
-        L.h('button', { class: 'btn', text: '+ Réactif', onclick: () => { const j = sp.filter(s => s.role === 'r').length; sp.splice(j, 0, { role: 'r', a: '1', f: '', n: '' }); draw(); refresh(); } }),
-        L.h('button', { class: 'btn', text: '+ Produit', onclick: () => { sp.push({ role: 'p', a: '1', f: '', n: '0' }); draw(); refresh(); } })),
-      L.h('div', { class: 'grid2' },
-        L.h('div', { class: 'field' }, L.h('label', { text: 'Unité' }), unitSel),
-        L.h('label', { class: 'chk', style: { marginTop: '18px' } }, chk, 'Calculer x', L.h('sub', { text: 'max' }), ' et l\'état final (quantités numériques)')),
+        L.h('button', { class: 'btn', text: '+ Réactif', onclick: () => { const j = sp.filter(s => s.role === 'r').length; sp.splice(j, 0, { role: 'r', a: '1', f: '', n: '', excess: false }); draw(); refresh(); } }),
+        L.h('button', { class: 'btn', text: '+ Produit', onclick: () => { sp.push({ role: 'p', a: '1', f: '', n: '0', excess: false }); draw(); refresh(); } })),
+
+      L.h('div', { class: 'set-h', text: 'Réaction, grandeur et unités' }),
+      L.h('div', { class: 'grid3' },
+        field('Type de réaction', seg('arrow', [['->', '→ Totale'], ['<=>', '⇌ Équilibre']])),
+        field('Grandeur suivie', seg('qty', [['n', 'Quantité de matière'], ['c', 'Concentration']], () => { C.unit = 0; if (C.qty === 'c' && C.sym === 'x') C.sym = 'xv'; if (C.qty === 'n' && C.sym === 'xv') C.sym = 'x'; })),
+        field('Unité', sel('unit', L.AVC_UNITS[C.qty].map((u, k) => [k, u[0]])))),
+      L.h('div', { class: 'grid3' },
+        field('Unité affichée', seg('unitWhere', [['header', 'Dans l’en-tête'], ['cells', 'Dans chaque case']])),
+        field('Symbole de l’avancement', sel('sym', L.AVC_SYMBOLS.map(s => [s[0], s[1]]))),
+        field('Chiffres significatifs', sel('sig', [['auto', 'Automatique'], ['2', '2'], ['3', '3'], ['4', '4']]))),
+
+      L.h('div', { class: 'set-h', text: 'Lignes du tableau' }),
+      L.h('div', { class: 'grid3' },
+        field('Libellés des états', seg('labels', [['long', 'État initial…'], ['court', 'EI / EC / EF']])),
+        field('État final', sel('finalRow', [['max', 'Théorique (xmax)'], ['f', 'Réel (xf)'], ['both', 'Les deux']], draw)),
+        field('Lignes facultatives', L.h('div', null, chk('showCours', 'En cours'), chk('inter', 'État intermédiaire', true), chk('limit', 'Réactif limitant')))),
+      L.h('div', { class: 'grid3' },
+        (C.finalRow === 'f' || C.finalRow === 'both') ? field('Valeur de xf (mesurée)', txt('xf', 'ex. 0,85 (facultatif)')) : L.h('span'),
+        C.inter ? field('Avancement intermédiaire', txt('xi', 'ex. 0,5 (facultatif)')) : L.h('span'),
+        L.h('div', { style: { paddingTop: '18px' } }, chk('compute', 'Calculer les valeurs numériques'))),
+
+      L.h('div', { class: 'set-h', text: 'Présentation' }),
+      L.h('div', { class: 'grid3' },
+        field('Style du tableau', sel('style', [['grille', 'Grille'], ['pro', 'Professionnel'], ['simple', 'Simple']])),
+        field('Couleur de la 1re ligne', sel('headColor', [['', 'Aucune'], ...Object.keys(L.HEAD_COLORS).map(k => [k, k[0].toUpperCase() + k.slice(1)])])),
+        field('Légende', sel('capMode', [['num', 'Numérotée'], ['nonum', 'Sans numéro'], ['none', 'Aucune']]))),
+      C.capMode !== 'none' ? field('Texte de la légende', txt('caption', 'Tableau d’avancement…')) : '',
+
       L.h('div', { class: 'set-h', text: 'Aperçu' }), prev);
   };
   draw(); refresh();
   L.modal({
-    title: 'Tableau d\'avancement', body, wide: true,
-    foot: [{ text: 'Annuler', onClick: c => c() }, { text: 'Insérer le tableau', cls: 'primary', onClick: c => { c(); onDone(build()); } }],
+    title: 'Tableau d’avancement', body, wide: true,
+    foot: [{ text: 'Annuler', onClick: c => c() }, { text: cfg ? 'Mettre à jour le tableau' : 'Insérer le tableau', cls: 'primary', onClick: c => { c(); onDone(build()); } }],
   });
 };
