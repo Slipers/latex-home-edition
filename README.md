@@ -33,6 +33,10 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Notes de bas de page | Bouton **Note** |
 | Table des matières | Réglages « Document » |
 | Code informatique | Bloc « Code » (Python, C, Java, Matlab…) |
+| Symboles (maths, physique, chimie…) | Touche **Tab** : menu avec recherche |
+| Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
+| Tableau d'avancement (chimie) | Colonne « Insérer » — construit depuis l'équation, calcule x_max |
+| Fusionner des cases de tableau | Panneau de droite du tableau |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
@@ -81,9 +85,9 @@ npm run dist         # construit l'installateur dans dist/
 ### Publier une nouvelle version (déclenche la mise à jour chez les utilisateurs)
 
 ```bash
-npm version patch    # 1.0.0 -> 1.0.1 (ou minor / major)
+npm version minor    # 1.1.0 -> 1.2.0 (ou patch / major)
 git push --follow-tags
-GH_TOKEN=$(gh auth token) npm run release
+npm run release
 ```
 
-`npm run release` construit l'installateur et le publie dans une Release GitHub avec le fichier `latest.yml`, que les applications installées consultent pour se mettre à jour.
+`npm run release` crée la Release GitHub (notes : `RELEASE_NOTES.md`), y téléverse l'installateur et le fichier `latest.yml`, puis la publie. Au lancement suivant, chaque application installée propose la mise à jour, l'installe et redémarre toute seule.

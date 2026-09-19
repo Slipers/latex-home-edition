@@ -16,7 +16,15 @@
       make: () => doc({ title: '', author: '' }, [P('')]),
     },
     {
-      id: 'tp', icon: '⚗', name: 'Compte rendu de TP',
+      id: 'tp-vierge', icon: '⚗', name: 'Compte rendu de TP (vierge)',
+      desc: 'Page de garde prête à remplir (titre, noms, groupe, date). Le reste est une page blanche.',
+      make: () => doc({
+        title: '', subtitle: 'Compte rendu de travaux pratiques', author: '', institution: '', extra: '',
+        titleStyle: 'pagegarde', toc: false,
+      }, [P('')]),
+    },
+    {
+      id: 'tp', icon: '⚗', name: 'Compte rendu de TP (exemple)',
       desc: 'Page de garde, sommaire, protocole, tableau de mesures, figure, exploitation et conclusion.',
       make: () => {
         const eqOhm = E('U = R\\,I');

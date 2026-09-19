@@ -90,7 +90,7 @@ L.dlgSettings = function () {
   const body = L.h('div', null,
     L.h('div', { class: 'set-h', text: 'Présentation du titre' }), styles,
     L.h('div', { class: 'set-h', text: 'Informations' }),
-    L.h('div', { class: 'grid2' }, txt('title', 'Titre'), txt('subtitle', 'Sous-titre'), txt('author', 'Auteur(s)'), txt('institution', 'Établissement / matière'), dateField),
+    L.h('div', { class: 'grid2' }, txt('title', 'Titre'), txt('subtitle', 'Sous-titre'), txt('author', 'Auteur(s)'), txt('institution', 'Établissement / matière'), txt('extra', 'Infos complémentaires (groupe, binôme…)'), dateField),
     L.h('div', { class: 'set-h', text: 'Mise en page' }),
     L.h('div', { class: 'grid2' },
       seg('fontSize', [[10, '10 pt'], [11, '11 pt'], [12, '12 pt']], 'Taille du texte'),

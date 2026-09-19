@@ -27,6 +27,9 @@ L.ITEMS = [
   { g: 'Maths & sciences', key: 'exemple', label: 'Exemple', icon: 'Ex', kw: 'exemple', make: () => L.newBlock('box', { kind: 'exemple' }) },
   { g: 'Maths & sciences', key: 'remarque', label: 'Remarque', icon: 'Rq', kw: 'remarque note', make: () => L.newBlock('box', { kind: 'remarque' }) },
   { g: 'Maths & sciences', key: 'methode', label: 'Méthode', icon: 'M', kw: 'methode', make: () => L.newBlock('box', { kind: 'methode' }) },
+  { g: 'Maths & sciences', key: 'tabvar', label: 'Tableau de variations', icon: '↗↘', kw: 'tableau variations fonction derivee tkz', make: () => L.newTabvar('variations') },
+  { g: 'Maths & sciences', key: 'tabsign', label: 'Tableau de signes', icon: '+ −', kw: 'tableau signes produit quotient', make: () => L.newTabvar('signes') },
+  { g: 'Maths & sciences', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: () => L.dlgAvancement(b => App.insertBlock(b)) },
   { g: 'Exercices', key: 'exercice', label: 'Exercice', icon: '✎', kw: 'exercice', make: () => L.newBlock('box', { kind: 'exercice' }) },
   { g: 'Exercices', key: 'question', label: 'Question', icon: 'Q', kw: 'question', make: () => L.newBlock('box', { kind: 'question' }) },
   { g: 'Exercices', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
@@ -42,7 +45,7 @@ L.ITEMS = [
 const TYPE_INFO = {
   paragraph: ['¶', 'Paragraphe'], heading: ['§', 'Titre'], equation: ['(1)', 'Équation'], list: ['1.', 'Liste'],
   box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'],
-  pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
+  tabvar: ['↗↘', 'Tableau de variations / signes'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
 };
 
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -124,6 +127,60 @@ Object.assign(App, {
       const fa = this.focusAfter; this.focusAfter = null;
       this.applyFocus(fa);
     }
+    this.drawPageMarks();
+    this.pagesSoon();
+  },
+
+  /* ================= Changements de page visibles pendant l'écriture ================= */
+  pagesSoon: L.debounce(() => App.computePages(), 700),
+  async computePages() {
+    if (this._paginating) { this._paginateAgain = true; return; }
+    this._paginating = true;
+    try {
+      const host = this._pageHost || (this._pageHost = document.body.appendChild(L.h('div', { class: 'measure-host', 'aria-hidden': 'true' })));
+      await L.paginate(this.doc, host);
+      host.innerHTML = '';
+      this.pageInfo = L.lastPagination;
+      this.drawPageMarks();
+    } catch (e) { console.warn('Pagination', e); }
+    this._paginating = false;
+    if (this._paginateAgain) { this._paginateAgain = false; this.pagesSoon(); }
+  },
+  drawPageMarks() {
+    const paper = L.$('#paper');
+    let layer = L.$('#pageMarks');
+    if (!layer || layer.parentNode !== paper) { layer = L.h('div', { id: 'pageMarks', 'aria-hidden': 'true' }); paper.appendChild(layer); }
+    layer.innerHTML = '';
+    const info = this.pageInfo;
+    if (!info) return;
+    const pTop = paper.getBoundingClientRect().top;
+    this.pageMarkY = [];
+    info.breaks.forEach(b => {
+      const el = b.id && paper.querySelector('.blk[data-id="' + b.id + '"]');
+      if (!el) return;
+      const content = Array.from(el.children).find(c => !c.classList.contains('gutter')) || el;
+      const top = content.getBoundingClientRect().top;
+      const y = (b.offset ? top + b.offset : top - 3) - pTop;
+      this.pageMarkY.push(y);
+      layer.appendChild(L.h('div', { class: 'pmark', style: { top: y + 'px' } },
+        L.h('span', { class: 'pmark-lab', text: 'Page ' + b.page })));
+    });
+    this.updatePageIndicator();
+  },
+  updatePageIndicator() {
+    const pill = L.$('#pageIndicator');
+    if (!pill || !this.pageInfo || !L.$('#previewWrap').hidden) { if (pill) pill.hidden = true; return; }
+    let y = null;
+    const paper = L.$('#paper');
+    const s = window.getSelection();
+    if (s.rangeCount && paper.contains(s.anchorNode)) {
+      const r = s.getRangeAt(0).getBoundingClientRect();
+      if (r.top || r.bottom) y = r.top - paper.getBoundingClientRect().top;
+    }
+    if (y === null) { const d = L.$('#desk'); y = d.getBoundingClientRect().top + d.clientHeight / 3 - paper.getBoundingClientRect().top; }
+    const page = 1 + (this.pageMarkY || []).filter(v => v <= y + 2).length;
+    pill.textContent = 'Page ' + Math.min(page, this.pageInfo.count) + ' sur ' + this.pageInfo.count;
+    pill.hidden = false;
   },
   refreshAux: L.debounce(() => {
     // Met à jour le sommaire et le plan pendant la frappe, sans toucher au texte en cours
@@ -406,6 +463,41 @@ Object.assign(App, {
       this.render();
     });
   },
+  /* Menu de symboles (touche Tab) dans le texte */
+  openSymbols(field) {
+    const s = window.getSelection();
+    let r = s.rangeCount && field && field.contains(s.anchorNode) ? s.getRangeAt(0).cloneRange() : (this.currentRichRange() || {}).r;
+    let rect = r ? r.getBoundingClientRect() : null;
+    if (!rect || (!rect.top && !rect.left)) rect = (field || L.$('#paper')).getBoundingClientRect();
+    L.SymbolPicker.open({
+      context: 'text', x: rect.left - 20, y: rect.bottom + 8, above: rect.top,
+      onPick: sym => {
+        if (r) this.lastRange = r;
+        this.insertSymbol(sym);
+      },
+      onClose: picked => {
+        if (picked || !field || !document.contains(field)) return;
+        field.focus({ preventScroll: true });
+        if (r) { const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+      },
+    });
+  },
+  insertSymbol(sym) {
+    const tpl = sym.latex;
+    if (/#[?0@]/.test(tpl)) {
+      // Modèle à compléter : on ouvre l'éditeur de formules avec le modèle
+      const chip = L.h('span', { class: 'imath', 'data-latex': '', contenteditable: 'false' });
+      chip.innerHTML = '<span class="chip-empty">formule</span>';
+      this.insertChip(chip);
+      L.MathDock.open({ kind: 'inline', chip, isNew: true, template: tpl });
+      return;
+    }
+    const chip = L.h('span', { class: 'imath', 'data-latex': tpl.replace(/^\\,/, ''), contenteditable: 'false' });
+    chip.innerHTML = L.katex(chip.dataset.latex);
+    this.insertChip(chip);
+    this.placeCaretAfter(chip);
+    this.commit();
+  },
   hydrateChips() {
     const info = L.computeNumbers(this.doc);
     L.hydrate(L.$('#paper'), { mode: 'edit', nums: info.nums, bib: info.bib, fn: 0 });
@@ -540,11 +632,20 @@ Object.assign(App, {
       P.append(
         row('Style', seg([['pro', 'Professionnel'], ['grille', 'Grille'], ['simple', 'Simple']], b.style, v => upd(() => { b.style = v; }))),
         row('', chk('Première ligne en en-tête (gras)', b.head, v => upd(() => { b.head = v; }))),
+        row('Cases fusionnées', L.h('div', { class: 'btn-row' },
+          btn('Fusionner avec la case de droite', () => {
+            const sp = b.spans || (b.spans = {});
+            const k = cell.r + ':' + cell.c, cur = sp[k] || 1;
+            if (cell.c + cur >= cols) return L.toast('Pas de case à droite à fusionner.');
+            const nk = cell.r + ':' + (cell.c + cur);
+            upd(() => { sp[k] = cur + (sp[nk] || 1); delete sp[nk]; });
+          }),
+          btn('Séparer', () => { if (b.spans && b.spans[cell.r + ':' + cell.c]) upd(() => { delete b.spans[cell.r + ':' + cell.c]; }); }))),
         row('Lignes et colonnes', L.h('div', { class: 'btn-row' },
-          btn('+ Ligne', () => upd(() => { b.rows.splice(cell.r + 1, 0, Array(cols).fill('')); })),
-          btn('+ Colonne', () => upd(() => { b.rows.forEach(r => r.splice(cell.c + 1, 0, '')); b.align.splice(cell.c + 1, 0, 'c'); })),
-          btn('− Ligne', () => { if (b.rows.length > 1) upd(() => { b.rows.splice(cell.r, 1); this.lastCell = null; }); }, 'danger'),
-          btn('− Colonne', () => { if (cols > 1) upd(() => { b.rows.forEach(r => r.splice(cell.c, 1)); b.align.splice(cell.c, 1); this.lastCell = null; }); }, 'danger'))),
+          btn('+ Ligne', () => upd(() => { b.rows.splice(cell.r + 1, 0, Array(cols).fill('')); L.shiftSpans(b, cell.r + 1, 1); })),
+          btn('+ Colonne', () => upd(() => { b.rows.forEach(r => r.splice(cell.c + 1, 0, '')); b.align.splice(cell.c + 1, 0, 'c'); b.spans = {}; })),
+          btn('− Ligne', () => { if (b.rows.length > 1) upd(() => { b.rows.splice(cell.r, 1); L.shiftSpans(b, cell.r, -1); this.lastCell = null; }); }, 'danger'),
+          btn('− Colonne', () => { if (cols > 1) upd(() => { b.rows.forEach(r => r.splice(cell.c, 1)); b.align.splice(cell.c, 1); b.spans = {}; this.lastCell = null; }); }, 'danger'))),
         L.h('div', { class: 'pp-help', html: '<p>Les ajouts et suppressions se font à côté de la case où se trouve le curseur (ligne ' + (cell.r + 1) + ', colonne ' + (cell.c + 1) + ').</p>' }),
         row('Alignement des colonnes', alignRow));
     } else if (b.type === 'figure') {
@@ -559,6 +660,9 @@ Object.assign(App, {
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
+    } else if (b.type === 'tabvar') {
+      P.append(row('', btn('✎  Modifier le tableau', () => L.dlgTabvar(b), 'primary')),
+        L.h('div', { class: 'pp-help', html: '<p>Exporté en LaTeX avec le paquet <i>tkz-tab</i>, la référence pour les tableaux de variations.</p>' }));
     } else if (b.type === 'bibliography') {
       P.append(row('', btn('Gérer les sources (' + (doc.bib || []).length + ')', () => L.dlgBib(), 'primary')),
         L.h('div', { class: 'pp-help', html: '<p>Citez une source dans le texte avec le bouton « Citation » de la barre d\'outils.</p>' }));
@@ -634,6 +738,7 @@ App.bindEditor = function () {
   const paper = L.$('#paper');
 
   document.addEventListener('selectionchange', () => {
+    this.updatePageIndicator();
     const s = window.getSelection();
     if (!s.rangeCount) return;
     const n = s.anchorNode;
@@ -657,6 +762,7 @@ App.bindEditor = function () {
     if (!field) return;
     this.syncField(field);
     this.commitSoon();
+    this.pagesSoon();
     const blk = field.closest('.blk');
     const type = blk && blk.dataset.type;
     if (type === 'heading' || field.dataset.b === 'meta') this.refreshAux();
@@ -819,6 +925,12 @@ App.bindEditor = function () {
       return;
     }
 
+    // Tab : menu de symboles (sauf en début d'élément de liste, où Tab décale l'élément)
+    if (e.key === 'Tab' && !(b && b.type === 'list' && (e.shiftKey || this.caretAt(field, 'start')))) {
+      e.preventDefault();
+      if (!e.shiftKey) this.openSymbols(field);
+      return;
+    }
     if (e.key === 'Tab' && b && b.type === 'list') {
       e.preventDefault();
       this.syncField(field);
@@ -902,6 +1014,8 @@ App.bindEditor = function () {
       L.InsertMenu.show(r.right + 6, r.top, '', it => this.runItem(it, blk.dataset.id));
       return;
     }
+    const tv = t.closest('.tvwrap');
+    if (tv) { const f = L.find(this.doc, tv.closest('.blk').dataset.id); if (f) L.dlgTabvar(f.block); return; }
     const eq = t.closest('.eq');
     if (eq) { const blk = eq.closest('.blk'); L.MathDock.open({ kind: 'block', blockId: blk.dataset.id }); return; }
     const drop = t.closest('.fig-drop');
@@ -911,6 +1025,7 @@ App.bindEditor = function () {
     if (t.closest('.meta-blk') && !t.closest('[data-f]') && t.closest('.meta-blk').dataset.id === '__title') L.dlgSettings();
   });
 
+  L.$('#desk').addEventListener('scroll', L.debounce(() => this.updatePageIndicator(), 60));
   L.$('#desk').addEventListener('mousedown', e => {
     if (e.target.id === 'desk' || e.target.id === 'deskInner') { this.select(null); L.InsertMenu.hide(); }
   });

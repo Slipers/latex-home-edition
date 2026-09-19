@@ -152,17 +152,40 @@ if (window.lheDesktop) {
     App.openText(f.text, f.name, null, f.path);
   });
   lheDesktop.onUpdate(u => {
+    const ov = L.$('#updOverlay');
+    if (u.state === 'downloading' || u.state === 'installing') {
+      ov.hidden = false;
+      if (u.version) App._updVersion = u.version;
+      const v = App._updVersion ? ' ' + App._updVersion : '';
+      L.$('#updTitle').textContent = u.state === 'installing' ? 'Installation de la version' + v + '…' : 'Téléchargement de la version' + v + '…';
+      L.$('#updBar').style.width = (u.state === 'installing' ? 100 : (u.percent || 0)) + '%';
+      L.$('#updSub').textContent = u.state === 'installing'
+        ? 'L’application va se fermer puis redémarrer automatiquement avec la nouvelle version.'
+        : (u.percent || 0) + ' % — vous pourrez continuer juste après.';
+      return;
+    }
+    ov.hidden = true;
     const msg = {
       checking: 'Recherche de mises à jour…',
-      available: 'Nouvelle version ' + u.version + ' disponible : téléchargement en cours…',
       none: 'Vous avez la dernière version (' + u.version + ').',
-      downloaded: 'Mise à jour ' + u.version + ' prête : elle s’installera à la fermeture.',
       dev: 'Mises à jour désactivées en mode développement.',
-      error: 'Impossible de vérifier les mises à jour (' + (u.message || 'erreur') + ').',
+      error: 'Mise à jour impossible (' + (u.message || 'erreur') + ').',
     }[u.state];
     if (msg) L.toast(msg, u.state === 'error' ? 'err' : '');
   });
 }
+
+/* Numéro de version discret dans le coin + confirmation après une mise à jour */
+App.showVersion = async function () {
+  const v = window.lheDesktop ? await lheDesktop.version() : L.VERSION;
+  if (!v) return;
+  const el = L.$('#appVersion');
+  el.textContent = 'LaTeX Home Edition v' + v + (window.lheDesktop ? '' : ' (web)');
+  el.hidden = false;
+  const prev = L.store.get('lhe-version');
+  if (prev && prev !== v && window.lheDesktop) setTimeout(() => L.toast('Mise à jour installée : vous utilisez maintenant la version ' + v + '.'), 800);
+  L.store.set('lhe-version', v);
+};
 
 /* ---------- Démarrage ---------- */
 window.addEventListener('DOMContentLoaded', () => {
@@ -201,6 +224,7 @@ window.addEventListener('DOMContentLoaded', () => {
     xref: () => App.insertXref(),
     cite: () => App.insertCite(),
     footnote: () => App.insertFootnote(),
+    symbols: () => { const cr = App.currentRichRange(); App.openSymbols(cr ? cr.field : null); },
     settings: () => L.dlgSettings(),
     preview: () => App.showPreview(),
     pdf: () => App.print(),
@@ -214,7 +238,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   document.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-act], [data-fmt]');
-    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
+    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
     if (!e.target.closest('.dropdown')) L.$('#latexMenu').classList.remove('open');
   });
   document.addEventListener('click', e => {
@@ -253,6 +277,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('beforeunload', e => { if (App.dirty) { App.autosave(); } });
 
   App.bindEditor();
+  App.showVersion();
 
   // Reprise du dernier document (sauvegarde automatique) ou écran d'accueil
   let restored = false;

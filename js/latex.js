@@ -107,11 +107,17 @@ L.blockToLatex = function (b, X, indent = '') {
       const lines = [];
       if (grid) lines.push('\\hline');
       else if (b.style === 'pro') lines.push('\\toprule');
+      const spans = b.spans || {};
       b.rows.forEach((r, ri) => {
-        const cells = Array.from({ length: cols }, (_, ci) => {
-          const t = R(r[ci] || '').replace(/\\\\\n/g, ' ');
-          return b.head && ri === 0 && t ? '\\textbf{' + t + '}' : t;
-        });
+        const cells = [];
+        for (let ci = 0; ci < cols;) {
+          const sp = Math.max(1, Math.min(spans[ri + ':' + ci] || 1, cols - ci));
+          let t = R(r[ci] || '').replace(/\\\\\n/g, ' ');
+          if (b.head && ri === 0 && t) t = '\\textbf{' + t + '}';
+          if (sp > 1) t = '\\multicolumn{' + sp + '}{' + (grid ? (ci === 0 ? '|' : '') + 'c|' : 'c') + '}{' + t + '}';
+          cells.push(t);
+          ci += sp;
+        }
         lines.push(cells.join(' & ') + ' \\\\');
         if (grid) lines.push('\\hline');
         else if (b.head && ri === 0) lines.push(b.style === 'pro' ? '\\midrule' : '\\hline');
@@ -142,6 +148,7 @@ L.blockToLatex = function (b, X, indent = '') {
       if (b.numbers) opts.push('numbers=left');
       return '\\begin{lstlisting}' + (opts.length ? '[' + opts.join(', ') + ']' : '') + '\n' + (b.code || '') + '\n\\end{lstlisting}';
     }
+    case 'tabvar': return L.tabvarToLatex(b, X);
     case 'pagebreak': return '\\newpage';
     case 'bibliography': {
       const bib = X.doc.bib || [];
@@ -195,6 +202,7 @@ L.titleToLatex = function (m, X) {
       '  \\vfill\n  \\rule{\\linewidth}{0.8pt}\\\\[10pt]\n  {\\huge\\bfseries ' + R(m.title) + '\\par}\n' +
       (has('subtitle') ? '  \\vspace{10pt}{\\Large ' + R(m.subtitle) + '\\par}\n' : '') +
       '  \\rule{\\linewidth}{0.8pt}\\\\[3em]\n' + (has('author') ? '  {\\large ' + R(m.author) + '\\par}\n' : '') +
+      (has('extra') ? '  \\vspace{0.5em}{' + R(m.extra) + '\\par}\n' : '') +
       '  \\vfill\n' + (has('date') ? '  {\\large ' + R(m.date) + '\\par}\n' : '') + '\\end{titlepage}';
   }
   return '\\maketitle';
@@ -223,6 +231,9 @@ L.docToLatex = function (doc) {
   P.push('\\usepackage{url}');
   if (/\\ce\{/.test(body)) P.push('\\usepackage[version=4]{mhchem}');
   if (X.pk.has('booktabs')) P.push('\\usepackage{booktabs}');
+  if (X.pk.has('tkz-tab')) P.push('\\usepackage{tkz-tab}');
+  if (/\\coloneqq/.test(body)) P.push('\\usepackage{mathtools}');
+  if (/\\cancel\{/.test(body)) P.push('\\usepackage{cancel}');
   if (m.margins === 'normales') P.push('\\usepackage[a4paper,margin=2.5cm]{geometry}');
   else if (m.margins === 'etroites') P.push('\\usepackage[a4paper,margin=1.5cm]{geometry}');
   if (m.spacing === 1.5) P.push('\\usepackage{setspace}\n\\onehalfspacing');
@@ -268,7 +279,8 @@ L.docToLatex = function (doc) {
     P.push('');
     const t = R(m.title) + (L.isEmptyHtml(m.subtitle) ? '' : '\\\\[0.5em]\\large ' + R(m.subtitle));
     P.push('\\title{' + t + '}');
-    const au = R(m.author) + (L.isEmptyHtml(m.institution) ? '' : '\\\\ \\normalsize ' + R(m.institution));
+    const au = R(m.author) + (L.isEmptyHtml(m.institution) ? '' : '\\\\ \\normalsize ' + R(m.institution)) +
+      (L.isEmptyHtml(m.extra) ? '' : '\\\\ \\normalsize ' + R(m.extra));
     P.push('\\author{' + au + '}');
     P.push('\\date{' + R(m.date) + '}');
   }

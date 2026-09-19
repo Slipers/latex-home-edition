@@ -177,3 +177,13 @@
 .page .page-num { position: absolute; left: 0; right: 0; bottom: calc(var(--m-bottom) - 30pt - var(--lh)); text-align: center; text-indent: 0; }
 .page.titlepage .page-num { display: none; }
 .page .page-content > .para:first-child.split-cont { text-indent: 0; }
+
+/* --------- Tableaux de variations / signes (tkz-tab) --------- */
+.tvwrap { margin: calc(var(--fs) * 1.1) 0; text-align: center; text-indent: 0; }
+.tv { position: relative; display: inline-block; vertical-align: top; }
+.tv-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.tv-l { stroke: #000; stroke-width: 0.25; fill: none; }
+.tv-dot { stroke-dasharray: 0.4 0.8; }
+.tv-v { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; line-height: 1; }
+.tv-v.tv-zero { background: #fff; padding: 0 2px; }
+.doc-titlepage .t-extra { margin-top: .8em; }

@@ -39,7 +39,7 @@ L.KINDS = {
 L.kindName = (kind, lang) => (L.NAMES[lang] || L.NAMES.fr)[kind] || kind;
 
 L.defaultMeta = () => ({
-  title: '', subtitle: '', author: '', institution: '', date: L.todayFr(),
+  title: '', subtitle: '', author: '', institution: '', extra: '', date: L.todayFr(),
   titleStyle: 'article',     // article | fiche | pagegarde | aucun
   fontSize: 11, margins: 'normales', spacing: 1, lang: 'fr',
   toc: false, thmBySection: false, boxedThm: false, pageNumbers: true,
@@ -59,6 +59,7 @@ L.newBlock = function (type, opts = {}) {
     }),
     figure: () => ({ src: '', width: 60, caption: '' }),
     code: () => ({ lang: 'python', code: '', numbers: false }),
+    tabvar: () => ({ xlabel: 'x', xs: ['-inf', '+inf'], rows: [] }),
     pagebreak: () => ({}),
     bibliography: () => ({}),
   }[type];
@@ -196,3 +197,15 @@ L.plain = function (html) {
 };
 
 L.isEmptyHtml = html => !html || !String(html).replace(/<br>/g, '').replace(/&nbsp;|\s/g, '').length;
+
+/* Décale les cases fusionnées quand on insère (+1) ou supprime (-1) une ligne à partir de « from » */
+L.shiftSpans = function (b, from, delta) {
+  if (!b.spans) return;
+  const out = {};
+  for (const [k, v] of Object.entries(b.spans)) {
+    const [r, c] = k.split(':').map(Number);
+    if (delta < 0 && r === from) continue;
+    out[(r >= from ? r + delta : r) + ':' + c] = v;
+  }
+  b.spans = out;
+};

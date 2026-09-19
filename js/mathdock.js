@@ -87,15 +87,19 @@ L.MathDock = (function () {
       preview(v);
     });
     mf.addEventListener('keydown', e => {
+      if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); openSymbols('math'); return; }
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); ok(); }
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); }
     }, { capture: true });
     L.$('#mdLatex').addEventListener('input', e => { mf.value = e.target.value; preview(e.target.value); });
     L.$('#chemIn').addEventListener('input', () => chemPreview());
     L.$('#chemIn').addEventListener('keydown', e => {
+      if (e.key === 'Tab' && !e.shiftKey) { e.preventDefault(); openSymbols('chem'); return; }
       if (e.key === 'Enter') { e.preventDefault(); ok(); }
       if (e.key === 'Escape') { e.preventDefault(); cancel(); }
     });
+    L.$('#mdSym').onmousedown = e => e.preventDefault();
+    L.$('#mdSym').onclick = () => openSymbols(mode === 'chem' ? 'chem' : 'math');
     L.$('#mdOk').onclick = ok;
     L.$('#mdCancel').onclick = cancel;
     L.$('#mdDel').onclick = del;
@@ -127,6 +131,20 @@ L.MathDock = (function () {
       const b = L.h('button', { title, html: L.katex(disp) });
       b.onclick = () => { const i = L.$('#chemIn'); insertAtInput(i, ins); chemPreview(); i.focus(); };
       cp.appendChild(b);
+    });
+  }
+
+  function openSymbols(context) {
+    const r = dock().getBoundingClientRect();
+    L.SymbolPicker.open({
+      context, x: r.left + 20, y: r.top - 450, above: r.top,
+      onPick: sym => {
+        if (context === 'chem') { const i = L.$('#chemIn'); i.focus(); insertAtInput(i, sym.chem); chemPreview(); return; }
+        mf.focus();
+        mf.insert(sym.latex, { selectionMode: 'placeholder', focus: true, format: 'latex' });
+        mf.dispatchEvent(new Event('input'));
+      },
+      onClose: picked => { if (!picked) (context === 'chem' ? L.$('#chemIn') : mf).focus(); },
     });
   }
 
@@ -218,6 +236,12 @@ L.MathDock = (function () {
     else { const el = App.blockEl(t.blockId); if (el) el.querySelector('.eq').classList.add('editing'); }
     dock().hidden = false;
     setMode(isChem ? 'chem' : 'math');
+    if (t.template) setTimeout(() => {
+      mf.value = '';
+      mf.focus();
+      mf.insert(t.template, { selectionMode: 'placeholder', focus: true, format: 'latex' });
+      mf.dispatchEvent(new Event('input'));
+    }, 60);
     const anchor = t.kind === 'inline' ? t.chip : App.blockEl(t.blockId);
     if (anchor) setTimeout(() => {
       const r = anchor.getBoundingClientRect(), dh = dock().offsetHeight;
@@ -276,5 +300,5 @@ L.MathDock = (function () {
     else { target = null; dock().hidden = true; App.removeBlock(t.blockId); }
   }
 
-  return { init, open, ok, cancel, isOpen: () => !!target };
+  return { init, open, ok, cancel, isOpen: () => !!target, symbols: () => openSymbols(mode === 'chem' ? 'chem' : 'math') };
 })();

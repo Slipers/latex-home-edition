@@ -108,34 +108,55 @@ ipcMain.handle('lhe:export', async (e, { name, bytes }) => {
 ipcMain.handle('lhe:version', () => app.getVersion());
 ipcMain.handle('lhe:check-updates', () => checkUpdates(true));
 
-/* ---------- Mises à jour automatiques (GitHub Releases) ---------- */
-let manualCheck = false;
+/* ---------- Mises à jour automatiques (GitHub Releases) ----------
+   Au lancement : vérification sur GitHub. Si une version plus récente existe, on propose
+   de l'installer ; si l'utilisateur accepte, téléchargement (barre de progression),
+   installation silencieuse puis relance automatique de l'application à jour. */
+let manualCheck = false, busy = false, declined = null;
 function send(ch, payload) { if (win && !win.isDestroyed()) win.webContents.send(ch, payload); }
+const NL = String.fromCharCode(10);
+const errText = err => String((err && err.message) || err).split(NL)[0].slice(0, 200);
+const plainNotes = n => {
+  const t = Array.isArray(n) ? n.map(x => x.note || '').join(NL) : String(n || '');
+  return t.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/(\r?\n){3,}/g, NL + NL).trim().slice(0, 700);
+};
 function checkUpdates(manual = false) {
   if (!app.isPackaged) { if (manual) send('lhe:update', { state: 'dev' }); return; }
+  if (busy) return;
   manualCheck = manual;
-  autoUpdater.checkForUpdates().catch(err => send('lhe:update', { state: 'error', message: String(err && err.message || err) }));
+  if (process.env.LHE_UPDATE_URL) autoUpdater.setFeedURL({ provider: 'generic', url: process.env.LHE_UPDATE_URL });
+  if (manual) send('lhe:update', { state: 'checking' });
+  autoUpdater.checkForUpdates().catch(err => { if (manualCheck) send('lhe:update', { state: 'error', message: errText(err) }); });
 }
-autoUpdater.autoDownload = true;
-autoUpdater.autoInstallOnAppQuit = true;
-autoUpdater.on('checking-for-update', () => { if (manualCheck) send('lhe:update', { state: 'checking' }); });
-autoUpdater.on('update-available', info => send('lhe:update', { state: 'available', version: info.version }));
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
 autoUpdater.on('update-not-available', () => { if (manualCheck) send('lhe:update', { state: 'none', version: app.getVersion() }); });
-autoUpdater.on('download-progress', p => send('lhe:update', { state: 'progress', percent: Math.round(p.percent) }));
-autoUpdater.on('error', err => { if (manualCheck) send('lhe:update', { state: 'error', message: String(err && err.message || err) }); });
-autoUpdater.on('update-downloaded', async info => {
-  send('lhe:update', { state: 'downloaded', version: info.version });
-  const r = await dialog.showMessageBox(win, {
-    type: 'info', buttons: ['Redémarrer maintenant', 'Plus tard'], defaultId: 0, cancelId: 1,
-    title: 'Mise à jour prête',
-    message: 'La version ' + info.version + ' de LaTeX Home Edition est prête.',
-    detail: 'Redémarrez pour l\'installer (votre document en cours est conservé). Sinon, elle s\'installera à la fermeture.',
+autoUpdater.on('update-available', async info => {
+  if (!manualCheck && declined === info.version) return;
+  const notes = plainNotes(info.releaseNotes);
+  // LHE_UPDATE_AUTO=1 : acceptation automatique (tests)
+  const r = process.env.LHE_UPDATE_AUTO === '1' ? { response: 0 } : await dialog.showMessageBox(win, {
+    type: 'info', buttons: ['Mettre à jour maintenant', 'Plus tard'], defaultId: 0, cancelId: 1, noLink: true,
+    title: 'Mise à jour disponible',
+    message: 'Une nouvelle version de LaTeX Home Edition est disponible : ' + info.version,
+    detail: 'Vous utilisez la version ' + app.getVersion() + '.' + NL + NL + (notes ? 'Nouveautés :' + NL + notes + NL + NL : '') +
+      'La mise à jour se télécharge puis s’installe toute seule, et l’application redémarre automatiquement. Votre document en cours est conservé.',
   });
-  if (r.response === 0) {
-    try { await win.webContents.executeJavaScript('App.autosaveNow && App.autosaveNow()'); } catch (_) {}
+  if (r.response !== 0) { declined = info.version; return; }
+  busy = true;
+  send('lhe:update', { state: 'downloading', version: info.version, percent: 0 });
+  autoUpdater.downloadUpdate().catch(err => { busy = false; send('lhe:update', { state: 'error', message: errText(err) }); });
+});
+autoUpdater.on('download-progress', p => send('lhe:update', { state: 'downloading', percent: Math.round(p.percent) }));
+autoUpdater.on('error', err => { if (manualCheck || busy) send('lhe:update', { state: 'error', message: errText(err) }); busy = false; });
+autoUpdater.on('update-downloaded', async info => {
+  send('lhe:update', { state: 'installing', version: info.version });
+  try { await win.webContents.executeJavaScript('App.autosaveNow && App.autosaveNow()'); } catch (_) {}
+  setTimeout(() => {
     allowClose = true;
-    autoUpdater.quitAndInstall();
-  }
+    // Installation silencieuse (/S) puis relance automatique de la nouvelle version
+    autoUpdater.quitAndInstall(true, true);
+  }, 1200);
 });
 
 /* ---------- Démarrage ---------- */
@@ -154,7 +175,7 @@ if (!app.requestSingleInstanceLock()) {
   app.setAppUserModelId('com.slipers.latexhome');
   app.whenReady().then(() => {
     createWindow();
-    setTimeout(() => checkUpdates(false), 4000);
+    setTimeout(() => checkUpdates(false), 2500);
     setInterval(() => checkUpdates(false), 4 * 60 * 60 * 1000);
   });
   app.on('window-all-closed', () => app.quit());

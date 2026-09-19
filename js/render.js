@@ -102,7 +102,8 @@ L.renderTitle = function (ctx) {
         f('title', 't-title', 'Titre du document'),
         f('subtitle', 't-subtitle', 'Sous-titre (facultatif)'),
         L.h('div', { class: 'tp-rule' }),
-        f('author', 't-author', 'Auteur(s)')),
+        f('author', 't-author', 'Auteur(s)'),
+        f('extra', 't-extra', 'Groupe, binôme, enseignant… (facultatif)')),
       f('date', 't-date', 'Date'));
   } else {
     box = L.h('div', { class: 'doc-title-block' },
@@ -110,9 +111,10 @@ L.renderTitle = function (ctx) {
       f('subtitle', 't-subtitle', 'Sous-titre (facultatif)'),
       f('author', 't-author', 'Auteur(s)'),
       f('institution', 't-inst', 'Établissement (facultatif)'),
+      f('extra', 't-inst', 'Informations complémentaires (facultatif)'),
       f('date', 't-date', 'Date'));
   }
-  if (!edit) { box.dataset.role = m.titleStyle === 'pagegarde' ? 'titlepage' : 'title'; return box; }
+  if (!edit) { box.dataset.role = m.titleStyle === 'pagegarde' ? 'titlepage' : 'title'; box.dataset.id = '__title'; return box; }
   return L.h('div', { class: 'blk meta-blk', 'data-id': '__title' }, box);
 };
 
@@ -130,6 +132,7 @@ L.renderToc = function (ctx, pages) {
     box.appendChild(row);
   });
   if (ctx.mode === 'edit') return L.h('div', { class: 'blk meta-blk', 'data-id': '__toc' }, box);
+  box.dataset.id = '__toc';
   return box;
 };
 
@@ -240,12 +243,16 @@ L.R = {
       L.rich(ctx, 'span', 'cap-text', b.caption, b.id, 'caption', 'Légende du tableau')));
     const table = L.h('table');
     const cols = Math.max(...b.rows.map(r => r.length));
+    const spans = b.spans || {};
     b.rows.forEach((r, ri) => {
       const tr = L.h('tr');
-      for (let ci = 0; ci < cols; ci++) {
-        const td = L.rich(ctx, 'td', 'al-' + (b.align[ci] || 'c'), r[ci] || '', b.id, 'rows.' + ri + '.' + ci, '');
+      for (let ci = 0; ci < cols;) {
+        const sp = Math.max(1, Math.min(spans[ri + ':' + ci] || 1, cols - ci));
+        const td = L.rich(ctx, 'td', 'al-' + (sp > 1 ? 'c' : (b.align[ci] || 'c')), r[ci] || '', b.id, 'rows.' + ri + '.' + ci, '');
         td.dataset.r = ri; td.dataset.c = ci;
+        if (sp > 1) td.colSpan = sp;
         tr.appendChild(td);
+        ci += sp;
       }
       table.appendChild(tr);
     });

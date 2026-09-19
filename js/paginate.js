@@ -180,13 +180,22 @@ L.paginate = async function (doc, host) {
     if (fits(el, isHead ? 2.2 * lh : 0)) { place(el); continue; }
     if (!isHead) {
       const sp = L._split(el, x => fits(x));
-      if (sp) { place(sp[0]); newPage(); queue.unshift(sp[1]); continue; }
+      if (sp) { place(sp[0]); sp[1]._splitOffset = sp[0].offsetHeight; newPage(); queue.unshift(sp[1]); continue; }
     }
     if (empty()) { place(el); newPage(); continue; }   // élément plus grand qu'une page
     newPage();
     queue.unshift(el);
   }
   if (empty() && pages.length > 1) { page.remove(); pages.pop(); }
+
+  // Débuts de page (pour afficher les changements de page pendant l'édition)
+  const breaks = [];
+  pages.forEach((pg, i) => {
+    if (!i) return;
+    const first = pg.querySelector('.page-content > *');
+    if (first) breaks.push({ page: i + 1, id: first.dataset.id || null, offset: first._splitOffset || 0 });
+  });
+  L.lastPagination = { count: pages.length, breaks };
 
   // Numéros de page (la page de garde n'est pas numérotée, comme titlepage)
   let num = 0;
