@@ -352,9 +352,9 @@ L.R.cols = function (b, ctx) {
 
 /* Texte en bas de page (sans numéro) : affiché en bas de la page où il se trouve */
 L.R.pnote = (b, ctx) => ctx.mode === 'edit'
-  ? L.h('div', { class: 'pnote-anchor', contenteditable: 'false', title: 'Texte en bas de page : ' + (b.text || '(vide)') },
-    L.h('span', { class: 'pnote-ic', text: '↧' }), L.h('span', { class: 'pnote-lab', text: 'Texte en bas de page' + (b.text ? ' : ' + b.text.slice(0, 50) + (b.text.length > 50 ? '…' : '') : ' (cliquez pour écrire)') }))
-  : L.h('div', { class: 'pnote-src', 'data-text': b.text || '', 'data-id': b.id });
+  ? (() => { const t = L.plain(L.pnoteHtml(b)); return L.h('div', { class: 'pnote-anchor', contenteditable: 'false', title: 'Texte en bas de page : ' + (t || '(vide)') },
+    L.h('span', { class: 'pnote-ic', text: '↧' }), L.h('span', { class: 'pnote-lab', text: 'Texte en bas de page' + (t ? ' : ' + t.slice(0, 50) + (t.length > 50 ? '…' : '') : ' (cliquez pour écrire)') })); })()
+  : L.h('div', { class: 'pnote-src', 'data-html': L.pnoteHtml(b), 'data-id': b.id });
 
 /* Ligne de séparation et espace vertical */
 L.R.rule = (b, ctx) => L.h('div', { class: 'hrule' }, L.h('div', { class: 'hrule-line' }));

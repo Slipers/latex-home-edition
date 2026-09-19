@@ -199,7 +199,7 @@ L.sanitizeNode = function (node) {
       if (chip === 'imath') out += '<span class="imath" data-latex="' + L.escHtml(n.dataset.latex || '') + '"></span>';
       else if (chip === 'xref') out += '<span class="xref" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
       else if (chip === 'cite') out += '<span class="cite" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
-      else if (chip === 'fn') out += '<span class="fn" data-text="' + L.escHtml(n.dataset.text || '') + '"></span>';
+      else if (chip === 'fn') out += '<span class="fn" data-text="' + L.escHtml(n.dataset.text || '') + '"' + (n.dataset.html ? ' data-html="' + L.escHtml(n.dataset.html) + '"' : '') + '></span>';
       else if (chip === 'hfill') out += '<span class="hfill"></span>';
       else if (chip === 'timg') out += '<span class="timg" data-src="' + L.escHtml(n.dataset.src || '') + '" data-w="' + L.escHtml(n.dataset.w || '3') + '"></span>';
       return;
@@ -270,3 +270,7 @@ L.fnMark = function (n, style) {
   if (style === 'symboles') return L.FN_SYMBOLS[(n - 1) % L.FN_SYMBOLS.length];
   return String(n);
 };
+
+/* Contenu d'une note (HTML riche, ou ancien texte simple) */
+L.noteHtml = el => el.dataset.html || L.escHtml(el.dataset.text || '');
+L.pnoteHtml = b => b.html !== undefined ? b.html : L.escHtml(b.text || '');

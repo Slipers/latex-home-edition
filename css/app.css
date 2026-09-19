@@ -410,4 +410,15 @@ p.rt.is-empty:not(:focus):not(.ph-last)::before { content: none; }
 .pnote-anchor { height: 0; position: relative; user-select: none; }
 .pnote-anchor .pnote-ic { position: absolute; left: -30px; top: -9px; width: 20px; height: 18px; display: grid; place-items: center; font: 13px var(--ui); color: #7f97c2; background: #eef3fb; border-radius: 4px; cursor: pointer; }
 .pnote-anchor .pnote-lab { position: absolute; left: 0; top: -9px; font: 11px var(--ui); color: #7f97c2; white-space: nowrap; opacity: 0; transition: opacity .12s; cursor: pointer; background: #fff; padding: 0 4px; }
-.paper .blk:hover > .pnote-anchor .pnote-lab, .paper .blk.sel > .pnote-anchor .pnote-lab { opacity: 1; }
+.pnote-anchor .pnote-ic:hover + .pnote-lab { opacity: 1; }
+.pnote-anchor .pnote-lab { left: -6px; transform: translateX(-100%); text-align: right; }
+
+/* ---------- Éditeur de note (texte riche + formules) ---------- */
+.note-tools { display: flex; gap: 4px; flex-wrap: wrap; margin: 6px 0; }
+.note-tools .btn { padding: 5px 9px; }
+.note-field { min-height: 70px; max-height: 260px; overflow-y: auto; padding: 10px 12px !important; border: 1px solid var(--line2); border-radius: 8px; text-align: left; text-indent: 0; width: auto !important; box-shadow: none; outline: none; }
+.note-field:focus { border-color: var(--acc2); outline: 3px solid #d9e6fa; }
+.note-field.is-empty::before { content: attr(data-ph); color: #a5acb9; pointer-events: none; }
+.pnote-prev { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px !important; margin-bottom: 6px; text-indent: 0; text-align: left; font-size: var(--fs-foot); width: auto !important; min-height: 0 !important; }
+#mathdock { z-index: 90; }
+.sympick { z-index: 96; }

@@ -42,7 +42,7 @@ L.htmlToLatex = function (html, X) {
         return;
       }
       if (c.contains('cite')) { out += '\\cite{' + n.dataset.ref + '}'; return; }
-      if (c.contains('fn')) { out += '\\footnote{' + L.texEsc(n.dataset.text) + '}'; return; }
+      if (c.contains('fn')) { out += '\\footnote{' + (n.dataset.html ? L.htmlToLatex(n.dataset.html, X) : L.texEsc(n.dataset.text)) + '}'; return; }
       if (c.contains('timg')) {
         const src = X.doc.assets ? X.doc.assets[n.dataset.src] : null;
         const name = src ? L.imageFile(X, src) : null;
@@ -203,7 +203,7 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       return '\\begin{lstlisting}' + (opts.length ? '[' + opts.join(', ') + ']' : '') + '\n' + (b.code || '') + '\n\\end{lstlisting}';
     }
     case 'tabvar': return L.tabvarToLatex(b, X);
-    case 'pnote': return b.text ? '{\\renewcommand{\\thefootnote}{}\\footnotetext{' + L.texEsc(b.text) + '}}' : '';
+    case 'pnote': { const h = L.pnoteHtml(b); return L.isEmptyHtml(h) ? '' : '{\\renewcommand{\\thefootnote}{}\\footnotetext{' + L.htmlToLatex(h, X) + '}}'; }
     case 'rule': return '\\par\\noindent\\rule{\\linewidth}{0.4pt}\\par';
     case 'vspace': return '\\par' + (L.VSPACES[b.size || 'moyen'] || L.VSPACES.moyen)[1];
     case 'cols': {

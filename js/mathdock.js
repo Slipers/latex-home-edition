@@ -270,10 +270,8 @@ L.MathDock = (function () {
         t.chip.dataset.latex = latex;
         t.chip.innerHTML = L.katex(latex);
         const host = t.chip.closest('[data-f]');
-        if (host) {
-          App.syncField(host);
-          if (commit) App.placeCaretAfter(t.chip);
-        }
+        if (host) App.syncField(host);
+        if (commit) App.placeCaretAfter(t.chip);
       }
       App.commit();
     } else {

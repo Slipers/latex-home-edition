@@ -9,7 +9,11 @@ L.modal = function ({ title, body, foot, wide, onClose }) {
     document.removeEventListener('keydown', onKey, true);
     if (onClose) onClose();
   };
-  const onKey = e => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  const onKey = e => {
+    if (e.key !== 'Escape') return;
+    if ((L.MathDock && L.MathDock.isOpen()) || (L.SymbolPicker && L.SymbolPicker.isOpen())) return;
+    e.stopPropagation(); close();
+  };
   document.addEventListener('keydown', onKey, true);
   box.append(
     L.h('div', { class: 'mb-head' }, L.h('h2', { text: title }), L.h('button', { class: 'x', title: 'Fermer', text: '×', onclick: close })),
@@ -224,16 +228,101 @@ L.dlgBib = function () {
   L.modal({ title: 'Bibliographie', body, wide: true, foot: [{ text: 'Terminé', cls: 'primary', onClick: c => c() }] });
 };
 
-/* ---------- Note de bas de page ---------- */
+/* ---------- Note de bas de page / texte en bas de page (texte riche + formules) ---------- */
+/* initial : HTML (ou texte simple) ; onOk(html) ; onDelete() facultatif ; pageText : texte sans numéro */
 L.dlgFootnote = function (initial, onOk, onDelete, pageText) {
-  const ta = L.h('textarea', { rows: 3, placeholder: 'Texte de la note…' });
-  ta.value = initial || '';
-  ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dlg.box.querySelector('.mb-foot .primary').click(); } });
+  const field = L.h('div', { class: 'rt note-field paper ' + L.pageClasses(App.doc.meta), contenteditable: 'true', spellcheck: 'true', 'data-ph': 'Écrivez ici… (Ctrl+M ou $ pour une formule, Tab pour un symbole)' });
+  field.innerHTML = /[<&]/.test(initial || '') ? initial : L.escHtml(initial || '');
+  const info = L.computeNumbers(App.doc);
+  L.hydrate(field, { mode: 'edit', nums: info.nums, bib: info.bib, fn: 0, doc: App.doc, meta: App.doc.meta });
+  field.querySelectorAll('.fn').forEach(x => x.remove());
+  const empty = () => field.classList.toggle('is-empty', L.isEmptyHtml(L.serializeRich(field)));
+  empty();
+  let range = null;
+  const keep = () => { const s = window.getSelection(); if (s.rangeCount && field.contains(s.anchorNode)) range = s.getRangeAt(0).cloneRange(); };
+  ['keyup', 'mouseup', 'input', 'focus'].forEach(ev => field.addEventListener(ev, keep));
+  const insertNode = node => {
+    field.focus();
+    const s = window.getSelection();
+    let r = range && field.contains(range.startContainer) ? range : null;
+    if (!r) { r = document.createRange(); r.selectNodeContents(field); r.collapse(false); }
+    r.deleteContents(); r.insertNode(node);
+    const after = document.createTextNode('\u200b'); node.after(after);
+    const r2 = document.createRange(); r2.setStart(after, 1); r2.collapse(true);
+    s.removeAllRanges(); s.addRange(r2); range = r2.cloneRange();
+    empty();
+  };
+  const formula = template => {
+    const chip = L.h('span', { class: 'imath', 'data-latex': '', contenteditable: 'false' });
+    chip.innerHTML = '<span class="chip-empty">formule</span>';
+    insertNode(chip);
+    L.MathDock.open({ kind: 'inline', chip, isNew: true, template });
+  };
+  const symbols = () => {
+    const rc = field.getBoundingClientRect();
+    L.SymbolPicker.open({
+      context: 'text', x: rc.left, y: rc.bottom + 6, above: rc.top,
+      onPick: sym => {
+        if (/#[?0@]/.test(sym.latex)) { formula(sym.latex); return; }
+        const chip = L.h('span', { class: 'imath', 'data-latex': sym.latex.replace(/^\\,/, ''), contenteditable: 'false' });
+        chip.innerHTML = L.katex(chip.dataset.latex);
+        insertNode(chip);
+      },
+      onClose: picked => { if (!picked) field.focus(); },
+    });
+  };
+  field.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); keep(); symbols(); }
+    else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm') { e.preventDefault(); keep(); formula(); }
+    else if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); dlg.box.querySelector('.mb-foot .primary').click(); }
+    else if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); document.execCommand('insertLineBreak'); }
+  });
+  field.addEventListener('input', e => {
+    empty();
+    if (e.inputType === 'insertText' && e.data === '$') { document.execCommand('delete'); keep(); formula(); }
+  });
+  field.addEventListener('paste', e => {
+    e.preventDefault();
+    const t = (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ');
+    if (/\$[^$]+\$|\\\(|\\text|\\ce\{/.test(t)) {       // morceau de LaTeX : formules converties
+      const tmp = L.h('span', { html: L.inlineLatexToHtml(t) });
+      L.hydrate(tmp, { mode: 'edit', nums: {}, bib: {}, doc: App.doc });
+      const frag = document.createDocumentFragment(); while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+      const s = window.getSelection(); if (s.rangeCount) { const r = s.getRangeAt(0); r.deleteContents(); r.insertNode(frag); }
+    } else document.execCommand('insertText', false, t);
+    empty();
+  });
+  field.addEventListener('click', e => {
+    const ch = e.target.closest('.imath');
+    if (ch) L.MathDock.open({ kind: 'inline', chip: ch });
+  });
+  const tb = (label, title, fn) => { const b = L.h('button', { class: 'btn', title, html: label }); b.onmousedown = e => e.preventDefault(); b.onclick = fn; return b; };
+  const tools = L.h('div', { class: 'note-tools' },
+    tb('<span class="serif">∑</span> Formule', 'Formule mathématique ou chimique (Ctrl+M ou $)', () => { keep(); formula(); }),
+    tb('Ω Symbole', 'Symboles : maths, physique, unités, chimie… (Tab)', () => { keep(); symbols(); }),
+    tb('<b>G</b>', 'Gras (Ctrl+B)', () => { field.focus(); document.execCommand('bold'); }),
+    tb('<i style="font-family:Georgia,serif">I</i>', 'Italique (Ctrl+I)', () => { field.focus(); document.execCommand('italic'); }),
+    tb('<u>S</u>', 'Souligné (Ctrl+U)', () => { field.focus(); document.execCommand('underline'); }),
+    tb('x<sub>2</sub>', 'Indice', () => { field.focus(); document.execCommand('subscript'); }),
+    tb('x<sup>2</sup>', 'Exposant', () => { field.focus(); document.execCommand('superscript'); }));
   const foot = [];
-  if (onDelete) foot.push({ text: 'Supprimer la note', cls: 'danger', onClick: c => { c(); onDelete(); } });
+  if (onDelete) foot.push({ text: pageText ? 'Supprimer' : 'Supprimer la note', cls: 'danger', onClick: c => { c(); onDelete(); } });
   foot.push({ text: 'Annuler', onClick: c => c() });
-  foot.push({ text: 'Valider', cls: 'primary', onClick: c => { const v = ta.value.trim(); c(); if (v) onOk(v); else if (onDelete) onDelete(); } });
-  const dlg = L.modal({ title: pageText ? 'Texte en bas de page' : 'Note de bas de page', body: L.h('div', { class: 'field' }, L.h('label', { text: pageText ? 'Ce texte apparaîtra en bas de la page où se trouve le repère ↧, sans numéro.' : 'La note apparaîtra en bas de la page, numérotée automatiquement.' }), ta), foot });
+  foot.push({ text: 'Valider', cls: 'primary', onClick: c => {
+    L.MathDock.ok && L.MathDock.isOpen() && L.MathDock.ok();
+    const v = L.serializeRich(field).replace(/\u200b/g, '').trim();
+    c();
+    if (!L.isEmptyHtml(v)) onOk(v); else if (onDelete) onDelete();
+  } });
+  const dlg = L.modal({
+    title: pageText ? 'Texte en bas de page' : 'Note de bas de page',
+    body: L.h('div', { class: 'field' },
+      L.h('label', { text: pageText ? 'Ce texte apparaîtra en bas de la page où se trouve le repère ↧, sans numéro.' : 'La note apparaîtra en bas de la page, numérotée automatiquement.' }),
+      tools, field,
+      L.h('div', { class: 'pp-help', style: { marginTop: '6px' }, html: 'Formules : bouton <b>∑</b>, <kbd>Ctrl+M</kbd> ou <kbd>$</kbd> (onglet Chimie pour les réactions) · symboles et unités : <kbd>Tab</kbd> · nouvelle ligne : <kbd>Maj+Entrée</kbd>.' })),
+    foot,
+  });
+  setTimeout(() => { field.focus(); const r = document.createRange(); r.selectNodeContents(field); r.collapse(false); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); keep(); }, 40);
 };
 
 /* ---------- Code LaTeX généré ---------- */

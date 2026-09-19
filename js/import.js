@@ -61,7 +61,8 @@ L.inlineLatexToHtml = function (s) {
       }
       if (name === 'footnote') {
         const [arg, j] = readGroup(s, skipSpaces(s, i));
-        out += '<span class="fn" data-text="' + L.escHtml(L.plain(L.inlineLatexToHtml(arg))) + '"></span>';
+        const nh = L.inlineLatexToHtml(arg).trim();
+        out += '<span class="fn" data-text="' + L.escHtml(L.plain(nh)) + '" data-html="' + L.escHtml(nh) + '"></span>';
         i = j; continue;
       }
       if (name === 'ce') { const [arg, j] = readGroup(s, skipSpaces(s, i)); out += chip('\\ce{' + arg + '}'); i = j; continue; }

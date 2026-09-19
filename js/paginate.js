@@ -43,7 +43,12 @@ L.paginate = async function (doc, host) {
       if (!foot.firstChild) { const r = L.h('div', { class: 'fn-rule' }); foot.appendChild(r); added.push(r); }
       const pn = f.classList.contains('pnote-src');
       const mark = pn ? null : fnStyle === 'crochets' ? L.h('span', { class: 'fn-lab', text: f.dataset.mark || '[' + f.dataset.n + ']' }) : L.h('sup', { text: f.dataset.mark || f.dataset.n });
-      const p = L.h('p', { class: 'fn' + (pn ? ' pn' : ''), 'data-fn': pn ? null : f.dataset.n, 'data-pnote': pn ? (f.dataset.id || '') : null }, mark, (mark ? ' ' : '') + (f.dataset.text || ''));
+      const p = L.h('p', { class: 'fn' + (pn ? ' pn' : ''), 'data-fn': pn ? null : f.dataset.n, 'data-pnote': pn ? (f.dataset.id || '') : null }, mark, mark ? ' ' : '');
+      const body = L.h('span', { html: L.noteHtml(f) });
+      body.querySelectorAll('.fn').forEach(x => x.remove());
+      L.hydrate(body, { mode: 'view', nums: ctx.nums, bib: ctx.bib, fn: 0, doc, meta: m });
+      L.typo(body, m.lang);
+      p.appendChild(body);
       foot.appendChild(p); added.push(p);
     });
     return added;

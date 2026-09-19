@@ -402,7 +402,7 @@ Object.assign(App, {
     this.ensureCaretVisible();
   },
   placeCaretAfter(node) {
-    const field = node.closest('[data-f]');
+    const field = node.closest('[data-f]') || node.closest('[contenteditable="true"]');
     if (!field) return;
     let next = node.nextSibling;
     if (!next || next.nodeType !== 3) { next = document.createTextNode('\u200b'); node.after(next); }
@@ -491,7 +491,7 @@ Object.assign(App, {
     this.render();
     if (block.type === 'equation') L.MathDock.open({ kind: 'block', blockId: block.id, isNew: true });
     if (block.type === 'figure' && !opts.noPick) this.pickImage(block.id);
-    if (block.type === 'pnote' && !block.text) L.dlgFootnote('', v => { block.text = v; this.commit(); this.render(); }, () => this.removeBlock(block.id, false), true);
+    if (block.type === 'pnote' && L.isEmptyHtml(L.pnoteHtml(block))) L.dlgFootnote('', v => { block.html = v; delete block.text; this.commit(); this.render(); }, () => this.removeBlock(block.id, false), true);
     const el = this.blockEl(block.id);
     if (el && !focusMap[block.type]) this.ensureCaretVisible(el);
     return block;
@@ -632,7 +632,7 @@ Object.assign(App, {
     const cr = this.currentRichRange();
     L.dlgFootnote('', text => {
       if (cr) this.lastRange = cr.r;
-      const chip = L.h('span', { class: 'fn', 'data-text': text });
+      const chip = L.h('span', { class: 'fn', 'data-text': L.plain(text), 'data-html': text });
       this.insertChip(chip);
       this.commit();
       this.render();
@@ -940,10 +940,9 @@ Object.assign(App, {
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
     } else if (b.type === 'pnote') {
-      const ta = L.h('textarea', { rows: 4, placeholder: 'Texte affiché en bas de cette page…', style: { width: '100%', padding: '7px 9px', border: '1px solid var(--line2)', borderRadius: '7px', font: 'inherit' } });
-      ta.value = b.text || '';
-      ta.oninput = () => { b.text = ta.value; this.commitSoon(); this.renderSoon(); };
-      P.append(row('Texte en bas de page', ta), L.h('div', { class: 'pp-help', html: '<p>Ce texte, sans numéro, apparaît en bas de la page où se trouve ce repère ↧. Pour une note numérotée liée à un mot, utilisez plutôt le bouton <b>¹ Note</b>.</p>' }));
+      const prev = L.h('div', { class: 'pnote-prev paper ' + L.pageClasses(doc.meta), html: L.pnoteHtml(b) || '<i style="color:#999">(vide)</i>' });
+      L.hydrate(prev, { mode: 'view', nums: {}, bib: {}, fn: 0, doc, meta: doc.meta });
+      P.append(row('Texte en bas de page', prev, btn('✎  Modifier (texte, formules, symboles)', () => this.editNote({ pnote: b.id }), 'primary')), L.h('div', { class: 'pp-help', html: '<p>Ce texte, sans numéro, apparaît en bas de la page où se trouve ce repère ↧. Pour une note numérotée liée à un mot, utilisez plutôt le bouton <b>¹ Note</b>.</p>' }));
     } else if (b.type === 'vspace') {
       P.append(row('Hauteur', seg(Object.entries(L.VSPACES).map(([k, v]) => [k, v[0]]), b.size || 'moyen', v => upd(() => { b.size = v; }))));
     } else if (b.type === 'cols') {
@@ -1326,8 +1325,8 @@ App.bindEditor = function () {
       if (chip.classList.contains('imath')) L.MathDock.open({ kind: 'inline', chip });
       else if (chip.classList.contains('xref')) L.dlgXref(id => { chip.dataset.ref = id; this.syncField(field); this.commit(); this.hydrateChips(); });
       else if (chip.classList.contains('cite')) L.dlgCite(id => { chip.dataset.ref = id; this.syncField(field); this.commit(); this.render(); });
-      else if (chip.classList.contains('fn')) L.dlgFootnote(chip.dataset.text,
-        v => { chip.dataset.text = v; this.syncField(field); this.commit(); },
+      else if (chip.classList.contains('fn')) L.dlgFootnote(L.noteHtml(chip),
+        v => { chip.dataset.html = v; chip.dataset.text = L.plain(v); this.syncField(field); this.commit(); this.pagesSoon(); },
         () => { chip.remove(); this.syncField(field); this.commit(); this.render(); });
       return;
     }
@@ -1523,13 +1522,13 @@ Object.assign(App, {
       const chip = L.$('#paper .fn[data-n="' + nt.fn + '"]');
       if (!chip) return;
       const field = chip.closest('[data-f]');
-      L.dlgFootnote(chip.dataset.text, v => { chip.dataset.text = v; this.syncField(field); this.commit(); this.render(); },
+      L.dlgFootnote(L.noteHtml(chip), v => { chip.dataset.html = v; chip.dataset.text = L.plain(v); this.syncField(field); this.commit(); this.render(); },
         () => { chip.remove(); this.syncField(field); this.commit(); this.render(); });
       return;
     }
     const f = nt.pnote && L.find(this.doc, nt.pnote);
     if (!f) return;
-    L.dlgFootnote(f.block.text, v => { f.block.text = v; this.commit(); this.render(); }, () => this.removeBlock(f.block.id, false), true);
+    L.dlgFootnote(L.pnoteHtml(f.block), v => { f.block.html = v; delete f.block.text; this.commit(); this.render(); }, () => this.removeBlock(f.block.id, false), true);
   },
   capLabelRow(b, row, kind) {
     const i = L.h('input', { type: 'text', value: b.capLabel || '', placeholder: L.capName(this.doc.meta, kind).text + ' (par défaut)' });
