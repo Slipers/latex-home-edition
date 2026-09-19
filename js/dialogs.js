@@ -45,8 +45,8 @@ L.dlgTemplates = function (welcome) {
 };
 
 /* ---------- Réglages du document ---------- */
-L.dlgSettings = function () {
-  const m = App.doc.meta;
+L.dlgSettings = function (section) {
+  const m = L.fixMeta(App.doc.meta);
   const apply = () => { App.commit(); App.render(); };
   const txt = (key, label, ph) => {
     const i = L.h('input', { type: 'text', value: L.plain(m[key]), placeholder: ph || '' });
@@ -99,10 +99,49 @@ L.dlgSettings = function () {
       seg('lang', [['fr', 'Français'], ['en', 'English']], 'Langue (noms automatiques)')),
     L.h('div', { class: 'set-h', text: 'Options' }),
     chk('toc', 'Table des matières automatique après le titre'),
-    chk('pageNumbers', 'Numéros de page'),
     chk('thmBySection', 'Numéroter théorèmes, définitions, exercices… par section (2.1, 2.2…)'),
     chk('boxedThm', 'Encadrer les théorèmes, définitions et exercices'));
-  L.modal({ title: 'Document', body, wide: true, foot: [{ text: 'Terminé', cls: 'primary', onClick: c => c() }] });
+
+  // ---- Légendes ----
+  const nameField = (key, label, opts) => {
+    const i = L.h('input', { type: 'text', value: m[key] || '', placeholder: opts[0] + ' (par défaut)' });
+    i.oninput = () => { m[key] = i.value; App.render(); App.commitSoon(); };
+    const chips = L.h('div', { class: 'btn-row', style: { marginTop: '4px' } }, ...opts.map((o, k) => L.h('button', { class: 'btn', text: o, onclick: () => { i.value = k ? o : ''; m[key] = i.value; apply(); } })));
+    return L.h('div', { class: 'field' }, L.h('label', { text: label }), i, chips);
+  };
+  body.append(L.h('div', { class: 'set-h', text: 'Légendes des tableaux et figures' }),
+    L.h('div', { class: 'grid2' },
+      nameField('tableName', 'Mot devant le numéro des tableaux (« Table 1 – »)', ['Table', 'Tableau', 'Tab.']),
+      nameField('figureName', 'Mot devant le numéro des figures (« Figure 1 – »)', ['Figure', 'Fig.', 'Illustration'])),
+    L.h('p', { class: 'pp-help', text: 'Pour une légende sans numéro ou sans légende du tout, cliquez sur le tableau puis choisissez « Légende » dans le panneau de droite.' }));
+
+  // ---- En-tête, pied de page et numérotation ----
+  const hfSec = L.h('div', { class: 'set-h', text: 'En-tête, pied de page et numéros de page' });
+  const hfInput = (obj, k, ph) => { const i = L.h('input', { type: 'text', value: obj[k] || '', placeholder: ph }); i.oninput = () => { obj[k] = i.value; App.render(); App.commitSoon(); }; return i; };
+  const sel = (key, opts) => {
+    const s = L.h('select', null, ...opts.map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (String(m[key]) === String(v)) o.selected = true; return o; }));
+    s.onchange = () => { m[key] = s.value; apply(); };
+    return s;
+  };
+  const start = L.h('input', { type: 'number', value: L.pageStart(m), style: { width: '90px' } });
+  start.onchange = () => { m.pageStart = start.value === '' ? 1 : Math.trunc(+start.value); apply(); };
+  body.append(hfSec,
+    L.h('div', { class: 'hf-grid' },
+      L.h('span'), L.h('span', { text: 'À gauche' }), L.h('span', { text: 'Au centre' }), L.h('span', { text: 'À droite' }),
+      L.h('span', { text: 'En-tête' }), hfInput(m.header, 'l', 'ex. {titre}'), hfInput(m.header, 'c', ''), hfInput(m.header, 'r', 'ex. {auteur}'),
+      L.h('span', { text: 'Pied de page' }), hfInput(m.footer, 'l', 'ex. Lycée…'), hfInput(m.footer, 'c', ''), hfInput(m.footer, 'r', 'ex. {date}')),
+    L.h('p', { class: 'pp-help', html: 'Raccourcis utilisables : <b>{titre}</b>, <b>{auteur}</b>, <b>{date}</b>. Dans l\'éditeur, double-cliquez sur un en-tête ou un pied de page pour revenir ici.' }),
+    L.h('div', { class: 'grid3' },
+      L.h('div', { class: 'field' }, L.h('label', { text: 'Format des numéros' }), sel('numFormat', L.NUM_FORMATS)),
+      L.h('div', { class: 'field' }, L.h('label', { text: 'Position du numéro' }), sel('numPos', [['foot-c', 'Pied, centre'], ['foot-r', 'Pied, droite'], ['foot-l', 'Pied, gauche'], ['head-r', 'En-tête, droite'], ['head-c', 'En-tête, centre'], ['head-l', 'En-tête, gauche']])),
+      L.h('div', { class: 'field' }, L.h('label', { text: 'Premier numéro de page' }), start)),
+    chk('headRule', 'Trait sous l\'en-tête'),
+    chk('footRule', 'Trait au-dessus du pied de page'),
+    chk('hfFirst', 'Afficher l\'en-tête et le pied de page sur la première page'));
+
+  const dlg = L.modal({ title: 'Document', body, wide: true, foot: [{ text: 'Terminé', cls: 'primary', onClick: c => c() }] });
+  if (section === 'hf') setTimeout(() => hfSec.scrollIntoView({ block: 'start' }), 50);
+  return dlg;
 };
 
 /* ---------- Référence croisée ---------- */

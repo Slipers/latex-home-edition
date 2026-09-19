@@ -5,7 +5,8 @@ Object.assign(App, {
   serialize() {
     // Ne garde que les images réellement utilisées
     const used = {};
-    L.walk(this.doc.blocks, b => { if (b.type === 'figure' && b.src && this.doc.assets[b.src]) used[b.src] = this.doc.assets[b.src]; });
+    const json = JSON.stringify(this.doc.blocks);
+    Object.keys(this.doc.assets || {}).forEach(k => { if (json.includes(k)) used[k] = this.doc.assets[k]; });
     return JSON.stringify({ app: 'LaTeX Home Edition', version: 1, meta: this.doc.meta, blocks: this.doc.blocks, bib: this.doc.bib, assets: used });
   },
   baseName() { return (this.fileName || L.slug(L.plain(this.doc.meta.title))).replace(/\.lhe$/i, ''); },
@@ -230,6 +231,7 @@ window.addEventListener('DOMContentLoaded', () => {
     pdf: () => App.print(),
     print: () => App.print(),
     'latex-menu': () => L.$('#latexMenu').classList.toggle('open'),
+    'color-menu': () => L.$('#colorMenu').classList.toggle('open'),
     tex: () => App.exportTex(),
     zip: () => App.exportZip(),
     viewtex: () => L.dlgViewTex(),
@@ -238,8 +240,9 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   document.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-act], [data-fmt]');
-    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
-    if (!e.target.closest('.dropdown')) L.$('#latexMenu').classList.remove('open');
+    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
+    if (e.target.closest('[data-color]')) e.preventDefault();
+    if (!e.target.closest('.dropdown')) { L.$('#latexMenu').classList.remove('open'); L.$('#colorMenu').classList.remove('open'); }
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]');
@@ -247,6 +250,8 @@ window.addEventListener('DOMContentLoaded', () => {
       if (b.closest('.menu')) L.$('#latexMenu').classList.remove('open');
       acts[b.dataset.act]();
     }
+    const cc = e.target.closest('[data-color]');
+    if (cc) { L.$('#colorMenu').classList.remove('open'); App.setColor(cc.dataset.color); }
     const f = e.target.closest('[data-fmt]');
     if (f) App.format(f.dataset.fmt);
     const z = e.target.closest('[data-zoom]');

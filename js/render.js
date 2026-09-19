@@ -14,8 +14,16 @@ L.listMark = function (style, level, n, lang) {
 };
 
 L.hydrate = function (root, ctx) {
-  root.querySelectorAll('.imath, .xref, .cite, .fn').forEach(el => {
+  root.querySelectorAll('.imath, .xref, .cite, .fn, .timg').forEach(el => {
     if (ctx.mode === 'edit') el.setAttribute('contenteditable', 'false');
+    if (el.classList.contains('timg')) {
+      const doc = ctx.doc || (window.App && App.doc);
+      const src = doc && doc.assets ? doc.assets[el.dataset.src] : '';
+      el.innerHTML = '';
+      if (src) el.appendChild(L.h('img', { src, alt: '', style: { width: (+el.dataset.w || 3) + 'cm' } }));
+      else el.textContent = '[image]';
+      return;
+    }
     if (el.classList.contains('imath')) {
       el.innerHTML = el.dataset.latex ? L.katex(el.dataset.latex) : '<span class="chip-empty">formule</span>';
     } else if (el.classList.contains('xref')) {
@@ -66,6 +74,8 @@ L.rich = function (ctx, tag, cls, html, b, f, ph) {
 L.renderDoc = function (doc, mode) {
   const info = L.computeNumbers(doc);
   const ctx = { doc, mode, nums: info.nums, toc: info.toc, bib: info.bib, lang: doc.meta.lang || 'fr', fn: 0, meta: doc.meta };
+  const last = doc.blocks[doc.blocks.length - 1];
+  if (last && last.type === 'paragraph' && L.isEmptyHtml(last.html)) ctx.lastEmpty = last.id;
   const flow = L.h('div', { class: 'flow' });
   const t = L.renderTitle(ctx);
   if (t) flow.appendChild(t);
@@ -153,7 +163,9 @@ L.R = {
 
   paragraph(b, ctx) {
     const cls = 'para' + (b.noindent ? ' noindent' : '') + (b.align && b.align !== 'justify' ? ' ' + b.align : '');
-    return L.rich(ctx, 'p', cls, b.html, b.id, 'html', 'Écrivez ici…  (tapez « / » pour insérer un élément)');
+    const p = L.rich(ctx, 'p', cls, b.html, b.id, 'html', 'Écrivez ici…  (tapez « / » pour insérer un élément)');
+    if (ctx.mode === 'edit' && ctx.lastEmpty === b.id) p.classList.add('ph-last');
+    return p;
   },
 
   heading(b, ctx) {
@@ -236,19 +248,20 @@ L.R = {
   },
 
   table(b, ctx) {
-    const n = ctx.nums[b.id];
-    const el = L.h('div', { class: 'tbl ' + (b.style || 'pro') + (b.head ? ' has-head' : '') });
-    el.appendChild(L.h('div', { class: 'caption' },
-      L.h('span', { class: 'cap-lab', contenteditable: ctx.mode === 'edit' ? 'false' : null, text: L.NAMES[ctx.lang].table + ' ' + (n ? n.num : '') + ' – ' }),
-      L.rich(ctx, 'span', 'cap-text', b.caption, b.id, 'caption', 'Légende du tableau')));
-    const table = L.h('table');
     const cols = Math.max(...b.rows.map(r => r.length));
+    const colw = b.colw || [];
+    const fill = colw.slice(0, cols).some(w => w === 'fill');
+    const el = L.h('div', { class: 'tbl ' + (b.style || 'pro') + (b.head ? ' has-head' : '') + (b.headColor ? ' hc' : '') + (fill ? ' tfill' : '') });
+    if (b.headColor && L.HEAD_COLORS[b.headColor]) el.style.setProperty('--hc', '#' + L.HEAD_COLORS[b.headColor]);
+    const cap = L.caption(b, ctx, 'table', 'Légende du tableau');
+    if (cap) el.appendChild(cap);
+    const table = L.h('table');
     const spans = b.spans || {};
     b.rows.forEach((r, ri) => {
       const tr = L.h('tr');
       for (let ci = 0; ci < cols;) {
         const sp = Math.max(1, Math.min(spans[ri + ':' + ci] || 1, cols - ci));
-        const td = L.rich(ctx, 'td', 'al-' + (sp > 1 ? 'c' : (b.align[ci] || 'c')), r[ci] || '', b.id, 'rows.' + ri + '.' + ci, '');
+        const td = L.rich(ctx, 'td', 'al-' + (sp > 1 ? 'c' : (b.align[ci] || 'c')) + (fill && sp === 1 ? (colw[ci] === 'fill' ? ' w-fill' : ' w-auto') : ''), r[ci] || '', b.id, 'rows.' + ri + '.' + ci, '');
         td.dataset.r = ri; td.dataset.c = ci;
         if (sp > 1) td.colSpan = sp;
         tr.appendChild(td);
@@ -269,9 +282,8 @@ L.R = {
       L.h('div', { class: 'fig-drop-ic', text: '🖼' }),
       L.h('div', { text: 'Cliquez ou déposez une image ici' }),
       L.h('div', { class: 'fig-drop-sub', text: 'PNG, JPEG, SVG — graphiques, schémas, photos de montage…' })));
-    el.appendChild(L.h('div', { class: 'caption' },
-      L.h('span', { class: 'cap-lab', contenteditable: ctx.mode === 'edit' ? 'false' : null, text: L.NAMES[ctx.lang].figure + ' ' + (n ? n.num : '') + ' – ' }),
-      L.rich(ctx, 'span', 'cap-text', b.caption, b.id, 'caption', 'Légende de la figure')));
+    const cap = L.caption(b, ctx, 'figure', 'Légende de la figure');
+    if (cap) el.appendChild(cap);
     return el;
   },
 
@@ -305,6 +317,32 @@ L.R = {
       L.h('span', { class: 'bib-txt', html: L.bibHtml(e) }))));
     return el;
   },
+};
+
+/* Légende : « Table 1 – texte » (numérotée), « texte » (sans numéro) ou aucune */
+L.caption = function (b, ctx, kind, ph) {
+  const mode = b.capMode || 'num';
+  if (mode === 'none') return null;
+  const n = ctx.nums[b.id];
+  const cn = L.capName(ctx.meta, kind);
+  const box = L.h('div', { class: 'caption' });
+  if (mode === 'num') box.appendChild(L.h('span', { class: 'cap-lab' + (cn.custom || ctx.lang === 'en' ? '' : ' sc'), contenteditable: ctx.mode === 'edit' ? 'false' : null },
+    L.h('span', { class: 'cap-name', text: cn.text }), ' ' + (n ? n.num : '') + ' – '));
+  box.appendChild(L.rich(ctx, 'span', 'cap-text', b.caption, b.id, 'caption', ph));
+  return box;
+};
+
+/* Deux colonnes côte à côte (tableaux, figures, texte…) */
+L.R.cols = function (b, ctx) {
+  const el = L.h('div', { class: 'cols' });
+  const r = b.ratio || 50;
+  b.children.forEach((col, i) => {
+    const cell = L.h('div', { class: 'col-cell', 'data-col': col.id, style: { flexBasis: ((i ? 100 - r : r) - 2) + '%' } });
+    col.children.forEach(c => cell.appendChild(L.renderBlock(c, ctx)));
+    if (ctx.mode === 'edit') cell.appendChild(L.h('button', { class: 'col-add', contenteditable: 'false', tabindex: '-1', 'data-col': col.id, text: '+ Ajouter dans cette colonne' }));
+    el.appendChild(cell);
+  });
+  return el;
 };
 
 L.bibHtml = function (e) {

@@ -43,7 +43,31 @@ L.defaultMeta = () => ({
   titleStyle: 'article',     // article | fiche | pagegarde | aucun
   fontSize: 11, margins: 'normales', spacing: 1, lang: 'fr',
   toc: false, thmBySection: false, boxedThm: false, pageNumbers: true,
+  tableName: '', figureName: '',            // vide = nom par défaut (« Table », « Figure »)
+  numFormat: 'arabic', numPos: 'foot-c', pageStart: 1,   // numérotation des pages
+  header: { l: '', c: '', r: '' }, footer: { l: '', c: '', r: '' },
+  headRule: false, footRule: false, hfFirst: true,
 });
+
+/* Couleurs de texte et de fond (mêmes valeurs dans l'aperçu et dans le LaTeX exporté) */
+L.TEXT_COLORS = { rouge: 'E00000', bleu: '1F4FBF', vert: '1E8E3E', orange: 'E07000', violet: '7B2FBE', gris: '6B6B6B' };
+L.HEAD_COLORS = { gris: 'E8E8E8', bleu: 'E3E4F8', vert: 'E2F2E5', jaune: 'FFF3C4', rose: 'FBE3E8' };
+
+/* Formats de numérotation des pages */
+L.NUM_FORMATS = [
+  ['arabic', '1, 2, 3'], ['n/N', '1/3, 2/3'], ['page', 'Page 1'], ['page-sur', 'Page 1 sur 3'], ['tirets', '– 1 –'], ['none', 'Aucune'],
+];
+L.pageNumText = function (fmt, n, total, lang) {
+  const P = lang === 'en' ? 'Page' : 'Page', S = lang === 'en' ? 'of' : 'sur';
+  return { arabic: String(n), 'n/N': n + '/' + total, page: P + ' ' + n, 'page-sur': P + ' ' + n + ' ' + S + ' ' + total, tirets: '– ' + n + ' –' }[fmt] || '';
+};
+L.fixMeta = function (m) {
+  if (m.pageNumbers === false && !m._hfMigrated) m.numFormat = 'none';
+  m._hfMigrated = true;
+  m.header = Object.assign({ l: '', c: '', r: '' }, m.header || {});
+  m.footer = Object.assign({ l: '', c: '', r: '' }, m.footer || {});
+  return m;
+};
 
 L.newBlock = function (type, opts = {}) {
   const id = L.uid();
@@ -60,6 +84,8 @@ L.newBlock = function (type, opts = {}) {
     figure: () => ({ src: '', width: 60, caption: '' }),
     code: () => ({ lang: 'python', code: '', numbers: false }),
     tabvar: () => ({ xlabel: 'x', xs: ['-inf', '+inf'], rows: [] }),
+    cols: () => ({ ratio: 50, children: [L.newBlock('col'), L.newBlock('col')] }),
+    col: () => ({ children: [L.newBlock('paragraph')] }),
     pagebreak: () => ({}),
     bibliography: () => ({}),
   }[type];
@@ -103,11 +129,13 @@ L.computeNumbers = function (doc) {
   const toc = [];
   const bib = {};
   (doc.bib || []).forEach((e, i) => { bib[e.id] = i + 1; });
+  const forced = b => (b.forceNum !== undefined && b.forceNum !== null && b.forceNum !== '' && !isNaN(+b.forceNum)) ? +b.forceNum : null;
   L.walk(doc.blocks, (b) => {
+    const fn = forced(b);
     if (b.type === 'heading') {
       const lv = Math.min(b.level, 4);
       if (lv <= 3 && b.numbered) {
-        sec[lv - 1]++;
+        sec[lv - 1] = fn !== null ? fn : sec[lv - 1] + 1;
         for (let k = lv; k < 3; k++) sec[k] = 0;
         if (lv === 1) Object.keys(kindCount).forEach(k => { if (m.thmBySection) kindCount[k] = 0; });
         const n = sec.slice(0, lv).join('.');
@@ -115,13 +143,13 @@ L.computeNumbers = function (doc) {
       }
       if (lv <= 3) toc.push({ id: b.id, level: lv, num: nums[b.id] ? nums[b.id].num : '', html: b.html });
     } else if (b.type === 'equation' && b.numbered) {
-      eq++; nums[b.id] = { num: '(' + eq + ')', ref: '(' + eq + ')' };
-    } else if (b.type === 'figure') {
-      fig++; nums[b.id] = { num: String(fig), ref: String(fig) };
-    } else if (b.type === 'table') {
-      tab++; nums[b.id] = { num: String(tab), ref: String(tab) };
+      eq = fn !== null ? fn : eq + 1; nums[b.id] = { num: '(' + eq + ')', ref: '(' + eq + ')' };
+    } else if (b.type === 'figure' && (b.capMode || 'num') === 'num') {
+      fig = fn !== null ? fn : fig + 1; nums[b.id] = { num: String(fig), ref: String(fig) };
+    } else if (b.type === 'table' && (b.capMode || 'num') === 'num') {
+      tab = fn !== null ? fn : tab + 1; nums[b.id] = { num: String(tab), ref: String(tab) };
     } else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) {
-      kindCount[b.kind] = (kindCount[b.kind] || 0) + 1;
+      kindCount[b.kind] = fn !== null ? fn : (kindCount[b.kind] || 0) + 1;
       const n = (m.thmBySection ? sec[0] + '.' : '') + kindCount[b.kind];
       nums[b.id] = { num: n, ref: n };
     }
@@ -148,7 +176,7 @@ L.refTargets = function (doc) {
 
 /* ---------- Texte enrichi : nettoyage / sérialisation ---------- */
 const INLINE_OK = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', SUB: 'sub', SUP: 'sup', CODE: 'code' };
-const CHIPS = ['imath', 'xref', 'cite', 'fn'];
+const CHIPS = ['imath', 'xref', 'cite', 'fn', 'timg'];
 
 L.sanitizeNode = function (node) {
   let out = '';
@@ -162,9 +190,12 @@ L.sanitizeNode = function (node) {
       else if (chip === 'xref') out += '<span class="xref" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
       else if (chip === 'cite') out += '<span class="cite" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
       else if (chip === 'fn') out += '<span class="fn" data-text="' + L.escHtml(n.dataset.text || '') + '"></span>';
+      else if (chip === 'timg') out += '<span class="timg" data-src="' + L.escHtml(n.dataset.src || '') + '" data-w="' + L.escHtml(n.dataset.w || '3') + '"></span>';
       return;
     }
-    if (cls && (cls.contains('li-mark') || cls.contains('env-head-inline') || cls.contains('num'))) return;
+    if (cls && (cls.contains('li-mark') || cls.contains('env-head-inline') || cls.contains('num') || cls.contains('pg-float'))) return;
+    const col = cls && Array.from(cls).find(c => c.startsWith('c-') && L.TEXT_COLORS[c.slice(2)]);
+    if (col && n.tagName === 'SPAN') { const inner = L.sanitizeNode(n); if (inner) out += '<span class="' + col + '">' + inner + '</span>'; return; }
     if (n.tagName === 'BR') { out += '<br>'; return; }
     const inner = L.sanitizeNode(n);
     const t = INLINE_OK[n.tagName];
@@ -209,3 +240,12 @@ L.shiftSpans = function (b, from, delta) {
   }
   b.spans = out;
 };
+
+/* Nom affiché devant le numéro des légendes : « Table 1 – », « Tableau 1 – »… */
+L.capName = function (meta, kind) {
+  const custom = (kind === 'table' ? meta.tableName : meta.figureName) || '';
+  return { text: custom.trim() || (L.NAMES[meta.lang] || L.NAMES.fr)[kind], custom: !!custom.trim() };
+};
+
+/* Premier numéro de page (peut être 0) */
+L.pageStart = m => (m.pageStart === '' || m.pageStart === null || m.pageStart === undefined || isNaN(+m.pageStart)) ? 1 : Math.trunc(+m.pageStart);

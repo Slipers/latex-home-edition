@@ -35,6 +35,9 @@ L.ITEMS = [
   { g: 'Exercices', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
   { g: 'Objets', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
   { g: 'Objets', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
+  { g: 'Objets', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
+  { g: 'Objets', key: 'figures2', label: 'Images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
+  { g: 'Objets', key: 'cols2', label: 'Deux colonnes', icon: '▯▯', kw: 'deux colonnes cote a cote texte', make: () => L.newCols('paragraph') },
   { g: 'Objets', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
   { g: 'Objets', key: 'resume', label: 'Résumé', icon: 'Rés', kw: 'resume abstract', make: () => L.newBlock('box', { kind: 'resume' }) },
   { g: 'Mise en page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
@@ -45,7 +48,7 @@ L.ITEMS = [
 const TYPE_INFO = {
   paragraph: ['¶', 'Paragraphe'], heading: ['§', 'Titre'], equation: ['(1)', 'Équation'], list: ['1.', 'Liste'],
   box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'],
-  tabvar: ['↗↘', 'Tableau de variations / signes'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
+  tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
 };
 
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -53,7 +56,7 @@ const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '
 Object.assign(App, {
   /* ================= État & historique ================= */
   load(doc, fileName) {
-    doc.meta = Object.assign(L.defaultMeta(), doc.meta || {});
+    doc.meta = L.fixMeta(Object.assign(L.defaultMeta(), doc.meta || {}));
     doc.bib = doc.bib || [];
     doc.assets = doc.assets || {};
     if (!doc.blocks || !doc.blocks.length) doc.blocks = [L.newBlock('paragraph')];
@@ -132,7 +135,7 @@ Object.assign(App, {
   },
 
   /* ================= Changements de page visibles pendant l'écriture ================= */
-  pagesSoon: L.debounce(() => App.computePages(), 700),
+  pagesSoon: L.debounce(() => App.computePages(), 350),
   async computePages() {
     if (this._paginating) { this._paginateAgain = true; return; }
     this._paginating = true;
@@ -146,30 +149,115 @@ Object.assign(App, {
     this._paginating = false;
     if (this._paginateAgain) { this._paginateAgain = false; this.pagesSoon(); }
   },
-  drawPageMarks() {
+  /* Affiche le document en feuilles A4 séparées (comme Word) : des espaces invisibles sont
+     insérés aux endroits exacts où la mise en page du PDF change de page, et les feuilles
+     (avec en-tête et pied de page) sont dessinées derrière le texte. */
+  drawPageMarks() { this.layoutSheets(); },
+  layoutSheets() {
     const paper = L.$('#paper');
-    let layer = L.$('#pageMarks');
-    if (!layer || layer.parentNode !== paper) { layer = L.h('div', { id: 'pageMarks', 'aria-hidden': 'true' }); paper.appendChild(layer); }
+    const flow = paper.querySelector(':scope > .flow');
+    if (!flow) return;
+    // 1. On retire les espaces de la mise en page précédente
+    paper.querySelectorAll('.pg-sp').forEach(x => x.remove());
+    paper.querySelectorAll('.pg-float').forEach(x => { const p = x.parentNode; x.remove(); if (p) p.normalize(); });
+    let layer = paper.querySelector(':scope > .sheets');
+    if (!layer) { layer = L.h('div', { class: 'sheets', 'aria-hidden': 'true' }); paper.insertBefore(layer, paper.firstChild); }
     layer.innerHTML = '';
+    const cs = getComputedStyle(paper);
+    const mtop = parseFloat(cs.paddingTop), mbot = parseFloat(cs.paddingBottom);
+    const P = paper.offsetWidth * 297 / 210, GAP = 26;
     const info = this.pageInfo;
-    if (!info) return;
-    const pTop = paper.getBoundingClientRect().top;
-    this.pageMarkY = [];
-    info.breaks.forEach(b => {
-      const el = b.id && paper.querySelector('.blk[data-id="' + b.id + '"]');
-      if (!el) return;
-      const content = Array.from(el.children).find(c => !c.classList.contains('gutter')) || el;
-      const top = content.getBoundingClientRect().top;
-      const y = (b.offset ? top + b.offset : top - 3) - pTop;
-      this.pageMarkY.push(y);
-      layer.appendChild(L.h('div', { class: 'pmark', style: { top: y + 'px' } },
-        L.h('span', { class: 'pmark-lab', text: 'Page ' + b.page })));
+    const pTop = () => paper.getBoundingClientRect().top;
+    const sheets = [{ top: 0 }];
+    let prevTop = 0;
+    (info ? info.breaks : []).forEach(b => {
+      const pos = this.breakPoint(paper, b);
+      if (!pos) return;
+      let sp;
+      if (pos.kind === 'block') { sp = L.h('div', { class: 'pg-sp', contenteditable: 'false' }); pos.before.parentNode.insertBefore(sp, pos.before); }
+      else { sp = L.h('span', { class: 'pg-float', contenteditable: 'false' }); pos.range.insertNode(sp); }
+      const y = sp.getBoundingClientRect().top - pTop();
+      const bottom = Math.max(prevTop + P, y + 12);
+      const nextTop = bottom + GAP;
+      sp.style.height = Math.max(0, nextTop + mtop - y) + 'px';
+      sheets[sheets.length - 1].bottom = bottom;
+      sheets.push({ top: nextTop });
+      prevTop = nextTop;
     });
+    const end = flow.getBoundingClientRect().bottom - pTop() + mbot;
+    sheets[sheets.length - 1].bottom = Math.max(prevTop + P, end);
+    paper.style.minHeight = sheets[sheets.length - 1].bottom + 'px';
+    // 2. Dessin des feuilles, avec en-têtes et pieds de page
+    const m = L.fixMeta(this.doc.meta);
+    const nums = info && info.pageNums ? info.pageNums : [];
+    const total = info && info.total !== undefined ? info.total : L.pageStart(m) + sheets.length - 1;
+    const firstNum = nums.findIndex(n => n !== null && n !== undefined);
+    sheets.forEach((sh, i) => {
+      const el = L.h('div', { class: 'sheet', style: { top: sh.top + 'px', height: (sh.bottom - sh.top) + 'px' } });
+      const n = info ? nums[i] : L.pageStart(m) + i;
+      const skip = n === null || n === undefined || (i === firstNum && m.hfFirst === false && m.titleStyle !== 'pagegarde');
+      if (!skip) L.renderHF(m, n, total).forEach(x => el.appendChild(x));
+      el.addEventListener('dblclick', e => { if (e.target.closest('.page-head, .page-hfoot')) L.dlgSettings('hf'); });
+      layer.appendChild(el);
+    });
+    this.sheets = sheets;
     this.updatePageIndicator();
+    // Le curseur a été poussé sur la page suivante : on le garde visible
+    const s = window.getSelection();
+    if (s.rangeCount && paper.contains(s.anchorNode) && document.activeElement && paper.contains(document.activeElement)) {
+      const r = s.getRangeAt(0).getBoundingClientRect(), d = L.$('#desk').getBoundingClientRect();
+      if (r.bottom && r.bottom > d.bottom - 30) L.$('#desk').scrollBy({ top: r.bottom - d.bottom + 80 });
+    }
+  },
+  /* Où couper dans l'éditeur ? Début du bloc, ou début de la ligne correspondant à la coupure du PDF */
+  breakPoint(paper, b) {
+    const el = b.id && paper.querySelector('.blk[data-id="' + b.id + '"]');
+    if (!el) return null;
+    if (!b.offset) return { kind: 'block', before: el };
+    const content = Array.from(el.children).find(c => !c.classList.contains('gutter')) || el;
+    const yT = content.getBoundingClientRect().top + b.offset - 3;
+    const blockish = '.blk, .li, .eq, .tvwrap, .tbl, .fig, .code, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h';
+    let found = null;
+    const visit = node => {
+      for (const n of Array.from(node.childNodes)) {
+        if (found) return;
+        if (n.nodeType === 1) {
+          if (n.matches('.gutter, .pg-sp, .pg-float, .katex, .imath, .xref, .cite, .fn, .timg, .env-head-inline, .li-mark, .num')) {
+            if (n.matches('.imath, .xref, .cite, .timg') && n.closest('[data-f]')) {
+              const r = n.getBoundingClientRect();
+              if (r.height && r.top >= yT) { const rg = document.createRange(); rg.setStartBefore(n); rg.collapse(true); found = { kind: 'float', range: rg }; }
+            }
+            continue;
+          }
+          if (n !== el && n.matches(blockish)) {
+            const r = n.getBoundingClientRect();
+            if (r.height && r.top >= yT) { found = { kind: 'block', before: n }; return; }
+          }
+          if (n.matches('[data-f]') && n.matches('p, div') && !n.closest('td')) {
+            const r = n.getBoundingClientRect();
+            if (r.height && r.top >= yT) { found = { kind: 'block', before: n.closest('.li') || n }; return; }
+          }
+          if (n.tagName === 'TABLE' || n.tagName === 'svg') continue;
+          visit(n);
+        } else if (n.nodeType === 3 && n.parentElement && n.parentElement.closest('[data-f]')) {
+          const t = n.nodeValue;
+          for (let i = 0; i < t.length; i++) {
+            if (i > 0 && !/\s/.test(t[i - 1])) continue;
+            if (/\s/.test(t[i])) continue;
+            const rg = document.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1);
+            const rc = rg.getClientRects()[0];
+            if (rc && rc.top >= yT) { rg.collapse(true); found = { kind: 'float', range: rg }; return; }
+          }
+        }
+      }
+    };
+    visit(el);
+    if (found) return found;
+    return el.nextElementSibling && el.nextElementSibling.matches('.blk') ? { kind: 'block', before: el.nextElementSibling } : { kind: 'block', before: el };
   },
   updatePageIndicator() {
     const pill = L.$('#pageIndicator');
-    if (!pill || !this.pageInfo || !L.$('#previewWrap').hidden) { if (pill) pill.hidden = true; return; }
+    if (!pill || !this.sheets || !L.$('#previewWrap').hidden) { if (pill) pill.hidden = true; return; }
     let y = null;
     const paper = L.$('#paper');
     const s = window.getSelection();
@@ -178,8 +266,8 @@ Object.assign(App, {
       if (r.top || r.bottom) y = r.top - paper.getBoundingClientRect().top;
     }
     if (y === null) { const d = L.$('#desk'); y = d.getBoundingClientRect().top + d.clientHeight / 3 - paper.getBoundingClientRect().top; }
-    const page = 1 + (this.pageMarkY || []).filter(v => v <= y + 2).length;
-    pill.textContent = 'Page ' + Math.min(page, this.pageInfo.count) + ' sur ' + this.pageInfo.count;
+    const page = Math.max(1, this.sheets.filter(sh => sh.top <= y + 2).length);
+    pill.textContent = 'Page ' + page + ' sur ' + this.sheets.length;
     pill.hidden = false;
   },
   refreshAux: L.debounce(() => {
@@ -302,7 +390,8 @@ Object.assign(App, {
     let list = doc.blocks, index = list.length;
     const refId = opts.after || this.sel;
     let ref = refId && refId !== '__title' && refId !== '__toc' ? L.find(doc, refId) : null;
-    if (ref && ref.parent && block.type === 'box') ref = L.find(doc, ref.parent.id);   // pas d'encadré dans un encadré
+    // pas d'encadré dans un encadré, pas de colonnes dans des colonnes
+    if (ref && (block.type === 'box' || block.type === 'cols')) while (ref.parent) ref = L.find(doc, ref.parent.type === 'col' ? L.find(doc, ref.parent.id).parent.id : ref.parent.id);
     if (opts.into) { const bx = L.find(doc, opts.into); list = bx.block.children; index = list.length; }
     else if (ref) {
       list = ref.list; index = ref.index + 1;
@@ -498,9 +587,59 @@ Object.assign(App, {
     this.placeCaretAfter(chip);
     this.commit();
   },
+  /* Image dans une case de tableau (ou dans le texte) */
+  pickInlineImage() {
+    const cr = this.currentRichRange();
+    const inp = L.$('#fileImg');
+    inp.value = '';
+    inp.onchange = () => { if (inp.files[0]) { if (cr) this.lastRange = cr.r; this.insertInlineImage(inp.files[0]); } };
+    inp.click();
+  },
+  async insertInlineImage(file) {
+    try {
+      const data = await L.readImage(file, 1400);
+      const aid = 'img' + L.uid('');
+      this.doc.assets[aid] = data;
+      const chip = L.h('span', { class: 'timg', 'data-src': aid, 'data-w': '3', contenteditable: 'false' });
+      this.insertChip(chip);
+      L.hydrate(chip.parentNode, { mode: 'edit', nums: {}, bib: {}, doc: this.doc });
+      this.syncField(chip.closest('[data-f]'));
+      this.commit();
+      this.pagesSoon();
+    } catch (e) { L.toast('Impossible de lire cette image.', 'err'); }
+  },
+  editInlineImage(chip) {
+    const field = chip.closest('[data-f]');
+    const inp = L.h('input', { type: 'range', min: 1, max: 16, step: 0.5, value: chip.dataset.w || 3 });
+    const lab = L.h('span', { text: (chip.dataset.w || 3) + ' cm' });
+    inp.oninput = () => { chip.dataset.w = inp.value; lab.textContent = inp.value + ' cm'; const im = chip.querySelector('img'); if (im) im.style.width = inp.value + 'cm'; };
+    L.modal({
+      title: 'Image', body: L.h('div', { class: 'field' }, L.h('label', { text: 'Largeur de l\'image' }), inp, lab),
+      foot: [
+        { text: 'Supprimer l\'image', cls: 'danger', onClick: c => { c(); chip.remove(); this.syncField(field); this.commit(); this.pagesSoon(); } },
+        { text: 'Terminé', cls: 'primary', onClick: c => { c(); this.syncField(field); this.commit(); this.pagesSoon(); } },
+      ],
+    });
+  },
+  /* Couleur du texte sélectionné */
+  setColor(col) {
+    const cr = this.currentRichRange();
+    if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
+    const s = window.getSelection();
+    if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
+    const r = s.getRangeAt(0);
+    if (r.collapsed) return L.toast('Sélectionnez d\'abord du texte.');
+    const frag = r.extractContents();
+    frag.querySelectorAll('span[class^="c-"]').forEach(x => x.replaceWith(...x.childNodes));
+    let node = frag;
+    if (col) { const sp = document.createElement('span'); sp.className = 'c-' + col; sp.appendChild(frag); node = sp; }
+    r.insertNode(node);
+    this.syncField(cr.field);
+    this.commit();
+  },
   hydrateChips() {
     const info = L.computeNumbers(this.doc);
-    L.hydrate(L.$('#paper'), { mode: 'edit', nums: info.nums, bib: info.bib, fn: 0 });
+    L.hydrate(L.$('#paper'), { mode: 'edit', nums: info.nums, bib: info.bib, fn: 0, doc: this.doc });
   },
   format(cmd) {
     const cr = this.currentRichRange();
@@ -564,9 +703,11 @@ Object.assign(App, {
         row('', btn('⚙  Titre, police, marges…', () => L.dlgSettings(), 'primary')),
         row('Options rapides',
           chk('Table des matières', m.toc, v => upd(() => { m.toc = v; })),
-          chk('Numéros de page', m.pageNumbers !== false, v => upd(() => { m.pageNumbers = v; })),
+
           chk('Encadrer les théorèmes', m.boxedThm, v => upd(() => { m.boxedThm = v; }))),
         row('Taille du texte', seg([[10, '10 pt'], [11, '11 pt'], [12, '12 pt']], m.fontSize, v => upd(() => { m.fontSize = v; }))),
+        row('Numéros de page', (() => { const s = L.h('select', null, ...L.NUM_FORMATS.map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if ((m.numFormat || 'arabic') === v) o.selected = true; return o; })); s.onchange = () => upd(() => { m.numFormat = s.value; }); return s; })(),
+          btn('En-tête et pied de page…', () => L.dlgSettings('hf'))),
         row('Sources', btn('Gérer la bibliographie (' + (doc.bib || []).length + ')', () => L.dlgBib())),
         L.h('hr', { class: 'pp-sep' }),
         L.h('div', { class: 'pp-help' },
@@ -578,12 +719,21 @@ Object.assign(App, {
     const [ic, name] = TYPE_INFO[b.type] || ['?', b.type];
     P.appendChild(L.h('div', { class: 'pp-type' }, L.h('span', { class: 'ic', text: b.type === 'box' ? '▢' : ic }),
       b.type === 'box' ? L.kindName(b.kind, doc.meta.lang) : name,
-      f.parent ? L.h('span', { style: { fontWeight: 400, color: 'var(--mut)', fontSize: '12px' }, text: ' (dans l\'encadré)' }) : null));
+      f.parent ? L.h('span', { style: { fontWeight: 400, color: 'var(--mut)', fontSize: '12px' }, text: f.parent.type === 'col' ? ' (dans une colonne)' : ' (dans l\'encadré)' }) : null));
+    // Numéro forcé (ex. commencer à 0)
+    const forceRow = () => {
+      const i = L.h('input', { type: 'number', value: b.forceNum ?? '', placeholder: 'auto', style: { width: '90px' } });
+      i.onchange = () => upd(() => { if (i.value === '') delete b.forceNum; else b.forceNum = Math.trunc(+i.value); });
+      return row('Forcer le numéro', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, i,
+        L.h('span', { class: 'pp-help', text: 'Vide = automatique. La suite continue à partir de ce numéro.' })));
+    };
+    const capRow = () => row('Légende', seg([['num', 'Numérotée'], ['nonum', 'Sans numéro'], ['none', 'Aucune']], b.capMode || 'num', v => upd(() => { b.capMode = v; })));
 
     if (b.type === 'heading') {
       P.append(
         row('Niveau', seg([[1, 'Section'], [2, 'Sous-sect.'], [3, 'Sous-sous'], [4, 'Paragr.']], b.level, v => upd(() => { b.level = v; }))),
         row('', chk('Numéroté automatiquement', b.numbered, v => upd(() => { b.numbered = v; }))));
+      if (b.numbered && b.level <= 3) P.append(forceRow());
     } else if (b.type === 'paragraph') {
       P.append(
         row('Alignement', seg([['justify', 'Justifié'], ['center', 'Centré'], ['right', 'À droite']], b.align || 'justify', v => upd(() => { b.align = v; }))),
@@ -596,6 +746,7 @@ Object.assign(App, {
       P.append(
         row('', btn('✎  Modifier l\'équation', () => L.MathDock.open({ kind: 'block', blockId: b.id }), 'primary')),
         row('', chk('Numérotée — (1), (2)…', b.numbered, v => upd(() => { b.numbered = v; }))),
+        b.numbered ? forceRow() : '',
         L.h('div', { class: 'pp-help', html: '<p>Pour écrire plusieurs lignes alignées, utilisez « Calcul sur plusieurs lignes » dans l\'onglet <i>Matrices &amp; systèmes</i> de l\'éditeur.</p>' }));
     } else if (b.type === 'list') {
       P.append(
@@ -613,6 +764,7 @@ Object.assign(App, {
       P.append(row('Type', kinds));
       if (b.kind !== 'resume') P.append(row('Titre (facultatif)', title));
       if (!(L.KINDS[b.kind] || {}).fixed) P.append(row('', chk('Numéroté', b.numbered, v => upd(() => { b.numbered = v; }))));
+      if (b.numbered && !(L.KINDS[b.kind] || {}).fixed) P.append(forceRow());
       P.append(row('Ajouter dans l\'encadré', L.h('div', { class: 'btn-row' },
         btn('Paragraphe', () => this.insertBlock(L.newBlock('paragraph'), { into: b.id })),
         btn('Équation', () => this.insertBlock(L.newBlock('equation'), { into: b.id })),
@@ -629,9 +781,24 @@ Object.assign(App, {
         s.onchange = () => upd(() => { b.align[c] = s.value; });
         alignRow.appendChild(s);
       }
+      const sw = L.h('div', { class: 'swatches' });
+      [['', 'Aucune', '#fff'], ...Object.entries(L.HEAD_COLORS).map(([k, v]) => [k, k, '#' + v])].forEach(([k, t, c]) =>
+        sw.appendChild(L.h('button', { class: (b.headColor || '') === k ? 'on' : '', title: t, style: { background: c }, text: k ? '' : '∅', onclick: () => upd(() => { b.headColor = k; }) })));
+      const wRow = L.h('div', { class: 'btn-row' });
+      for (let c = 0; c < cols; c++) {
+        const s = L.h('select', { title: 'Colonne ' + (c + 1), style: { flex: '1', minWidth: '0', padding: '5px' } },
+          ...[['auto', 'ajustée'], ['fill', 'large']].map(([v, t]) => { const o = L.h('option', { value: v, text: (c + 1) + ' : ' + t }); if (((b.colw || [])[c] || 'auto') === v) o.selected = true; return o; }));
+        s.onchange = () => upd(() => { b.colw = b.colw || []; b.colw[c] = s.value; });
+        wRow.appendChild(s);
+      }
       P.append(
+        capRow(),
+        (b.capMode || 'num') === 'num' ? forceRow() : '',
         row('Style', seg([['pro', 'Professionnel'], ['grille', 'Grille'], ['simple', 'Simple']], b.style, v => upd(() => { b.style = v; }))),
         row('', chk('Première ligne en en-tête (gras)', b.head, v => upd(() => { b.head = v; }))),
+        row('Couleur de la première ligne', sw),
+        row('Largeur des colonnes', wRow, L.h('div', { class: 'pp-help', html: '« large » : la colonne prend toute la place restante et le texte passe à la ligne (comme une grille de consignes).' })),
+        row('Image dans une case', btn('🖼  Insérer une image dans la case', () => this.pickInlineImage()), L.h('div', { class: 'pp-help', text: 'Ou copiez une capture d\'écran puis collez-la (Ctrl+V) dans la case.' })),
         row('Cases fusionnées', L.h('div', { class: 'btn-row' },
           btn('Fusionner avec la case de droite', () => {
             const sp = b.spans || (b.spans = {});
@@ -654,12 +821,23 @@ Object.assign(App, {
       rng.oninput = () => { b.width = +rng.value; lab.textContent = b.width + ' % de la largeur du texte'; const img = this.blockEl(b.id)?.querySelector('img'); if (img) img.style.width = b.width + '%'; this.commitSoon(); };
       P.append(
         row('', btn(b.src ? '🖼  Changer l\'image' : '🖼  Choisir une image', () => this.pickImage(b.id), 'primary')),
-        row('Taille', rng, lab));
+        row('Taille', rng, lab),
+        capRow(),
+        (b.capMode || 'num') === 'num' ? forceRow() : '');
     } else if (b.type === 'code') {
       const s = L.h('select', null, ...[['python', 'Python'], ['c', 'C'], ['cpp', 'C++'], ['java', 'Java'], ['javascript', 'JavaScript'], ['matlab', 'Matlab / Octave'], ['r', 'R'], ['sql', 'SQL'], ['bash', 'Terminal (bash)'], ['html', 'HTML'], ['texte', 'Texte brut']]
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
+    } else if (b.type === 'cols') {
+      const addTo = (i, lab) => row('Ajouter dans la colonne ' + lab, L.h('div', { class: 'btn-row' },
+        ...[['Tableau', 'table'], ['Image', 'figure'], ['Paragraphe', 'paragraph'], ['Équation', 'equation'], ['Liste', 'list']].map(([t, ty]) =>
+          btn(t, () => this.insertBlock(L.newBlock(ty), { into: b.children[i].id })))));
+      P.append(
+        row('Largeurs', seg([[50, '50 / 50'], [60, '60 / 40'], [40, '40 / 60'], [65, '65 / 35'], [35, '35 / 65']], b.ratio || 50, v => upd(() => { b.ratio = v; }))),
+        addTo(0, 'de gauche'), addTo(1, 'de droite'),
+        row('', btn('⇄ Échanger les deux colonnes', () => upd(() => { b.children.reverse(); }))),
+        L.h('div', { class: 'pp-help', html: '<p>En LaTeX, chaque colonne devient une <i>minipage</i>. Les tableaux et figures gardent leur légende numérotée.</p>' }));
     } else if (b.type === 'tabvar') {
       P.append(row('', btn('✎  Modifier le tableau', () => L.dlgTabvar(b), 'primary')),
         L.h('div', { class: 'pp-help', html: '<p>Exporté en LaTeX avec le paquet <i>tkz-tab</i>, la référence pour les tableaux de variations.</p>' }));
@@ -728,7 +906,8 @@ L.InsertMenu = (function () {
   return { show, hide, key, isOpen: () => open };
 })();
 
-App.runItem = function (it, afterId) {
+App.runItem = function (it, afterId, into) {
+  if (into && !it.action) { this.insertBlock(it.make(), { into }); return; }
   if (it.action) { it.action(); return; }
   this.insertBlock(it.make(), { after: afterId });
 };
@@ -826,7 +1005,7 @@ App.bindEditor = function () {
       }
       if (b.type === 'paragraph') {
         this.syncField(field);
-        if (L.isEmptyHtml(b.html) && f.parent && f.index === f.list.length - 1 && f.list.length > 1) {
+        if (L.isEmptyHtml(b.html) && f.parent && f.parent.type !== 'col' && f.index === f.list.length - 1 && f.list.length > 1) {
           // Sortir de l'encadré
           f.list.splice(f.index, 1);
           const pf = L.find(this.doc, f.parent.id);
@@ -883,7 +1062,7 @@ App.bindEditor = function () {
         this.syncField(field);
         const prev = f.index > 0 ? f.list[f.index - 1] : null;
         if (L.isEmptyHtml(b.html)) {
-          if (f.parent && f.list.length === 1) { this.removeBlock(f.parent.id); return; }
+          if (f.parent && f.list.length === 1) { if (f.parent.type !== 'col') this.removeBlock(f.parent.id); return; }
           this.removeBlock(b.id); return;
         }
         if (prev && (prev.type === 'paragraph' || prev.type === 'heading')) {
@@ -960,6 +1139,12 @@ App.bindEditor = function () {
     const field = e.target.closest && e.target.closest('[data-f]');
     const cd = e.clipboardData;
     const img = cd && Array.from(cd.files || []).find(x => /^image\//.test(x.type));
+    if (img && field && field.tagName === 'TD') {
+      e.preventDefault();
+      this.lastRange = window.getSelection().rangeCount ? window.getSelection().getRangeAt(0).cloneRange() : null;
+      this.insertInlineImage(img);
+      return;
+    }
     if (img) {
       e.preventDefault();
       const blk = e.target.closest && e.target.closest('.blk');
@@ -991,7 +1176,7 @@ App.bindEditor = function () {
       if (!blk.dataset.id.startsWith('__')) this.select(blk.dataset.id);
       else this.select(null);
     }
-    if (e.target.closest('.imath, .xref, .cite, .fn, .g-add')) e.preventDefault();
+    if (e.target.closest('.imath, .xref, .cite, .fn, .timg, .g-add, .col-add')) e.preventDefault();
   });
 
   paper.addEventListener('click', e => {
@@ -1005,6 +1190,14 @@ App.bindEditor = function () {
       else if (chip.classList.contains('fn')) L.dlgFootnote(chip.dataset.text,
         v => { chip.dataset.text = v; this.syncField(field); this.commit(); },
         () => { chip.remove(); this.syncField(field); this.commit(); this.render(); });
+      return;
+    }
+    const timg = t.closest('.timg');
+    if (timg && paper.contains(timg)) { this.editInlineImage(timg); return; }
+    const cadd = t.closest('.col-add');
+    if (cadd) {
+      const r = cadd.getBoundingClientRect();
+      L.InsertMenu.show(r.left, r.bottom + 4, '', it => this.runItem(it, null, cadd.dataset.col));
       return;
     }
     const add = t.closest('.g-add');
@@ -1080,7 +1273,7 @@ App.bindEditor = function () {
     if (!src || !dst || src.block === dst.block) return;
     let inside = false;
     L.walk([src.block], x => { if (x.id === dst.block.id) inside = true; });
-    if (inside || (src.block.type === 'box' && dst.parent)) return L.toast('Impossible de placer un encadré dans un encadré.');
+    if (inside || ((src.block.type === 'box' || src.block.type === 'cols') && dst.parent)) return L.toast('Impossible de placer cet élément à l\'intérieur d\'un autre.');
     src.list.splice(src.index, 1);
     const d2 = L.find(this.doc, dst.block.id);
     d2.list.splice(d2.index + (t.after ? 1 : 0), 0, src.block);
@@ -1089,4 +1282,18 @@ App.bindEditor = function () {
     dragId = null;
     this.commit(); this.render();
   });
+};
+
+/* Deux colonnes préremplies : deux tableaux, deux images ou deux paragraphes */
+L.newCols = function (type) {
+  const c = L.newBlock('cols');
+  c.children.forEach((col, i) => {
+    if (type === 'table') col.children = [L.newBlock('table', {
+      head: false, style: 'grille', align: ['l', 'c'], colw: ['fill', 'auto'], headColor: 'bleu', capMode: 'none',
+      rows: [['Consigne', 'Check'], ['', ''], ['', ''], ['', '']],
+    })];
+    else if (type === 'figure') col.children = [L.newBlock('figure', { width: 90 })];
+    else col.children = [L.newBlock('paragraph')];
+  });
+  return c;
 };

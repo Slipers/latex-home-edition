@@ -43,7 +43,15 @@ L.htmlToLatex = function (html, X) {
       }
       if (c.contains('cite')) { out += '\\cite{' + n.dataset.ref + '}'; return; }
       if (c.contains('fn')) { out += '\\footnote{' + L.texEsc(n.dataset.text) + '}'; return; }
+      if (c.contains('timg')) {
+        const src = X.doc.assets ? X.doc.assets[n.dataset.src] : null;
+        const name = src ? L.imageFile(X, src) : null;
+        if (name) out += '\\raisebox{-0.5\\height}{\\includegraphics[width=' + (+n.dataset.w || 3) + 'cm]{' + name + '}}';
+        return;
+      }
       const inner = walk(n);
+      const col = Array.from(c).find(k => k.startsWith('c-') && L.TEXT_COLORS[k.slice(2)]);
+      if (col) { X.colors = true; out += '\\textcolor{lhe' + col.slice(2) + '}{' + inner + '}'; return; }
       switch (n.tagName) {
         case 'B': case 'STRONG': out += '\\textbf{' + inner + '}'; break;
         case 'I': case 'EM': out += '\\emph{' + inner + '}'; break;
@@ -62,11 +70,29 @@ L.htmlToLatex = function (html, X) {
 
 const LST_LANG = { python: 'Python', c: 'C', cpp: 'C++', java: 'Java', matlab: 'Matlab', r: 'R', html: 'HTML', sql: 'SQL', bash: 'bash', javascript: '', texte: '' };
 
+/* Numéro forcé : \setcounter avant le bloc, pour que LaTeX suive la même numérotation */
+L.forceCounter = function (b) {
+  if (b.forceNum === undefined || b.forceNum === null || b.forceNum === '' || isNaN(+b.forceNum)) return '';
+  let c = null;
+  if (b.type === 'heading' && b.numbered && b.level <= 3) c = ['section', 'subsection', 'subsubsection'][b.level - 1];
+  else if (b.type === 'equation' && b.numbered) c = 'equation';
+  else if (b.type === 'table' && (b.capMode || 'num') === 'num') c = 'table';
+  else if (b.type === 'figure' && (b.capMode || 'num') === 'num') c = 'figure';
+  else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) c = b.kind;
+  return c ? '\\setcounter{' + c + '}{' + (+b.forceNum - 1) + '}\n' : '';
+};
+
 L.blockToLatex = function (b, X, indent = '') {
+  const pre = L.forceCounter(b);
+  const out = L.blockToLatexRaw(b, X, indent);
+  return out && pre ? pre + out : out;
+};
+
+L.blockToLatexRaw = function (b, X, indent = '') {
   const R = x => L.htmlToLatex(x, X);
   switch (b.type) {
     case 'paragraph': {
-      if (L.isEmptyHtml(b.html)) return '';
+      if (L.isEmptyHtml(b.html)) return '\\mbox{}';   // ligne vide, comme dans l'éditeur
       const t = R(b.html);
       if (b.align === 'center') return '\\begin{center}\n' + t + '\n\\end{center}';
       if (b.align === 'right') return '\\begin{flushright}\n' + t + '\n\\end{flushright}';
@@ -101,12 +127,20 @@ L.blockToLatex = function (b, X, indent = '') {
     case 'table': {
       X.pk.add('booktabs');
       const cols = Math.max(...b.rows.map(r => r.length));
-      const al = Array.from({ length: cols }, (_, i) => b.align[i] || 'c');
+      const colw = b.colw || [];
+      const fill = colw.slice(0, cols).some(w => w === 'fill');
+      const al = Array.from({ length: cols }, (_, i) => {
+        const a = b.align[i] || 'c';
+        if (!fill || colw[i] !== 'fill') return a;
+        return '>{' + { l: '\\raggedright', c: '\\centering', r: '\\raggedleft' }[a] + '\\arraybackslash}X';
+      });
+      if (fill) X.pk.add('tabularx');
       const grid = b.style === 'grille';
       const spec = grid ? '|' + al.join('|') + '|' : al.join('');
       const lines = [];
       if (grid) lines.push('\\hline');
       else if (b.style === 'pro') lines.push('\\toprule');
+      if (b.headColor && L.HEAD_COLORS[b.headColor]) { X.colors = true; lines.push('\\rowcolor{lhehead' + b.headColor + '}'); }
       const spans = b.spans || {};
       b.rows.forEach((r, ri) => {
         const cells = [];
@@ -123,22 +157,23 @@ L.blockToLatex = function (b, X, indent = '') {
         else if (b.head && ri === 0) lines.push(b.style === 'pro' ? '\\midrule' : '\\hline');
       });
       if (b.style === 'pro') lines.push('\\bottomrule');
-      return '\\begin{table}[H]\n  \\centering\n  \\caption{' + R(b.caption) + '}\\label{' + L.labelOf(b) + '}\n' +
-        '  \\begin{tabular}{' + spec + '}\n' + lines.map(l => '    ' + l).join('\n') + '\n  \\end{tabular}\n\\end{table}';
+      const env = fill ? 'tabularx' : 'tabular';
+      const tab = '  \\begin{' + env + '}' + (fill ? '{\\linewidth}' : '') + (X.inCols ? '[t]' : '') + '{' + spec + '}\n' + lines.map(l => '    ' + l).join('\n') + '\n  \\end{' + env + '}';
+      const cap = L.captionToLatex(b, X, 'table');
+      if (X.inCols) return '{\\centering\n' + (cap ? '  ' + cap + '\n' : '') + tab + '\\par}';
+      return '\\begin{table}[H]\n  \\centering\n' + (cap ? '  ' + cap + '\n' : '') + tab + '\n\\end{table}';
     }
     case 'figure': {
       const w = ((b.width || 60) / 100).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
       let g;
       const src = b.src && X.doc.assets ? X.doc.assets[b.src] : null;
       if (src) {
-        const m = /^data:image\/(png|jpe?g|gif|svg\+xml|webp)/.exec(src);
-        let ext = m ? m[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg') : 'png';
-        const name = 'images/figure-' + (X.images.length + 1) + '.' + ext;
-        X.images.push({ name, data: src, ext });
-        if (ext === 'svg' || ext === 'gif' || ext === 'webp') X.warnings.add('Certaines images (SVG/GIF/WebP) doivent être converties en PNG ou PDF pour pdfLaTeX.');
-        g = '\\includegraphics[width=' + w + '\\textwidth]{' + name + '}';
-      } else g = '\\fbox{\\parbox{' + w + '\\textwidth}{\\centering\\vspace{2cm}Image manquante\\vspace{2cm}}}';
-      return '\\begin{figure}[H]\n  \\centering\n  ' + g + '\n  \\caption{' + R(b.caption) + '}\\label{' + L.labelOf(b) + '}\n\\end{figure}';
+        const name = L.imageFile(X, src);
+        g = '\\includegraphics[width=' + w + '\\linewidth]{' + name + '}';
+      } else g = '\\fbox{\\parbox{' + w + '\\linewidth}{\\centering\\vspace{2cm}Image manquante\\vspace{2cm}}}';
+      const cap = L.captionToLatex(b, X, 'figure');
+      if (X.inCols) return '{\\centering\n  ' + g + '\\par\n' + (cap ? '  ' + cap + '\n' : '') + '\\par}';
+      return '\\begin{figure}[H]\n  \\centering\n  ' + g + '\n' + (cap ? '  ' + cap + '\n' : '') + '\\end{figure}';
     }
     case 'code': {
       X.pk.add('listings');
@@ -149,6 +184,15 @@ L.blockToLatex = function (b, X, indent = '') {
       return '\\begin{lstlisting}' + (opts.length ? '[' + opts.join(', ') + ']' : '') + '\n' + (b.code || '') + '\n\\end{lstlisting}';
     }
     case 'tabvar': return L.tabvarToLatex(b, X);
+    case 'cols': {
+      const r = (b.ratio || 50) / 100;
+      const ws = [r - 0.02, 1 - r - 0.02];
+      X.inCols = true;
+      const parts = b.children.map((col, i) => '\\begin{minipage}[t]{' + ws[i].toFixed(2) + '\\textwidth}\n' +
+        col.children.map(c => L.blockToLatex(c, X)).filter(Boolean).join('\n\n') + '\n\\end{minipage}');
+      X.inCols = false;
+      return '\\par\\medskip\\noindent\n' + parts.join('\\hfill\n') + '\\par\\medskip';
+    }
     case 'pagebreak': return '\\newpage';
     case 'bibliography': {
       const bib = X.doc.bib || [];
@@ -165,6 +209,57 @@ L.blockToLatex = function (b, X, indent = '') {
     }
   }
   return '';
+};
+
+/* Enregistre une image du document dans le projet exporté (images/figure-N.ext) */
+L.imageFile = function (X, src) {
+  const m = /^data:image\/(png|jpe?g|gif|svg\+xml|webp)/.exec(src);
+  const ext = m ? m[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg') : 'png';
+  const name = 'images/figure-' + (X.images.length + 1) + '.' + ext;
+  X.images.push({ name, data: src, ext });
+  if (ext === 'svg' || ext === 'gif' || ext === 'webp') X.warnings.add('Certaines images (SVG/GIF/WebP) doivent être converties en PNG ou PDF pour pdfLaTeX.');
+  return name;
+};
+
+/* Légende : numérotée (\caption ou \captionof dans une colonne), sans numéro, ou aucune */
+L.captionToLatex = function (b, X, kind) {
+  const mode = b.capMode || 'num';
+  if (mode === 'none') return '';
+  const t = L.htmlToLatex(b.caption, X);
+  if (mode === 'nonum') return kind === 'table' ? t + '\\par\\vspace{10pt}' : '\\vspace{10pt}' + t + '\\par';
+  if (X.inCols) { X.pk.add('capt-of'); return '\\captionof{' + kind + '}{' + t + '}\\label{' + L.labelOf(b) + '}'; }
+  return '\\caption{' + t + '}\\label{' + L.labelOf(b) + '}';
+};
+
+/* En-têtes et pieds de page (fancyhdr) + numérotation des pages */
+L.hfToLatex = function (m, X) {
+  const fmt = m.numFormat || 'arabic';
+  const hasText = ['l', 'c', 'r'].some(k => (m.header || {})[k] || (m.footer || {})[k]);
+  if (fmt === 'none' && !hasText) return { pre: ['\\pagestyle{empty}'], empty: true };
+  const lang = m.lang || 'fr';
+  const P = lang === 'en' ? 'Page' : 'Page', S = lang === 'en' ? 'of' : 'sur';
+  const num = { arabic: '\\thepage', 'n/N': '\\thepage/\\pageref{LastPage}', page: P + '~\\thepage', 'page-sur': P + '~\\thepage{} ' + S + ' \\pageref{LastPage}', tirets: '--~\\thepage~--' }[fmt] || '';
+  const tok = s => L.texEsc(s || '')
+    .replace(/\\\{titre\\\}/g, L.texEsc(L.plain(m.title))).replace(/\\\{auteur\\\}/g, L.texEsc(L.plain(m.author)))
+    .replace(/\\\{date\\\}/g, L.texEsc(L.plain(m.date)));
+  const slot = { 'head-l': ['head', 'l'], 'head-c': ['head', 'c'], 'head-r': ['head', 'r'], 'foot-l': ['foot', 'l'], 'foot-c': ['foot', 'c'], 'foot-r': ['foot', 'r'] }[m.numPos || 'foot-c'];
+  const out = [];
+  for (const [where, obj] of [['head', m.header || {}], ['foot', m.footer || {}]]) {
+    for (const k of ['l', 'c', 'r']) {
+      let t = tok(obj[k]);
+      if (num && slot[0] === where && slot[1] === k) t = t ? t + '~--~' + num : num;
+      if (t) out.push('\\fancy' + where + '[' + k.toUpperCase() + ']{' + t + '}');
+    }
+  }
+  out.push('\\renewcommand{\\headrulewidth}{' + (m.headRule ? '0.4pt' : '0pt') + '}');
+  out.push('\\renewcommand{\\footrulewidth}{' + (m.footRule ? '0.4pt' : '0pt') + '}');
+  const pre = ['\\usepackage{fancyhdr}'];
+  if (/LastPage/.test(num)) pre.push('\\usepackage{lastpage}');
+  pre.push('\\setlength{\\headheight}{14pt}');
+  pre.push('\\fancypagestyle{lhe}{\\fancyhf{}' + out.join('') + '}');
+  pre.push('\\fancypagestyle{plain}{\\fancyhf{}' + out.join('') + '}');
+  pre.push('\\pagestyle{lhe}');
+  return { pre, empty: false };
 };
 
 L.listToLatex = function (b, X) {
@@ -229,6 +324,13 @@ L.docToLatex = function (doc) {
   P.push('\\usepackage{enumitem}');
   P.push('\\usepackage{textcomp}');
   P.push('\\usepackage{url}');
+  if (X.colors) {
+    P.push('\\usepackage[table]{xcolor}');
+    Object.entries(L.TEXT_COLORS).forEach(([k, v]) => P.push('\\definecolor{lhe' + k + '}{HTML}{' + v + '}'));
+    Object.entries(L.HEAD_COLORS).forEach(([k, v]) => P.push('\\definecolor{lhehead' + k + '}{HTML}{' + v + '}'));
+  }
+  if (X.pk.has('tabularx')) P.push('\\usepackage{tabularx}');
+  if (X.pk.has('capt-of')) P.push('\\usepackage{capt-of}');
   if (/\\ce\{/.test(body)) P.push('\\usepackage[version=4]{mhchem}');
   if (X.pk.has('booktabs')) P.push('\\usepackage{booktabs}');
   if (X.pk.has('tkz-tab')) P.push('\\usepackage{tkz-tab}');
@@ -273,7 +375,15 @@ L.docToLatex = function (doc) {
     }
     if (m.boxedThm) X.envs.forEach(env => P.push('\\surroundwithmdframed{' + env + '}'));
   }
-  if (m.pageNumbers === false) P.push('\\pagestyle{empty}');
+  const HF = L.hfToLatex(L.fixMeta(m), X);
+  P.push('', '% En-têtes, pieds de page et numérotation');
+  HF.pre.forEach(l => P.push(l));
+  // Noms des légendes (« Tableau 1 – » au lieu de « Table 1 – »)
+  const tn = (m.tableName || '').trim(), fnm = (m.figureName || '').trim();
+  if (tn || fnm) {
+    const lg = m.lang === 'en' ? 'english' : 'french';
+    P.push('\\addto\\captions' + lg + '{' + (tn ? '\\def\\tablename{' + L.texEsc(tn) + '}' : '') + (fnm ? '\\def\\figurename{' + L.texEsc(fnm) + '}' : '') + '}');
+  }
 
   if (m.titleStyle === 'article' || !m.titleStyle) {
     P.push('');
@@ -287,7 +397,9 @@ L.docToLatex = function (doc) {
 
   const D = ['', '\\begin{document}', ''];
   if (title) D.push(title, '');
-  if (m.pageNumbers === false && m.titleStyle === 'article') D.push('\\thispagestyle{empty}', '');
+  if (!HF.empty && m.hfFirst === false && (m.titleStyle === 'article' || m.titleStyle === 'fiche' || m.titleStyle === 'aucun')) D.push('\\thispagestyle{empty}', '');
+  const ps = L.pageStart(m);
+  if (!HF.empty && ps !== 1) D.push('\\setcounter{page}{' + ps + '}', '');
   if (m.toc) D.push('\\tableofcontents', '');
   D.push(body, '', '\\end{document}', '');
   return { tex: P.join('\n') + '\n' + D.join('\n'), images: X.images, warnings: [...X.warnings] };

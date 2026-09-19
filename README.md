@@ -8,7 +8,7 @@
 2. Lancez-le. Windows peut afficher « Windows a protégé votre ordinateur » (l'application n'est pas signée numériquement) : cliquez sur **Informations complémentaires → Exécuter quand même**.
 3. L'application s'ouvre depuis le raccourci du Bureau ou le menu Démarrer. Les fichiers `.lhe` s'ouvrent par double-clic.
 
-**Mises à jour automatiques** : au démarrage (puis toutes les 4 h), l'application vérifie s'il existe une nouvelle version sur GitHub, la télécharge en arrière-plan et propose de redémarrer pour l'installer. Vérification manuelle : bouton **?** → « Rechercher des mises à jour ».
+**Mises à jour automatiques** : au démarrage (puis toutes les 4 h), l'application vérifie s'il existe une nouvelle version sur GitHub et propose de l'installer ; elle se télécharge, s'installe et l'application redémarre toute seule. Vérification manuelle : bouton **?** → « Rechercher des mises à jour ».
 
 Tout fonctionne hors ligne : les bibliothèques et les polices sont incluses dans l'application.
 
@@ -37,6 +37,11 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
 | Tableau d'avancement (chimie) | Colonne « Insérer » — construit depuis l'équation, calcule x_max |
 | Fusionner des cases de tableau | Panneau de droite du tableau |
+| Tableaux / images côte à côte | Colonne « Insérer » → Objets |
+| Image ou capture dans une case de tableau | Coller (Ctrl+V) dans la case, ou panneau de droite |
+| Couleur du texte | Bouton **A** de la barre d'outils |
+| En-têtes, pieds de page, numérotation des pages | « Document » → En-tête, pied de page (ou double-clic sur le pied de page) |
+| Forcer un numéro (ex. commencer à 0) | Panneau de droite du titre, tableau, équation… |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 

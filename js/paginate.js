@@ -197,18 +197,49 @@ L.paginate = async function (doc, host) {
   });
   L.lastPagination = { count: pages.length, breaks };
 
-  // Numéros de page (la page de garde n'est pas numérotée, comme titlepage)
-  let num = 0;
+  // Numéros de page, en-têtes et pieds (la page de garde n'en a pas, comme titlepage)
+  L.fixMeta(m);
+  const start = L.pageStart(m);
+  const numbered = pages.filter(pg => !pg.classList.contains('titlepage')).length;
+  const total = start + numbered - 1;
+  let num = start - 1, first = true;
   const pageOf = {};
   pages.forEach(pg => {
     if (pg.classList.contains('titlepage')) return;
     num++;
-    if (m.pageNumbers !== false) pg.appendChild(L.h('div', { class: 'page-num', text: String(num) }));
-    pg.querySelectorAll('[data-id]').forEach(x => { if (!pageOf[x.dataset.id]) pageOf[x.dataset.id] = num; });
+    const skip = first && m.hfFirst === false && m.titleStyle !== 'pagegarde';
+    first = false;
+    if (!skip) L.renderHF(m, num, total).forEach(x => pg.appendChild(x));
+    pg.querySelectorAll('[data-id]').forEach(x => { if (pageOf[x.dataset.id] === undefined) pageOf[x.dataset.id] = num; });
   });
+  let k = start - 1;
+  L.lastPagination.pageNums = pages.map(pg => pg.classList.contains('titlepage') ? null : ++k);
+  L.lastPagination.total = total;
   host.querySelectorAll('.toc-row').forEach(r => {
     const s = r.querySelector('.toc-page');
-    if (s) s.textContent = pageOf[r.dataset.target] || '';
+    if (s) s.textContent = pageOf[r.dataset.target] ?? '';
   });
   return pages.length;
+};
+
+/* En-tête et pied de page d'une page (texte gauche / centre / droite + numéro) */
+L.renderHF = function (m, n, total) {
+  const fmt = m.numFormat || 'arabic';
+  const pos = m.numPos || 'foot-c';
+  const tok = s => String(s || '').replace(/{titre}/g, L.plain(m.title)).replace(/{auteur}/g, L.plain(m.author)).replace(/{date}/g, L.plain(m.date));
+  const out = [];
+  for (const where of ['head', 'foot']) {
+    const obj = where === 'head' ? m.header : m.footer;
+    const cells = ['l', 'c', 'r'].map(k => {
+      let t = tok(obj && obj[k]);
+      if (fmt !== 'none' && pos === where + '-' + k) { const p = L.pageNumText(fmt, n, total, m.lang); t = t ? t + ' – ' + p : p; }
+      return t;
+    });
+    if (!cells.some(Boolean) && !(where === 'head' ? m.headRule : m.footRule)) continue;
+    const box = L.h('div', { class: (where === 'head' ? 'page-head' : 'page-hfoot') + ((where === 'head' ? m.headRule : m.footRule) ? ' ruled' : '') },
+      ...cells.map((t, i) => L.h('span', { class: 'hf-' + 'lcr'[i], text: t })));
+    L.typo(box, m.lang);
+    out.push(box);
+  }
+  return out;
 };

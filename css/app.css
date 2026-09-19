@@ -74,7 +74,7 @@ kbd { font-family: var(--ui); font-size: 11px; background: #eef0f4; border: 1px 
 /* ---------- Bureau et feuille ---------- */
 #desk { flex: 1; overflow: auto; background: var(--desk); position: relative; }
 #deskInner { padding: 28px 70px 280px; min-width: min-content; }
-#paper { width: 210mm; min-height: 297mm; margin: 0 auto; padding: var(--m-top) var(--m-side) var(--m-bottom); box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 8px 30px rgba(0,0,0,.08); position: relative; }
+#paper { width: 210mm; min-height: 297mm; margin: 0 auto; padding: var(--m-top) var(--m-side) var(--m-bottom); position: relative; box-sizing: border-box; background: transparent; isolation: isolate; }
 
 /* Blocs éditables */
 .paper .blk { position: relative; border-radius: 2px; }
@@ -96,7 +96,7 @@ kbd { font-family: var(--ui); font-size: 11px; background: #eef0f4; border: 1px 
 p.rt.is-empty::before { position: absolute; text-indent: 0; }
 p.rt.is-empty { position: relative; }
 .sec .rt.is-empty::before { font-weight: 700; }
-td.rt { cursor: text; height: calc(var(--lh) + 3pt); }
+td.rt { cursor: text; }
 td.rt:focus { background: #f2f6fd; }
 .tbl.has-head tr:first-child td.rt { font-weight: 700; }
 .env-body > .env-head-inline { float: left; margin-right: .35em; user-select: none; }
@@ -342,3 +342,35 @@ pre.texview { background: #f7f8fa; border: 1px solid var(--line); border-radius:
 .upd-bar { height: 8px; background: #e7ebf2; border-radius: 6px; overflow: hidden; }
 .upd-bar i { display: block; height: 100%; width: 0; background: var(--acc2); transition: width .3s; }
 .upd-sub { margin-top: 10px; color: var(--mut); font-size: 12.5px; }
+
+/* ---------- Feuilles A4 dans l'éditeur (comme Word) ---------- */
+.sheets { position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.sheet { position: absolute; left: 0; right: 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.14), 0 6px 22px rgba(0,0,0,.08); }
+.sheet .page-head, .sheet .page-hfoot { pointer-events: auto; cursor: pointer; }
+.sheet .page-head:hover, .sheet .page-hfoot:hover { outline: 1px dashed #b5c4de; outline-offset: 3px; }
+.pg-sp { display: block; pointer-events: none; user-select: none; }
+.pg-float { float: left; width: 100%; display: block; pointer-events: none; user-select: none; }
+.paper .meta-blk:not(:focus-within) .rt.is-empty:not(.t-title) { display: none; }
+.paper .qed-line { height: 0; position: relative; top: calc(-1 * var(--lh)); pointer-events: none; }
+.tv-hint { position: absolute; left: 0; right: 0; bottom: -1.4em; }
+.paper .notitle { height: 0; }
+.paper .notitle .hint-line { position: absolute; left: 0; right: 0; top: -32px; margin: 0; }
+p.rt.is-empty:not(:focus):not(.ph-last)::before { content: none; }
+.col-add { position: absolute; left: 0; bottom: -24px; z-index: 3; opacity: 0; border: 1px dashed #b5c4de; background: #fff; color: var(--acc); font: 11.5px var(--ui); padding: 2px 8px; border-radius: 6px; cursor: pointer; transition: opacity .12s; }
+.col-cell:hover > .col-add { opacity: 1; }
+.col-add:not(:hover) { pointer-events: auto; }
+.paper .cols { outline: 1px dashed transparent; outline-offset: 4px; }
+.paper .blk.sel > .cols, .paper .blk:hover > .cols { outline-color: #d0d8e6; }
+.col-cell .gutter { left: auto; right: 0; top: -22px; z-index: 4; }
+.paper .timg { cursor: pointer; }
+.paper .timg:hover { outline: 2px solid #9cb8e6; }
+.menu.color-menu { min-width: 0; width: 190px; left: 0; right: auto; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 6px; }
+.menu.color-menu.open { display: grid; }
+.color-menu button { height: 30px; border: 1px solid var(--line); border-radius: 6px; background: #fff; font: 600 13px var(--ui); }
+.color-menu button:hover { border-color: var(--acc2); }
+.swatches { display: flex; gap: 5px; flex-wrap: wrap; }
+.swatches button { width: 30px; height: 26px; border-radius: 6px; border: 1px solid var(--line2); background: #fff; font-size: 11px; }
+.swatches button.on { outline: 2px solid var(--acc); outline-offset: 1px; }
+.hf-grid { display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 6px; align-items: center; }
+.hf-grid input { padding: 6px 8px; border: 1px solid var(--line2); border-radius: 6px; font: inherit; width: 100%; }
+.hf-grid span { font-size: 12px; color: var(--mut); font-weight: 600; }
