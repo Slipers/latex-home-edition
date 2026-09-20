@@ -1,0 +1,74 @@
+# Construit l'installateur Windows de LaTeX MolecularChemistry Edition et le publie
+# dans la release de tag fixe « molecular-latest », sur laquelle pointent les mises à
+# jour automatiques de l'application. LaTeX Home Edition n'est pas concerné : il publie
+# ses propres binaires sur ses propres tags.
+name: MolecularChemistry — installateur Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version à publier (laisser vide pour reprendre celle de package.json)"
+        required: false
+        type: string
+  push:
+    tags:
+      - "molecular-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: molecular
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fixer la version demandée
+        if: inputs.version != ''
+        run: npm version "${{ inputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Installer les dépendances
+        run: npm install --no-audit --no-fund
+
+      - name: Synchroniser js/version.js
+        run: node scripts/sync-version.js
+
+      - name: Construire l'installateur
+        run: npx electron-builder --win --publish never
+
+      - name: Relever la version
+        id: v
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Publier dans la release molecular-latest
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          TAG=molecular-latest
+          TITRE="LaTeX MolecularChemistry Edition ${{ steps.v.outputs.version }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "$TITRE" --notes-file RELEASE_NOTES.md
+          else
+            gh release create "$TAG" --title "$TITRE" --notes-file RELEASE_NOTES.md
+          fi
+          gh release upload "$TAG" \
+            dist/*.exe dist/molecular.yml dist/*.blockmap --clobber
+
+      - name: Conserver l'installateur comme artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MolecularChemistry-Edition-Setup
+          path: molecular/dist/*.exe
+          if-no-files-found: error
