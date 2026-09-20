@@ -245,6 +245,42 @@ math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { displ
 .tpl span { color: var(--mut); font-size: 12px; line-height: 1.45; }
 .tpl.has-bank b::after { content: "▸"; color: var(--acc2); margin-left: 5px; }
 
+/* ---------- Vérification du document ---------- */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stat { background: #f7f8fa; border: 1px solid var(--line); border-radius: 10px; padding: 10px; text-align: center; }
+.stat b { display: block; font: 600 19px "CMU Serif", Georgia, serif; color: var(--acc); }
+.stat span { font-size: 11.5px; color: var(--mut); }
+.pb-list { max-height: 46vh; overflow: auto; }
+.pb-ok { color: var(--ok, #1E8E3E); background: #eef8f0; border: 1px solid #cfe8d6; border-radius: 9px; padding: 10px 12px; margin: 0; }
+.pb { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 6px; background: #fff; border: 1.5px solid var(--line); border-radius: 9px; }
+.pb:hover { border-color: var(--acc2); background: #fbfcfe; }
+.pb-ic { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 12px sans-serif; background: #fff3c4; color: #8a6d00; }
+.pb.grave .pb-ic { background: #fde8e8; color: #b42318; }
+.pb b { display: block; font-size: 13px; font-weight: 600; }
+.pb em { display: block; font-style: normal; font-size: 11.5px; color: var(--mut); }
+.blk.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: #fff3c4; } to { background: transparent; } }
+
+/* ---------- Import de PDF ---------- */
+.imp-drop { border: 2px dashed var(--line2); border-radius: 12px; padding: 22px; text-align: center; cursor: pointer; transition: .12s; background: #fafbfc; }
+.imp-drop:hover, .imp-drop.over { border-color: var(--acc2); background: #f4f7fd; }
+.imp-drop.has { padding: 14px; border-style: solid; }
+.imp-drop .imp-ic { font-size: 24px; color: var(--acc2); line-height: 1; }
+.imp-drop b { display: block; margin-top: 6px; font-size: 14px; }
+.imp-drop span { color: var(--mut); font-size: 12px; }
+.imp-file { margin-top: 8px; font-size: 12.5px; color: var(--acc); font-weight: 600; text-align: center; }
+.imp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; }
+.imp-opt { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; cursor: pointer; }
+.imp-opt input { margin-top: 3px; }
+.imp-opt b { display: block; font-size: 13px; font-weight: 500; }
+.imp-opt em { display: block; color: var(--mut); font-size: 11.5px; font-style: normal; }
+.imp-row { display: flex; align-items: center; gap: 24px; margin-top: 10px; flex-wrap: wrap; font-size: 13px; }
+.imp-row input[type=text] { padding: 4px 8px; border: 1px solid var(--line2); border-radius: 6px; }
+.imp-prog { margin-top: 14px; }
+.imp-bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.imp-bar i { display: block; height: 100%; width: 0; background: var(--acc2); transition: width .2s; }
+.imp-msg { display: block; margin-top: 6px; font-size: 12px; color: var(--mut); }
+
 /* ---------- Banque de sujets ---------- */
 .bank-hint { margin: 0 0 14px; color: var(--mut); line-height: 1.55; }
 .bank-hint.small { font-size: 12px; margin: 14px 0 0; }

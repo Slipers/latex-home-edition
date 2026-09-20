@@ -251,6 +251,8 @@ window.addEventListener('DOMContentLoaded', () => {
     zip: () => App.exportZip(),
     viewtex: () => L.dlgViewTex(),
     importtex: () => L.dlgImportLatex(),
+    importpdf: () => L.dlgImportPdf(),
+    check: () => L.dlgCheck(),
     overleaf: () => L.dlgOverleaf(),
     help: () => L.dlgHelp(),
   };

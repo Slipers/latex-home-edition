@@ -725,6 +725,19 @@ Object.assign(App, {
     this.commit();
   },
   /* Insère du code LaTeX converti en blocs (remplace un bloc, ou après la sélection) */
+  /* Insère une liste de blocs au point d'insertion (ou à la fin du document) */
+  insertBlocks(blocks, opts = {}) {
+    if (!blocks || !blocks.length) return 0;
+    const doc = this.doc;
+    const ref = opts.replace ? L.find(doc, opts.replace) : (opts.after || this.sel) && !String(opts.after || this.sel).startsWith('__') ? L.find(doc, opts.after || this.sel) : null;
+    if (ref && (opts.replace || (ref.block.type === 'paragraph' && L.isEmptyHtml(ref.block.html)))) ref.list.splice(ref.index, 1, ...blocks);
+    else if (ref) ref.list.splice(ref.index + 1, 0, ...blocks);
+    else doc.blocks.push(...blocks);
+    this.sel = blocks[blocks.length - 1].id;
+    this.commit(); this.render();
+    const el = this.blockEl(blocks[0].id); if (el) this.ensureCaretVisible(el);
+    return blocks.length;
+  },
   insertLatex(src, opts = {}) {
     const blocks = L.latexToBlocks(src);
     if (!blocks.length) { L.toast('Rien à convertir.'); return 0; }
@@ -1406,6 +1419,7 @@ App.bindEditor = function () {
     const file = e.dataTransfer.files && e.dataTransfer.files[0];
     if (file && !dragId) {
       e.preventDefault();
+      if (/\.(pdf|tex)$/i.test(file.name)) { L.dlgImportPdf(file); return; }
       const fd = e.target.closest('.fig-drop');
       if (fd) { this.setImage(fd.closest('.blk').dataset.id, file); return; }
       const fig = this.insertBlock(L.newBlock('figure'), { after: t ? t.blk.dataset.id : null, noPick: true });

@@ -50,8 +50,26 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Rechercher / remplacer | Ctrl+F / Ctrl+H |
 | Sujets de contrôle et fiches d'exercices prêts à l'emploi | **Nouveau** → « Contrôle / Évaluation » ou « Feuille d'exercices de maths » |
 | Corrigé d'un sujet de la banque | Menu **Corrigé** en haut à droite |
+| Importer un PDF et le convertir | Menu **LaTeX ▾** → « Importer un PDF », ou glissez le PDF sur la feuille |
+| Importer un fichier `.tex` | Même fenêtre que l'import PDF |
+| Vérifier références, citations et formules | Menu **LaTeX ▾** → « Vérifier le document » |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
+
+## Importer un PDF et le convertir en LaTeX
+
+**LaTeX ▾ → « Importer un PDF et le convertir »** (ou glissez-déposez le fichier sur la feuille). Le PDF est analysé page par page et reconstruit en éléments modifiables :
+
+- **texte** avec gras, italique, machine à écrire, césures recollées ;
+- **titres et sections**, dont la numérotation d'origine est retirée puis refaite automatiquement ;
+- **listes** à puces ou numérotées, **tableaux** (colonnes alignées) et **blocs de code** ;
+- **formules** : lettres grecques, symboles, indices, exposants, primes et racines sont retranscrits en LaTeX ;
+- **images** extraites du PDF, et pages sans texte (documents scannés) insérées en image ;
+- **titre, auteur et date** repris de la page de titre ; en-têtes et pieds de page répétés ignorés.
+
+On choisit les pages à importer, ce que l'on veut reconnaître, et si le résultat ouvre un nouveau document ou s'insère dans le document courant. Ensuite, **LaTeX ▾ → Télécharger le fichier .tex** donne le code LaTeX.
+
+Ce que la conversion ne sait pas faire : les fractions, matrices et intégrales complexes sortent approximatives (le texte est conservé, la structure est à retoucher), les PDF protégés ou sans couche texte ne donnent que des images, et la mise en page multicolonne est remise à plat. **LaTeX ▾ → Vérifier le document** liste justement les formules illisibles, les références cassées et les éléments vides, et amène directement dessus.
 
 ## Banque de sujets de mathématiques
 
@@ -94,6 +112,8 @@ js/banque-*.js      contenu des sujets (1re, terminale, sup, spé)
 js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
 js/import.js        conversion de code LaTeX collé en éléments modifiables
+js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
+js/check.js         vérification du document (références, formules, statistiques)
 js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
 electron/main.js    application de bureau : fenêtre, fichiers, PDF natif, mises à jour
