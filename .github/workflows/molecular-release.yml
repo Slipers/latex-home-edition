@@ -12,8 +12,17 @@ on:
         required: false
         type: string
   push:
+    # Un tag molecular-v* publie la version correspondante.
     tags:
       - "molecular-v*"
+    # Les branches de travail claude/** construisent aussi l'installateur, ce qui permet
+    # de le produire sans attendre une fusion dans main. Aucun envoi sur main ne déclenche
+    # la publication : elle reste un geste volontaire (tag ou « Run workflow »).
+    branches:
+      - "claude/**"
+    paths:
+      - "molecular/**"
+      - ".github/workflows/molecular-release.yml"
 
 permissions:
   contents: write      # publier la release ; aucun autre droit n'est accordé
