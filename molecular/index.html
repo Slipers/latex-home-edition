@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="fr" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LaTeX MolecularChemistry Edition</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23146b5c'/%3E%3Ccircle cx='16' cy='9' r='4' fill='white'/%3E%3Ccircle cx='8' cy='22' r='3.4' fill='%237fd9c6'/%3E%3Ccircle cx='24' cy='22' r='3.4' fill='%237fd9c6'/%3E%3Cpath d='M16 9 L8 22 M16 9 L24 22' stroke='white' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ══════════ Barre supérieure ══════════ -->
+  <header id="topbar">
+    <div class="marque" title="LaTeX MolecularChemistry Edition">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="8" r="4.6" class="l-a"/><circle cx="7" cy="23" r="3.8" class="l-b"/>
+        <circle cx="25" cy="23" r="3.8" class="l-b"/>
+        <path d="M16 8 L7 23 M16 8 L25 23" class="l-l"/>
+      </svg>
+      <span class="marque-nom">MolecularChemistry <b>Edition</b></span>
+    </div>
+    <div class="doc-nom" id="docNom" title="Molécule courante">Sans titre</div>
+
+    <nav class="tb">
+      <div class="tb-groupe g-file">
+        <button data-act="nouveau" title="Nouvelle molécule (Ctrl+N)"><i>＋</i><span>Nouveau</span></button>
+        <button data-act="ouvrir" title="Ouvrir un fichier (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
+        <button data-act="enregistrer" title="Enregistrer (Ctrl+S)"><i>💾</i><span>Enregistrer</span></button>
+        <div class="menu-parent">
+          <button data-act="menu-export" title="Exporter"><i>⇪</i><span>Exporter</span></button>
+          <div class="menu" id="menuExport">
+            <button data-export="png">Image PNG de la vue 3D</button>
+            <button data-export="svg">Projection 2D au format SVG</button>
+            <hr>
+            <button data-export="xyz">Coordonnées XYZ (.xyz)</button>
+            <button data-export="mol">MDL Molfile (.mol)</button>
+            <button data-export="pdb">Protein Data Bank (.pdb)</button>
+            <button data-export="smi">SMILES (.smi)</button>
+            <hr>
+            <button data-export="tex">Code chemfig pour LaTeX (.tex)</button>
+            <button data-export="latex-formule">Formule brute au format mhchem</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-groupe">
+        <button data-act="annuler" title="Annuler (Ctrl+Z)"><i>↶</i></button>
+        <button data-act="retablir" title="Rétablir (Ctrl+Y)"><i>↷</i></button>
+      </div>
+
+      <div class="tb-groupe outils" id="outils">
+        <button data-outil="orbite" class="actif" title="Naviguer : clic gauche pour tourner, clic droit pour déplacer, molette pour zoomer"><i>🖐</i></button>
+        <button data-outil="selection" title="Sélectionner des atomes (Maj pour ajouter à la sélection)"><i>⬚</i></button>
+        <button data-outil="deplacer" title="Déplacer un atome à la souris"><i>✥</i></button>
+        <button data-outil="element" title="Ajouter un atome de l'élément actif"><i>⊕</i></button>
+        <button data-outil="lier" title="Créer ou modifier une liaison entre deux atomes"><i>⌇</i></button>
+        <button data-outil="supprimer" title="Supprimer un atome ou une liaison"><i>⌫</i></button>
+        <button data-outil="mesurer" title="Mesurer : 2 atomes = distance, 3 = angle, 4 = angle dièdre"><i>📐</i></button>
+      </div>
+
+      <div class="tb-groupe">
+        <button class="element-actif" id="btnElement" title="Élément actif — cliquez pour ouvrir le tableau périodique">C</button>
+        <div class="menu-parent">
+          <button data-act="menu-liaison" title="Ordre de la liaison à créer"><i>═</i><span id="ordreLabel">Simple</span></button>
+          <div class="menu" id="menuLiaison">
+            <button data-ordre="1">Liaison simple</button>
+            <button data-ordre="2">Liaison double</button>
+            <button data-ordre="3">Liaison triple</button>
+            <button data-ordre="1.5">Liaison aromatique</button>
+            <hr>
+            <button data-type="w">Coin plein (vers l’avant)</button>
+            <button data-type="h">Coin hachuré (vers l’arrière)</button>
+            <button data-type="n">Trait plein (dans le plan)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-groupe">
+        <button data-act="hydrogenes" title="Compléter les valences par des hydrogènes"><i>H</i><span>Compléter</span></button>
+        <button data-act="optimiser" title="Optimiser la géométrie 3D"><i>✧</i><span>Optimiser</span></button>
+        <button data-act="cadrer" title="Recadrer la vue (touche F)"><i>⛶</i></button>
+      </div>
+
+      <div class="tb-groupe">
+        <select id="selMode" title="Mode de représentation"></select>
+      </div>
+    </nav>
+
+    <div class="tb-droite">
+      <span class="maj-etat" id="majEtat" hidden></span>
+      <button class="ic" data-act="theme" id="btnTheme" title="Thème jour / nuit / automatique">◐</button>
+      <button class="ic" data-act="aide" title="Aide et raccourcis clavier">?</button>
+    </div>
+  </header>
+
+  <!-- ══════════ Corps ══════════ -->
+  <main id="corps">
+
+    <!-- Panneau gauche -->
+    <aside id="gauche" class="panneau">
+      <div class="onglets" id="ongletsGauche">
+        <button data-vue="biblio" class="actif">Bibliothèque</button>
+        <button data-vue="construire">Construire</button>
+        <button data-vue="exercices">Exercices</button>
+      </div>
+      <div class="panneau-corps">
+
+        <section data-panneau="biblio" class="actif">
+          <div class="champ-recherche">
+            <input type="search" id="rechBiblio" placeholder="Rechercher une molécule…" autocomplete="off">
+          </div>
+          <div id="listeBiblio" class="liste-biblio"></div>
+        </section>
+
+        <section data-panneau="construire">
+          <div class="bloc">
+            <h3>Saisie rapide</h3>
+            <p class="aide-txt">Entrez une formule SMILES ou un nom de la bibliothèque, puis validez.</p>
+            <div class="ligne-saisie">
+              <input type="text" id="saisieSmiles" placeholder="ex. CC(=O)O" autocomplete="off" spellcheck="false">
+              <button data-act="construire-smiles" class="primaire">Construire</button>
+            </div>
+            <div id="erreurSmiles" class="erreur" hidden></div>
+          </div>
+          <div class="bloc">
+            <h3>Tableau périodique</h3>
+            <div id="tableauPeriodique" class="tp"></div>
+            <div id="ficheElement" class="fiche-element"></div>
+          </div>
+          <div class="bloc">
+            <h3>Fragments usuels</h3>
+            <div id="fragments" class="fragments"></div>
+          </div>
+        </section>
+
+        <section data-panneau="exercices">
+          <div id="exoAccueil">
+            <div class="bloc">
+              <h3>Choisir les thèmes</h3>
+              <div id="exoThemes" class="cases"></div>
+            </div>
+            <div class="bloc">
+              <h3>Nombre de questions</h3>
+              <div class="segments" id="exoNombre">
+                <button data-n="5">5</button><button data-n="10" class="actif">10</button>
+                <button data-n="20">20</button><button data-n="30">30</button>
+              </div>
+              <button class="primaire large" data-act="exo-demarrer">Commencer l’entraînement</button>
+            </div>
+            <div class="bloc">
+              <h3>Progression</h3>
+              <div id="exoProgression" class="progression"></div>
+              <button class="lien" data-act="exo-reinit">Réinitialiser la progression</button>
+            </div>
+          </div>
+          <div id="exoSeance" hidden></div>
+        </section>
+
+      </div>
+    </aside>
+
+    <!-- Zone centrale -->
+    <div id="centre">
+      <div id="vue3d">
+        <div class="vue-info" id="vueInfo"></div>
+        <div class="vue-options" id="vueOptions">
+          <label><input type="checkbox" data-opt="h" checked> Hydrogènes</label>
+          <label><input type="checkbox" data-opt="doublets"> Doublets non liants</label>
+          <label><input type="checkbox" data-opt="charges"> Charges δ</label>
+          <label><input type="checkbox" data-opt="dipole"> Moment dipolaire</label>
+          <label><input type="checkbox" data-opt="ombres" checked> Ombres</label>
+          <label><input type="checkbox" data-opt="perspective" checked> Perspective</label>
+          <label class="sep">Étiquettes
+            <select data-opt="labels">
+              <option value="aucun">aucune</option>
+              <option value="symbole">symbole</option>
+              <option value="numero">numéro</option>
+              <option value="symbole+numero">symbole + numéro</option>
+            </select>
+          </label>
+          <label><input type="checkbox" data-opt="rotation"> Rotation automatique</label>
+        </div>
+        <button class="vue-plier" id="btnOptions" title="Afficher ou masquer les options d’affichage">⚙</button>
+      </div>
+
+      <div id="bas" class="panneau-bas">
+        <div class="onglets" id="ongletsProj">
+          <button data-proj="cram" class="actif">Cram</button>
+          <button data-proj="newman">Newman</button>
+          <button data-proj="fischer">Fischer</button>
+          <button data-proj="chaise">Chaise</button>
+          <button data-proj="haworth">Haworth</button>
+          <button data-proj="lewis">Lewis</button>
+          <span class="espaceur"></span>
+          <button class="ic" data-act="proj-svg" title="Exporter la projection en SVG">⇪</button>
+          <button class="ic" data-act="plier-bas" title="Réduire ou agrandir le panneau">▾</button>
+        </div>
+        <div class="proj-corps">
+          <div id="projZone" class="proj-zone"></div>
+          <div id="projReglages" class="proj-reglages"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panneau droit -->
+    <aside id="droite" class="panneau">
+      <div class="onglets" id="ongletsDroite">
+        <button data-vue="analyse" class="actif">Analyse</button>
+        <button data-vue="stereo">Stéréochimie</button>
+        <button data-vue="inspecteur">Inspecteur</button>
+      </div>
+      <div class="panneau-corps">
+        <section data-panneau="analyse" class="actif"><div id="zoneAnalyse"></div></section>
+        <section data-panneau="stereo"><div id="zoneStereo"></div></section>
+        <section data-panneau="inspecteur"><div id="zoneInspecteur"></div></section>
+      </div>
+    </aside>
+  </main>
+
+  <!-- ══════════ Barre d'état ══════════ -->
+  <footer id="etat">
+    <span id="etatFormule" class="etat-formule">—</span>
+    <span id="etatMasse"></span>
+    <span id="etatStereo"></span>
+    <span class="espaceur"></span>
+    <span id="etatMessage"></span>
+    <span id="etatVersion" class="etat-version"></span>
+  </footer>
+
+  <!-- Boîte de dialogue générique -->
+  <div id="voile" hidden>
+    <div class="dlg" id="dlg" role="dialog" aria-modal="true">
+      <div class="dlg-tete"><span id="dlgTitre"></span><button class="x" data-act="dlg-fermer" aria-label="Fermer">✕</button></div>
+      <div class="dlg-corps" id="dlgCorps"></div>
+      <div class="dlg-pied" id="dlgPied"></div>
+    </div>
+  </div>
+  <input type="file" id="fichierEntree" hidden accept=".lmc,.xyz,.mol,.sdf,.pdb,.smi,.json,.txt">
+</div>
+
+<script src="vendor/three/three.min.js"></script>
+<script src="js/version.js"></script>
+<script src="js/core.js"></script>
+<script src="js/elements.js"></script>
+<script src="js/model.js"></script>
+<script src="js/geometry.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/stereo.js"></script>
+<script src="js/projections.js"></script>
+<script src="js/smiles.js"></script>
+<script src="js/library.js"></script>
+<script src="js/nomenclature.js"></script>
+<script src="js/io.js"></script>
+<script src="js/viewer3d.js"></script>
+<script src="js/exobank.js"></script>
+<script src="js/exercises.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
