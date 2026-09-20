@@ -18,19 +18,35 @@ function createWindow() {
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     backgroundColor: '#eef1f5',
     show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,        // la page ne partage rien avec le préchargement
+      sandbox: true,                 // le rendu tourne dans un bac à sable
+      nodeIntegration: false,        // aucun accès à Node depuis la page
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
+      spellcheck: false,
+    },
   });
   Menu.setApplicationMenu(null);
   win.loadFile(path.join(__dirname, '..', 'index.html'));
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
 
+  /* Aucune fenêtre ne s'ouvre depuis la page, et seuls les liens https partent vers le
+     navigateur : tout autre schéma (file:, smb:, ms-msdt:…) est refusé sans être transmis
+     au système, car shell.openExternal exécuterait la cible choisie par le système. */
+  const externeAutorise = url => { try { return new URL(url).protocol === 'https:'; } catch (e) { return false; } };
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url)) shell.openExternal(url);
+    if (externeAutorise(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e, url) => {
-    if (!url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url); }
+    if (url.startsWith('file:')) return;          // navigation interne de l'application
+    e.preventDefault();
+    if (externeAutorise(url)) shell.openExternal(url);
   });
+  win.webContents.on('will-attach-webview', e => e.preventDefault());
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type !== 'keyDown') return;
     if (input.key === 'F12') win.webContents.toggleDevTools();
@@ -76,13 +92,30 @@ ipcMain.handle('lmc:open', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'Ouvrir une molécule', filters: FILTRES, properties: ['openFile'] });
   if (r.canceled || !r.filePaths[0]) return null;
   const p = r.filePaths[0];
+  if (fs.statSync(p).size > 40 * 1024 * 1024) {
+    await dialog.showMessageBox(win, { type: 'error', title: 'Fichier trop volumineux',
+      message: 'Ce fichier dépasse 40 Mo et ne peut pas être ouvert.' });
+    return null;
+  }
   return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') };
 });
 
+/* Le nom proposé vient du rendu : on ne garde que le nom de fichier, jamais un chemin. */
+const nomSur = (n, extAutorisees) => {
+  const base = path.basename(String(n || '')).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-').slice(0, 120);
+  const ext = path.extname(base).slice(1).toLowerCase();
+  return extAutorisees.includes(ext) ? base : null;
+};
+const EXT_EXPORT = ['lmc', 'xyz', 'mol', 'sdf', 'pdb', 'smi', 'tex', 'png', 'svg'];
+
 ipcMain.handle('lmc:save', async (e, { path: p, name, data, saveAs }) => {
+  // Un chemin transmis par le rendu n'est réutilisé que s'il pointe sur un .lmc existant,
+  // ouvert ou enregistré plus tôt ; sinon on repasse par la boîte de dialogue native.
+  if (p && (path.extname(p).toLowerCase() !== '.lmc' || !path.isAbsolute(p))) p = null;
+  if (typeof data !== 'string' || data.length > 40 * 1024 * 1024) return null;
   if (!p || saveAs) {
     const r = await dialog.showSaveDialog(win, {
-      title: 'Enregistrer la molécule', defaultPath: name || 'molecule.lmc',
+      title: 'Enregistrer la molécule', defaultPath: nomSur(name, ['lmc']) || 'molecule.lmc',
       filters: [{ name: 'Document MolecularChemistry', extensions: ['lmc'] }],
     });
     if (r.canceled || !r.filePath) return null;
@@ -94,10 +127,14 @@ ipcMain.handle('lmc:save', async (e, { path: p, name, data, saveAs }) => {
 });
 
 ipcMain.handle('lmc:export', async (e, { name, bytes }) => {
-  const ext = path.extname(name).slice(1);
-  const r = await dialog.showSaveDialog(win, { title: 'Exporter', defaultPath: name, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
+  const base = nomSur(name, EXT_EXPORT);
+  if (!base || !Array.isArray(bytes) || bytes.length > 80 * 1024 * 1024) return null;
+  const ext = path.extname(base).slice(1).toLowerCase();
+  const r = await dialog.showSaveDialog(win, {
+    title: 'Exporter', defaultPath: base, filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+  });
   if (r.canceled || !r.filePath) return null;
-  fs.writeFileSync(r.filePath, Buffer.from(bytes));
+  fs.writeFileSync(r.filePath, Buffer.from(Uint8Array.from(bytes)));
   shell.showItemInFolder(r.filePath);
   return r.filePath;
 });

@@ -172,3 +172,32 @@ un nom approximatif.
 MIT — voir le fichier [LICENSE](../LICENSE) à la racine du dépôt.
 
 La bibliothèque [three.js](https://threejs.org/) (licence MIT) est incluse dans `vendor/three/`.
+
+---
+
+## Confidentialité et sécurité
+
+L'application est **entièrement locale**. Elle ne comporte aucune mesure d'audience, aucun compte,
+aucun envoi de données : vos molécules, vos fichiers et votre progression ne quittent jamais votre
+ordinateur. La seule connexion sortante est la vérification des mises à jour auprès de GitHub, qui
+ne transmet que la version installée et peut être ignorée si vous refusez la proposition.
+
+Les choix techniques qui garantissent cela :
+
+- **Aucune dépendance distante** : three.js est inclus dans `vendor/`, il n'y a ni CDN, ni police
+  ni script chargé depuis l'extérieur. Une politique de sécurité de contenu (`Content-Security-Policy`)
+  stricte interdit à la page de charger ou de contacter quoi que ce soit hors de l'application.
+- **Fenêtre Electron isolée** : `contextIsolation` et `sandbox` activés, intégration de Node
+  désactivée dans la page, et une passerelle de préchargement réduite à sept fonctions précises.
+  Seuls les liens `https` peuvent être ouverts dans le navigateur ; tout autre schéma est refusé.
+- **Fichiers importés traités comme non sûrs** : les noms de molécules, étiquettes d'atomes et
+  commentaires d'un fichier `.lmc`, `.mol` ou `.pdb` sont échappés avant tout affichage. Les
+  chemins et extensions d'écriture sont contrôlés côté processus principal, et la taille des
+  fichiers lus est bornée.
+- **Serveur local** (`Lancer.bat`) : écoute uniquement sur `127.0.0.1`, donc inaccessible depuis le
+  réseau, et refuse toute requête sortant du dossier de l'application.
+
+Si vous distribuez l'installateur, sachez qu'il n'est pas signé numériquement : Windows SmartScreen
+affichera un avertissement au premier lancement, qu'il faut lever par « Informations
+complémentaires » puis « Exécuter quand même ». C'est le comportement normal d'un exécutable
+non signé, et non le signe d'un problème.
