@@ -176,6 +176,7 @@ if (window.lheDesktop) {
       checking: 'Recherche de mises à jour…',
       none: 'Vous avez la dernière version (' + u.version + ').',
       dev: 'Mises à jour désactivées en mode développement.',
+      manual: 'Version ' + u.version + ' disponible : la page de téléchargement vient de s\'ouvrir.',
       error: 'Mise à jour impossible (' + (u.message || 'erreur') + ').',
     }[u.state];
     if (msg) L.toast(msg, u.state === 'error' ? 'err' : '');

@@ -1,0 +1,86 @@
+# Construit les installateurs de LaTeX Home Edition et les publie dans la release
+# du tag poussé (vX.Y.Z) : .exe pour Windows, .dmg pour macOS (Apple Silicon et Intel).
+# Le .dmg ne peut être fabriqué que sur macOS, d'où ce passage par GitHub Actions.
+name: LaTeX Home Edition — installateurs Windows et macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  brouillon:
+    name: Préparer la release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.infos.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: infos
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG="v$(node -p "require('./package.json').version")"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Release visée : $TAG"
+      - name: Créer le brouillon de release s'il n'existe pas
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.infos.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "La release $TAG existe déjà."
+          else
+            NOTES=--generate-notes
+            [ -f RELEASE_NOTES.md ] && NOTES="--notes-file RELEASE_NOTES.md"
+            gh release create "$TAG" --draft --target main \
+              --title "LaTeX Home Edition ${TAG#v}" $NOTES
+          fi
+
+  construire:
+    name: Construire (${{ matrix.nom }})
+    needs: brouillon
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            nom: Windows
+            cible: --win
+          - os: macos-latest
+            nom: macOS
+            cible: --mac
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: electron-builder
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"   # application non signée
+        run: npx electron-builder ${{ matrix.cible }} --publish always
+
+  publier:
+    name: Publier la release
+    needs: [brouillon, construire]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rendre la release visible
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.brouillon.outputs.tag }}
+        run: |
+          gh release edit "$TAG" --draft=false --latest
+          echo "Fichiers publiés :"
+          gh release view "$TAG" --json assets --jq '.assets[].name'

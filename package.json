@@ -16,7 +16,8 @@
     "web": "node server.js",
     "dist": "electron-builder --win --publish never",
     "release": "node scripts/release.js",
-    "version": "node scripts/sync-version.js && git add js/version.js"
+    "version": "node scripts/sync-version.js && git add js/version.js",
+    "dist:mac": "electron-builder --mac --publish never"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
@@ -63,6 +64,43 @@
       "createStartMenuShortcut": true,
       "shortcutName": "LaTeX Home Edition",
       "deleteAppDataOnUninstall": false
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "darkModeSupport": true,
+      "identity": null,
+      "artifactName": "LaTeX-Home-Edition-${version}-${arch}.${ext}",
+      "extendInfo": {
+        "NSHumanReadableCopyright": "LaTeX Home Edition — MIT",
+        "LSMinimumSystemVersion": "11.0"
+      }
+    },
+    "dmg": {
+      "title": "LaTeX Home Edition ${version}",
+      "artifactName": "LaTeX-Home-Edition-${version}-${arch}.${ext}",
+      "contents": [
+        {
+          "x": 140,
+          "y": 200,
+          "type": "file"
+        },
+        {
+          "x": 400,
+          "y": 200,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     },
     "fileAssociations": [
       {

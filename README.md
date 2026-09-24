@@ -10,6 +10,16 @@
 
 **Mises à jour automatiques** : au démarrage (puis toutes les 4 h), l'application vérifie s'il existe une nouvelle version sur GitHub et propose de l'installer ; elle se télécharge, s'installe et l'application redémarre toute seule. Vérification manuelle : bouton **?** → « Rechercher des mises à jour ».
 
+## Installer (macOS)
+
+1. Téléchargez le `.dmg` qui correspond à votre Mac depuis la page [Releases](https://github.com/Slipers/latex-home-edition/releases/latest) :
+   - **`LaTeX-Home-Edition-x.y.z-arm64.dmg`** pour les Mac Apple Silicon (M1, M2, M3, M4) ;
+   - **`LaTeX-Home-Edition-x.y.z-x64.dmg`** pour les Mac Intel.
+2. Ouvrez le `.dmg`, puis glissez **LaTeX Home Edition** dans le dossier **Applications**.
+3. Au premier lancement, macOS refuse d'ouvrir une application non signée par Apple : faites un **clic droit sur l'application → Ouvrir**, puis confirmez **Ouvrir**. (Si le message persiste : **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.) Une seule fois suffit.
+
+Sur macOS, l'application signale les nouvelles versions et ouvre la page de téléchargement : la mise à jour se fait en remplaçant l'application dans le dossier Applications, faute de signature Apple permettant l'installation automatique. macOS 11 (Big Sur) ou plus récent.
+
 Tout fonctionne hors ligne : les bibliothèques et les polices sont incluses dans l'application.
 
 ## Version web (sans installation)
@@ -125,15 +135,17 @@ electron/preload.js pont sécurisé entre la page et Windows
 ```bash
 npm install
 npm start            # lance l'application de bureau
-npm run dist         # construit l'installateur dans dist/
+npm run dist         # installateur Windows dans dist/ (sur Windows)
+npm run dist:mac     # .dmg dans dist/ (sur macOS uniquement)
 ```
 
 ### Publier une nouvelle version (déclenche la mise à jour chez les utilisateurs)
 
 ```bash
 npm version minor    # 1.1.0 -> 1.2.0 (ou patch / major)
-git push --follow-tags
 npm run release
 ```
 
-`npm run release` crée la Release GitHub (notes : `RELEASE_NOTES.md`), y téléverse l'installateur et le fichier `latest.yml`, puis la publie. Au lancement suivant, chaque application installée propose la mise à jour, l'installe et redémarre toute seule.
+`npm run release` pousse le tag ; **GitHub Actions** construit alors les deux installateurs — `.exe` sur un runner Windows, `.dmg` (Apple Silicon et Intel) sur un runner macOS, le format `.dmg` ne pouvant être fabriqué que sur macOS — les téléverse dans la Release (notes : `RELEASE_NOTES.md`) avec le fichier `latest.yml`, puis la publie. Le script suit la construction et affiche la liste des fichiers publiés. Au lancement suivant, chaque application Windows installée propose la mise à jour, l'installe et redémarre toute seule ; sur macOS, elle signale la nouvelle version et ouvre la page de téléchargement.
+
+Dépannage : `npm run release -- --local` construit et publie l'installateur Windows depuis ce poste, sans passer par GitHub Actions.

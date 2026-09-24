@@ -2,13 +2,77 @@
 const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { autoUpdater } = require('electron-updater');
 
 let win = null;
 let pendingFile = null;       // fichier .lhe passé au lancement (double-clic dans l'explorateur)
 let allowClose = false;
 
+const isMac = process.platform === 'darwin';
+const REPO = 'Slipers/latex-home-edition';
+const RELEASES_URL = 'https://github.com/' + REPO + '/releases/latest';
+
 const fileFromArgs = argv => argv.slice(app.isPackaged ? 1 : 2).find(a => /\.lhe$/i.test(a) && fs.existsSync(a));
+
+/* Exécute du code dans la fenêtre (entrées de menu macOS) */
+const inPage = js => { if (win && !win.isDestroyed()) win.webContents.executeJavaScript(js).catch(() => {}); };
+
+/* Menu macOS : sans lui, Cmd+C, Cmd+V et Cmd+Q ne fonctionnent pas. */
+function macMenu() {
+  return Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    {
+      label: 'Fichier',
+      submenu: [
+        { label: 'Nouveau document…', accelerator: 'Cmd+N', click: () => inPage('L.dlgTemplates(false)') },
+        { label: 'Ouvrir…', accelerator: 'Cmd+O', click: () => inPage('App.open()') },
+        { label: 'Enregistrer', accelerator: 'Cmd+S', click: () => inPage('App.save()') },
+        { label: 'Enregistrer sous…', accelerator: 'Shift+Cmd+S', click: () => inPage('App.save(true)') },
+        { type: 'separator' },
+        { label: 'Exporter en PDF…', accelerator: 'Cmd+P', click: () => inPage('App.print()') },
+        { label: 'Télécharger le fichier .tex', click: () => inPage('App.exportTex()') },
+        { label: 'Importer un PDF…', click: () => inPage('L.dlgImportPdf()') },
+        { type: 'separator' },
+        { role: 'close', label: 'Fermer la fenêtre' },
+      ],
+    },
+    {
+      label: 'Édition',
+      submenu: [
+        { label: 'Annuler', accelerator: 'Cmd+Z', click: () => inPage('App.undo()') },
+        { label: 'Rétablir', accelerator: 'Shift+Cmd+Z', click: () => inPage('App.redo()') },
+        { type: 'separator' },
+        { role: 'cut', label: 'Couper' },
+        { role: 'copy', label: 'Copier' },
+        { role: 'paste', label: 'Coller' },
+        { role: 'pasteAndMatchStyle', label: 'Coller sans mise en forme' },
+        { role: 'selectAll', label: 'Tout sélectionner' },
+        { type: 'separator' },
+        { label: 'Rechercher…', accelerator: 'Cmd+F', click: () => inPage('L.FindBar.open()') },
+        { label: 'Remplacer…', accelerator: 'Cmd+H', click: () => inPage('L.FindBar.open(true)') },
+      ],
+    },
+    {
+      label: 'Insertion',
+      submenu: [
+        { label: 'Formule dans le texte', accelerator: 'Cmd+M', click: () => inPage('App.insertInlineMath()') },
+        { label: 'Équation centrée', accelerator: 'Shift+Cmd+M', click: () => inPage('App.insertBlock(L.newBlock("equation"))') },
+        { label: 'Symboles…', click: () => inPage('App.openSymbols(null)') },
+      ],
+    },
+    { role: 'viewMenu', label: 'Affichage' },
+    { role: 'windowMenu', label: 'Fenêtre' },
+    {
+      label: 'Aide',
+      submenu: [
+        { label: 'Aide et raccourcis', click: () => inPage('L.dlgHelp()') },
+        { label: 'Rechercher des mises à jour…', click: () => checkUpdates(true) },
+        { label: 'Page du projet sur GitHub', click: () => shell.openExternal(RELEASES_URL) },
+      ],
+    },
+  ]);
+}
 
 function createWindow() {
   win = new BrowserWindow({
@@ -20,7 +84,7 @@ function createWindow() {
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, spellcheck: true },
   });
   win.webContents.session.setSpellCheckerLanguages(['fr', 'en-US']);
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(isMac ? macMenu() : null);
   win.loadFile(path.join(__dirname, '..', 'index.html'));
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
 
@@ -120,10 +184,57 @@ const plainNotes = n => {
   const t = Array.isArray(n) ? n.map(x => x.note || '').join(NL) : String(n || '');
   return t.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/(\r?\n){3,}/g, NL + NL).trim().slice(0, 700);
 };
+/* Comparaison de numéros de version (1.9.0 > 1.10 ? non : 1.10 > 1.9.0) */
+function plusRecente(a, b) {
+  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y;
+  }
+  return false;
+}
+
+/* macOS : l'application n'est pas signée par Apple, l'installation automatique
+   est donc impossible. On se contente de signaler la nouvelle version et
+   d'ouvrir la page de téléchargement. */
+function checkUpdatesMac(manual) {
+  const req = https.get({
+    host: 'api.github.com',
+    path: '/repos/' + REPO + '/releases/latest',
+    headers: { 'User-Agent': 'LaTeX-Home-Edition', Accept: 'application/vnd.github+json' },
+  }, res => {
+    let data = '';
+    res.on('data', c => { data += c; });
+    res.on('end', async () => {
+      let info = null;
+      try { info = JSON.parse(data); } catch (e) { /* ignoré */ }
+      const tag = info && info.tag_name ? String(info.tag_name).replace(/^v/, '') : '';
+      if (!tag) { if (manual) send('lhe:update', { state: 'error', message: 'réponse inattendue de GitHub' }); return; }
+      if (!plusRecente(tag, app.getVersion())) { if (manual) send('lhe:update', { state: 'none', version: app.getVersion() }); return; }
+      if (!manual && declined === tag) return;
+      const r = await dialog.showMessageBox(win, {
+        type: 'info', buttons: ['Télécharger', 'Plus tard'], defaultId: 0, cancelId: 1, noLink: true,
+        title: 'Mise à jour disponible',
+        message: 'La version ' + tag + ' de LaTeX Home Edition est disponible.',
+        detail: 'Vous utilisez la version ' + app.getVersion() + '.' + NL + NL
+          + 'Sur macOS, l’application n’étant pas signée par Apple, la mise à jour se fait à la main :'
+          + ' téléchargez le fichier .dmg, ouvrez-le et glissez l’application dans le dossier Applications'
+          + ' pour remplacer l’ancienne. Vos documents ne sont pas touchés.',
+      });
+      if (r.response !== 0) { declined = tag; return; }
+      shell.openExternal(info.html_url || RELEASES_URL);
+      send('lhe:update', { state: 'manual', version: tag });
+    });
+  });
+  req.on('error', err => { if (manual) send('lhe:update', { state: 'error', message: errText(err) }); });
+  req.setTimeout(15000, () => req.destroy(new Error('délai dépassé')));
+}
+
 function checkUpdates(manual = false) {
   if (!app.isPackaged) { if (manual) send('lhe:update', { state: 'dev' }); return; }
   if (busy) return;
   manualCheck = manual;
+  if (isMac) { if (manual) send('lhe:update', { state: 'checking' }); checkUpdatesMac(manual); return; }
   if (process.env.LHE_UPDATE_URL) autoUpdater.setFeedURL({ provider: 'generic', url: process.env.LHE_UPDATE_URL });
   if (manual) send('lhe:update', { state: 'checking' });
   autoUpdater.checkForUpdates().catch(err => { if (manualCheck) send('lhe:update', { state: 'error', message: errText(err) }); });
@@ -171,6 +282,17 @@ if (!app.requestSingleInstanceLock()) {
       win.focus();
       if (f) send('lhe:open-file', { path: f, name: path.basename(f), text: fs.readFileSync(f, 'utf8') });
     }
+  });
+  // macOS : double-clic sur un .lhe dans le Finder
+  app.on('open-file', (e, p) => {
+    e.preventDefault();
+    if (!/\.lhe$/i.test(p) || !fs.existsSync(p)) return;
+    if (!win || win.isDestroyed()) { pendingFile = p; return; }
+    try {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+      send('lhe:open-file', { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') });
+    } catch (_) { /* ignoré */ }
   });
   pendingFile = fileFromArgs(process.argv);
   app.setAppUserModelId('com.slipers.latexhome');
