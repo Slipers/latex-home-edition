@@ -50,6 +50,9 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Tableaux / images côte à côte | Colonne « Insérer » → Objets |
 | Image ou capture dans une case de tableau | Coller (Ctrl+V) dans la case, ou panneau de droite |
 | Couleur du texte | Bouton **A** de la barre d'outils |
+| Taille du texte (9 paliers, de « minuscule » à « maximal ») | Bouton **A A** : sélectionnez le texte, puis la taille |
+| Agrandir une équation centrée | Cliquez sur l'équation → **Taille** dans le panneau de droite (ou bouton **A A**) |
+| Taille du texte du document (8 pt à 20 pt) | « Document » → Mise en page → Taille du texte |
 | En-têtes, pieds de page, numérotation des pages | « Document » → En-tête, pied de page (ou double-clic sur le pied de page) |
 | Forcer un numéro (ex. commencer à 0) | Panneau de droite du titre, tableau, équation… |
 | Coller du code LaTeX (texte + formules) | Ctrl+V dans le document : converti en paragraphes et équations |

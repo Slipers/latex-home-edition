@@ -5,7 +5,8 @@
 
 .paper, .page {
   --fs: 10.95pt; --lh: 13.6pt; --fs-small: 10pt; --fs-foot: 9pt; --lh-foot: 11pt;
-  --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt;
+  --fs-tiny: 6pt; --fs-script: 8pt; --fs-fn: 9pt;
+  --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt; --fs-Huge: 24.88pt;
   --parindent: 17pt; --stretch: 1;
   --m-top: 37mm; --m-bottom: 45mm; --m-side: 41.5mm; --footskip: 30pt;
   font-family: "CMU Serif", "Latin Modern Roman", "Computer Modern", Georgia, serif;
@@ -20,12 +21,18 @@
   font-variant-ligatures: common-ligatures;
   text-rendering: optimizeLegibility;
 }
-.fs-10 { --fs: 10pt; --lh: 12pt; --fs-small: 9pt; --fs-foot: 8pt; --lh-foot: 9.5pt; --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt; --parindent: 15pt; }
+.fs-10 { --fs: 10pt; --lh: 12pt; --fs-small: 9pt; --fs-foot: 8pt; --lh-foot: 9.5pt; --fs-tiny: 5pt; --fs-script: 7pt; --fs-fn: 8pt; --fs-large: 12pt; --fs-Large: 14.4pt; --fs-LARGE: 17.28pt; --fs-huge: 20.74pt; --fs-Huge: 24.88pt; --parindent: 15pt; }
 .fs-11 { }
-.fs-12 { --fs: 12pt; --lh: 14.5pt; --fs-small: 10.95pt; --fs-foot: 10pt; --lh-foot: 12pt; --fs-large: 14.4pt; --fs-Large: 17.28pt; --fs-LARGE: 20.74pt; --fs-huge: 24.88pt; --parindent: 18pt; }
+.fs-12 { --fs: 12pt; --lh: 14.5pt; --fs-small: 10.95pt; --fs-foot: 10pt; --lh-foot: 12pt; --fs-tiny: 6pt; --fs-script: 8pt; --fs-fn: 10pt; --fs-large: 14.4pt; --fs-Large: 17.28pt; --fs-LARGE: 20.74pt; --fs-huge: 24.88pt; --fs-Huge: 24.88pt; --parindent: 18pt; }
+.fs-8 { --fs: 8pt; --lh: 9.6pt; --fs-small: 7.2pt; --fs-foot: 6.4pt; --lh-foot: 7.6pt; --fs-tiny: 4pt; --fs-script: 5.6pt; --fs-fn: 6.4pt; --fs-large: 9.6pt; --fs-Large: 11.52pt; --fs-LARGE: 13.82pt; --fs-huge: 16.59pt; --fs-Huge: 19.9pt; --parindent: 12pt; }
+.fs-9 { --fs: 9pt; --lh: 10.8pt; --fs-small: 8.1pt; --fs-foot: 7.2pt; --lh-foot: 8.55pt; --fs-tiny: 4.5pt; --fs-script: 6.3pt; --fs-fn: 7.2pt; --fs-large: 10.8pt; --fs-Large: 12.96pt; --fs-LARGE: 15.55pt; --fs-huge: 18.67pt; --fs-Huge: 22.39pt; --parindent: 13.5pt; }
+.fs-14 { --fs: 14pt; --lh: 16.8pt; --fs-small: 12.6pt; --fs-foot: 11.2pt; --lh-foot: 13.3pt; --fs-tiny: 7pt; --fs-script: 9.8pt; --fs-fn: 11.2pt; --fs-large: 16.8pt; --fs-Large: 20.16pt; --fs-LARGE: 24.19pt; --fs-huge: 29.04pt; --fs-Huge: 34.83pt; --parindent: 21pt; }
+.fs-17 { --fs: 17pt; --lh: 20.4pt; --fs-small: 15.3pt; --fs-foot: 13.6pt; --lh-foot: 16.15pt; --fs-tiny: 8.5pt; --fs-script: 11.9pt; --fs-fn: 13.6pt; --fs-large: 20.4pt; --fs-Large: 24.48pt; --fs-LARGE: 29.38pt; --fs-huge: 35.26pt; --fs-Huge: 42.3pt; --parindent: 25.5pt; }
+.fs-20 { --fs: 20pt; --lh: 24pt; --fs-small: 18pt; --fs-foot: 16pt; --lh-foot: 19pt; --fs-tiny: 10pt; --fs-script: 14pt; --fs-fn: 16pt; --fs-large: 24pt; --fs-Large: 28.8pt; --fs-LARGE: 34.56pt; --fs-huge: 41.48pt; --fs-Huge: 49.76pt; --parindent: 30pt; }
 .spacing-15.fs-10 { --stretch: 1.25; }
 .spacing-15.fs-11 { --stretch: 1.213; }
 .spacing-15.fs-12 { --stretch: 1.241; }
+.spacing-15.fs-8, .spacing-15.fs-9, .spacing-15.fs-14, .spacing-15.fs-17, .spacing-15.fs-20 { --stretch: 1.25; }
 .margins-normales { --m-top: 25mm; --m-bottom: 25mm; --m-side: 25mm; --footskip: 13mm; }
 .margins-etroites { --m-top: 15mm; --m-bottom: 22mm; --m-side: 15mm; --footskip: 10mm; }
 
@@ -214,8 +221,20 @@
 .para.left { text-align: left; text-indent: 0; }
 .para.has-hfill { display: flex; align-items: baseline; text-indent: 0; }
 .hfill { flex: 1 1 auto; display: inline-block; min-width: .5em; }
-.s-small { font-size: var(--fs-small); } .s-large { font-size: var(--fs-large); }
-.s-Large { font-size: var(--fs-Large); } .s-LARGE { font-size: var(--fs-LARGE); }
+.s-tiny { font-size: var(--fs-tiny); } .s-script { font-size: var(--fs-script); }
+.s-foot { font-size: var(--fs-fn); } .s-small { font-size: var(--fs-small); }
+.s-large { font-size: var(--fs-large); } .s-Large { font-size: var(--fs-Large); }
+.s-LARGE { font-size: var(--fs-LARGE); } .s-huge { font-size: var(--fs-huge); }
+.s-Huge { font-size: var(--fs-Huge); }
+/* Les tailles s'appliquent aussi aux formules (KaTeX travaille en em) */
+.s-tiny .katex, .s-script .katex, .s-foot .katex, .s-small .katex,
+.s-large .katex, .s-Large .katex, .s-LARGE .katex, .s-huge .katex, .s-Huge .katex { font-size: 1em; }
+/* Taille propre à une équation centrée */
+.eq.sz-tiny { font-size: var(--fs-tiny); } .eq.sz-script { font-size: var(--fs-script); }
+.eq.sz-foot { font-size: var(--fs-fn); } .eq.sz-small { font-size: var(--fs-small); }
+.eq.sz-large { font-size: var(--fs-large); } .eq.sz-Large { font-size: var(--fs-Large); }
+.eq.sz-LARGE { font-size: var(--fs-LARGE); } .eq.sz-huge { font-size: var(--fs-huge); }
+.eq.sz-Huge { font-size: var(--fs-Huge); }
 .hrule { margin: calc(var(--fs) * .6) 0; text-indent: 0; }
 .hrule-line { border-top: 0.4pt solid #000; }
 .vspace { position: relative; text-indent: 0; }

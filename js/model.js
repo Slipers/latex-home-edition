@@ -52,7 +52,21 @@ L.defaultMeta = () => ({
 
 /* Couleurs de texte et de fond (mêmes valeurs dans l'aperçu et dans le LaTeX exporté) */
 /* Tailles de texte ponctuelles (= commandes LaTeX \small, \large…) */
-L.TEXT_SIZES = { 's-small': ['Petit', 'small'], 's-large': ['Grand', 'large'], 's-Large': ['Très grand', 'Large'], 's-LARGE': ['Énorme', 'LARGE'] };
+/* Échelle complète des tailles de LaTeX : classe CSS → [nom affiché, commande] */
+L.TEXT_SIZES = {
+  's-tiny': ['Minuscule', 'tiny'],
+  's-script': ['Très petit', 'scriptsize'],
+  's-foot': ['Assez petit', 'footnotesize'],
+  's-small': ['Petit', 'small'],
+  's-large': ['Grand', 'large'],
+  's-Large': ['Très grand', 'Large'],
+  's-LARGE': ['Énorme', 'LARGE'],
+  's-huge': ['Géant', 'huge'],
+  's-Huge': ['Maximal', 'Huge'],
+};
+/* Tailles de texte du document (pt). 10, 11 et 12 sont natives dans la classe
+   article ; les autres passent par la classe extarticle (paquet extsizes). */
+L.DOC_SIZES = [8, 9, 10, 11, 12, 14, 17, 20];
 /* Espaces verticaux */
 L.VSPACES = { petit: ['Petit', '\\smallskip', '3pt'], moyen: ['Moyen', '\\medskip', '6pt'], grand: ['Grand', '\\bigskip', '12pt'], tresgrand: ['Très grand', '\\vspace{1cm}', '1cm'] };
 L.TEXT_COLORS = { rouge: 'E00000', bleu: '1F4FBF', vert: '1E8E3E', orange: 'E07000', violet: '7B2FBE', gris: '6B6B6B' };

@@ -117,8 +117,11 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       const s = L.cleanLatex(b.latex);
       if (!s) return '';
       const body = L.displayLatex(s);
-      if (b.numbered) return '\\begin{equation}\\label{' + L.labelOf(b) + '}\n  ' + body + '\n\\end{equation}';
-      return '\\[\n  ' + body + '\n\\]';
+      const eq = b.numbered
+        ? '\\begin{equation}\\label{' + L.labelOf(b) + '}\n  ' + body + '\n\\end{equation}'
+        : '\\[\n  ' + body + '\n\\]';
+      const sz = b.size && L.TEXT_SIZES[b.size];
+      return sz ? '{\\' + sz[1] + '\n' + eq + '\n}' : eq;
     }
     case 'list': return L.listToLatex(b, X);
     case 'box': {
@@ -342,7 +345,9 @@ L.docToLatex = function (doc) {
 
   const P = [];
   P.push('% Document généré par LaTeX Home Edition — compilable avec pdfLaTeX (Overleaf, TeX Live, MiKTeX)');
-  P.push('\\documentclass[' + (m.fontSize || 11) + 'pt,a4paper]{article}');
+  // 10, 11 et 12 pt sont natifs ; les autres tailles passent par extarticle (extsizes)
+  const fsz = +m.fontSize || 11;
+  P.push('\\documentclass[' + fsz + 'pt,a4paper]{' + ([10, 11, 12].includes(fsz) ? 'article' : 'extarticle') + '}');
   P.push('\\usepackage[utf8]{inputenc}');
   P.push('\\usepackage[T1]{fontenc}');
   P.push('\\usepackage[' + (m.lang === 'en' ? 'english' : 'french') + ']{babel}');

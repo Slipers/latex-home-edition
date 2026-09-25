@@ -187,7 +187,7 @@ L.R = {
     const body = L.h('div', { class: 'eq-body' });
     if (b.latex) body.innerHTML = L.katex(L.displayLatex(b.latex), true);
     else body.innerHTML = ctx.mode === 'edit' ? '<span class="eq-empty">Cliquez pour saisir une équation</span>' : '';
-    return L.h('div', { class: 'eq' + (ctx.mode === 'edit' ? ' clickable' : '') },
+    return L.h('div', { class: 'eq' + (ctx.mode === 'edit' ? ' clickable' : '') + (b.size && L.TEXT_SIZES[b.size] ? ' sz-' + b.size.slice(2) : '') },
       L.h('div', { class: 'eq-spacer' }), body,
       n ? L.h('div', { class: 'eq-num', text: n.num }) : null);
   },

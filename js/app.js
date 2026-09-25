@@ -307,6 +307,9 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('beforeunload', e => { if (App.dirty) { App.autosave(); } });
+  // Les menus sont ancrés à l'écran : on les referme si la barre bouge sous eux
+  window.addEventListener('resize', () => App.closeMenus());
+  L.$('.tb').addEventListener('scroll', () => App.closeMenus());
 
   App.bindEditor();
   App.showVersion();

@@ -16,7 +16,7 @@ L.quickTex = function (s) {
     .replace(/<=|≤/g, '\\leq ').replace(/>=|≥/g, '\\geq ');
 };
 
-L.TEXTWIDTH_CM = m => ({ latex: { 10: 12.1, 11: 12.7, 12: 13.7 }[m.fontSize || 11], normales: 16, etroites: 18 }[m.margins || 'normales'] || 16);
+L.TEXTWIDTH_CM = m => ({ latex: { 8: 11.0, 9: 11.6, 10: 12.1, 11: 12.7, 12: 13.7, 14: 15.0, 17: 16.4, 20: 17.6 }[+m.fontSize || 11] || 12.7, normales: 16, etroites: 18 }[m.margins || 'normales'] || 16);
 
 /* Géométrie commune à l'aperçu et à l'export tkz-tab (en cm) */
 L.tabvarGeom = function (b, meta) {

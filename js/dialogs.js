@@ -98,7 +98,15 @@ L.dlgSettings = function (section) {
     L.h('div', { class: 'grid2' }, txt('title', 'Titre'), txt('subtitle', 'Sous-titre'), txt('author', 'Auteur(s)'), txt('institution', 'Établissement / matière'), txt('extra', 'Infos complémentaires (groupe, binôme…)'), dateField),
     L.h('div', { class: 'set-h', text: 'Mise en page' }),
     L.h('div', { class: 'grid2' },
-      seg('fontSize', [[10, '10 pt'], [11, '11 pt'], [12, '12 pt']], 'Taille du texte'),
+      (() => {
+        const s = L.h('select', null, ...L.DOC_SIZES.map(v => {
+          const o = L.h('option', { value: v, text: v + ' pt' + (v === 11 ? ' (par défaut)' : '') });
+          if ((+m.fontSize || 11) === v) o.selected = true;
+          return o;
+        }));
+        s.onchange = () => { m.fontSize = +s.value; apply(); };
+        return L.h('div', { class: 'field' }, L.h('label', { text: 'Taille du texte' }), s);
+      })(),
       seg('margins', [['latex', 'LaTeX standard'], ['normales', '2,5 cm'], ['etroites', '1,5 cm']], 'Marges'),
       seg('spacing', [[1, 'Simple'], [1.5, '1,5']], 'Interligne'),
       seg('lang', [['fr', 'Français'], ['en', 'English']], 'Langue (noms automatiques)')),

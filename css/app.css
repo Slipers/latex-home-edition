@@ -16,13 +16,16 @@ kbd { font-family: var(--ui); font-size: 11px; background: #eef0f4; border: 1px 
 #app { display: flex; flex-direction: column; height: 100vh; }
 
 /* ---------- Barre du haut ---------- */
-#topbar { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 10px; background: var(--panel); border-bottom: 1px solid var(--line); flex: none; }
+#topbar { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 10px; background: var(--panel); border-bottom: 1px solid var(--line); flex: none; }
 .brand { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
 .logo { width: 30px; height: 30px; border-radius: 8px; background: var(--acc); color: #fff; display: grid; place-items: center; font: italic 20px "CMU Serif", Georgia, serif; }
 .brand-name { font-size: 15px; letter-spacing: .01em; }
 .doc-name { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mut); padding: 3px 8px; border-radius: 6px; background: var(--bg); }
 .doc-name.dirty::after { content: " •"; color: var(--acc2); }
-.tb { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+/* La barre passe à la ligne quand la fenêtre est trop étroite : aucun bouton
+   ne devient inaccessible (avant, la barre défilait et cachait PDF et LaTeX). */
+.tb { display: flex; align-items: center; gap: 6px; row-gap: 4px; flex: 1; min-width: 0; flex-wrap: wrap; }
+.tb .tb-group:last-child { margin-left: auto; }
 .tb-group { display: flex; align-items: center; gap: 2px; padding: 0 4px; border-right: 1px solid var(--line); }
 .tb-group:last-child { border-right: none; }
 .tb-spacer { flex: 1; }
@@ -36,7 +39,10 @@ kbd { font-family: var(--ui); font-size: 11px; background: #eef0f4; border: 1px 
 .tb .fmt button { min-width: 32px; justify-content: center; font-size: 14px; }
 @media (max-width: 1650px) { .tb .g-file button span { display: none; } }
 @media (max-width: 1450px) { .tb .g-ins button span { display: none; } }
+@media (max-width: 1400px) { .tb .tb-group:last-child button span { display: none; } }
 @media (max-width: 1150px) { .tb button span { display: none; } .brand-name { display: none; } }
+.size-menu button { line-height: 1.25; }
+.menu-hint { display: block; padding: 4px 10px 6px; color: var(--mut); font-size: 11.5px; line-height: 1.4; }
 .dropdown { position: relative; }
 .menu { position: absolute; right: 0; top: 36px; background: #fff; border: 1px solid var(--line2); border-radius: 9px; box-shadow: 0 10px 30px rgba(20, 30, 50, .15); padding: 5px; z-index: 50; min-width: 300px; display: none; }
 .menu.open { display: block; }

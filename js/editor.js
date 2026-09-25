@@ -821,7 +821,12 @@ Object.assign(App, {
           chk('Table des matières', m.toc, v => upd(() => { m.toc = v; })),
 
           chk('Encadrer les théorèmes', m.boxedThm, v => upd(() => { m.boxedThm = v; }))),
-        row('Taille du texte', seg([[10, '10 pt'], [11, '11 pt'], [12, '12 pt']], m.fontSize, v => upd(() => { m.fontSize = v; }))),
+        row('Taille du texte', (() => {
+          const s = L.h('select', null, ...L.DOC_SIZES.map(v => L.h('option', { value: v, text: v + ' pt' })));
+          s.value = String(+m.fontSize || 11);
+          s.onchange = () => upd(() => { m.fontSize = +s.value; });
+          return s;
+        })()),
         row('Numéros de page', (() => { const s = L.h('select', null, ...L.NUM_FORMATS.map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if ((m.numFormat || 'arabic') === v) o.selected = true; return o; })); s.onchange = () => upd(() => { m.numFormat = s.value; }); return s; })(),
           btn('En-tête et pied de page…', () => L.dlgSettings('hf'))),
         row('Sources', btn('Gérer la bibliographie (' + (doc.bib || []).length + ')', () => L.dlgBib())),
@@ -861,6 +866,14 @@ Object.assign(App, {
     } else if (b.type === 'equation') {
       P.append(
         row('', btn('✎  Modifier l\'équation', () => L.MathDock.open({ kind: 'block', blockId: b.id }), 'primary')),
+        row('Taille', (() => {
+          const s = L.h('select', null,
+            L.h('option', { value: '', text: 'Normale' }),
+            ...Object.keys(L.TEXT_SIZES).map(k => L.h('option', { value: k, text: L.TEXT_SIZES[k][0] })));
+          s.value = b.size || '';
+          s.onchange = () => upd(() => { if (s.value) b.size = s.value; else delete b.size; });
+          return s;
+        })()),
         row('', chk('Numérotée — (1), (2)…', b.numbered, v => upd(() => { b.numbered = v; }))),
         b.numbered ? forceRow() : '',
         L.h('div', { class: 'pp-help', html: '<p>Pour écrire plusieurs lignes alignées, utilisez « Calcul sur plusieurs lignes » dans l\'onglet <i>Matrices &amp; systèmes</i> de l\'éditeur.</p>' }));
@@ -1459,8 +1472,36 @@ L.newCols = function (type) {
 
 /* ================= Mise en forme (barre d'outils) ================= */
 Object.assign(App, {
-  toggleMenu(sel) { const m = L.$(sel); const was = m.classList.contains('open'); this.closeMenus(); if (!was) m.classList.add('open'); },
-  closeMenus() { L.$$('.tb .menu.open').forEach(m => m.classList.remove('open')); },
+  toggleMenu(sel) {
+    const m = L.$(sel);
+    const was = m.classList.contains('open');
+    this.closeMenus();
+    if (was) return;
+    m.classList.add('open');
+    this.placeMenu(m);
+  },
+  /* La barre d'outils défile horizontalement quand la fenêtre est étroite :
+     les menus sont donc positionnés par rapport à l'écran, et ramenés dans la
+     fenêtre s'ils débordent — sinon il faudrait faire défiler la barre. */
+  placeMenu(m) {
+    const btn = m.parentElement && m.parentElement.querySelector('button');
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    m.style.position = 'fixed';
+    m.style.top = Math.round(r.bottom + 4) + 'px';
+    m.style.right = 'auto';
+    m.style.maxHeight = Math.max(160, Math.round(window.innerHeight - r.bottom - 16)) + 'px';
+    m.style.overflowY = 'auto';
+    const w = m.offsetWidth;
+    const left = Math.max(8, Math.min(Math.round(r.right - w), window.innerWidth - w - 8));
+    m.style.left = left + 'px';
+  },
+  closeMenus() {
+    L.$$('.tb .menu.open').forEach(m => {
+      m.classList.remove('open');
+      m.style.position = m.style.top = m.style.left = m.style.right = m.style.maxHeight = m.style.overflowY = '';
+    });
+  },
   /* Bloc(s) où se trouve le curseur */
   caretBlock() {
     const cr = this.currentRichRange();
@@ -1478,18 +1519,35 @@ Object.assign(App, {
   },
   setSize(cls) {
     const cr = this.currentRichRange();
-    if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
+    const sel0 = window.getSelection();
+    const vide = !cr || !sel0.rangeCount || (cr.r && cr.r.collapsed && (!sel0.rangeCount || sel0.getRangeAt(0).collapsed));
+    // Sans sélection de texte : la taille s'applique à l'objet choisi (équation…)
+    if (vide) {
+      const f = this.caretBlock();
+      if (f && f.block.type === 'equation') return this.setBlockSize(f.block, cls);
+    }
+    if (!cr) return L.toast('Sélectionnez du texte, ou cliquez sur une équation pour changer sa taille.');
     const s = window.getSelection();
     if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
     const r = s.getRangeAt(0);
-    if (r.collapsed) return L.toast('Sélectionnez d\'abord du texte.');
+    if (r.collapsed) {
+      const f = this.caretBlock();
+      if (f && f.block.type === 'equation') return this.setBlockSize(f.block, cls);
+      return L.toast('Sélectionnez du texte, ou cliquez sur une équation pour changer sa taille.');
+    }
     const frag = r.extractContents();
-    frag.querySelectorAll('span.s-small, span.s-large, span.s-Large, span.s-LARGE').forEach(x => x.replaceWith(...x.childNodes));
+    frag.querySelectorAll(Object.keys(L.TEXT_SIZES).map(k => 'span.' + k).join(',')).forEach(x => x.replaceWith(...x.childNodes));
     let node = frag;
     if (cls) { const sp = document.createElement('span'); sp.className = cls; sp.appendChild(frag); node = sp; }
     r.insertNode(node);
     this.syncField(cr.field);
     this.commit(); this.pagesSoon();
+  },
+  /* Taille propre à un bloc (équation centrée) */
+  setBlockSize(b, cls) {
+    if (cls) b.size = cls; else delete b.size;
+    this.commit(); this.render();
+    L.toast(cls ? 'Taille de l\'équation : ' + L.TEXT_SIZES[cls][0].toLowerCase() + '.' : 'Équation à la taille normale.');
   },
   toList(style) {
     const f = this.caretBlock();
