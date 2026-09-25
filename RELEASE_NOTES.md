@@ -1,11 +1,16 @@
-## Correction : les menus de la barre d'outils étaient coupés
+## Import de PDF : les documents « en bouillie » sont corrigés
 
-Le menu **LaTeX ▾** (et les autres menus déroulants) s'ouvrait à l'intérieur de la barre d'outils, qui le rognait : il fallait faire défiler la barre pour atteindre « Télécharger le fichier .tex » ou « Importer un PDF ». Les menus s'affichent désormais par-dessus la page, toujours entiers et à l'intérieur de la fenêtre.
+Certains PDF ressortaient illisibles, le texte éparpillé et les formules cassées. Deux causes, toutes deux réglées :
 
-Dans la foulée, **la barre d'outils passe à la ligne** au lieu de défiler quand la fenêtre est trop étroite. Avant, jusqu'à cinq boutons — dont **PDF** et **LaTeX ▾** — pouvaient se retrouver hors écran sans aucun indice ; plus aucun bouton n'est inaccessible.
+- **Texte tracé de travers.** Beaucoup de PDF (sortie d'imprimante, scan, page en paysage) stockent leur texte pivoté à 90°, sans l'indiquer. L'analyse lisait alors les coordonnées dans le mauvais sens et reconstruisait les lignes n'importe comment. Le texte est désormais **redressé automatiquement** avant analyse.
+- **Filigranes.** Un tampon écrit en très grand en travers de la page (un nom, « CONFIDENTIEL »…) se retrouvait au milieu des lignes et faisait passer tout le texte pour des indices et des exposants. Les filigranes sont maintenant **reconnus et retirés**.
 
-## Des tailles beaucoup plus libres
+Autres améliorations de l'import : les paragraphes sont recollés d'après l'interligne réel du document (un texte en interligne 1,5 ne donne plus un paragraphe par ligne), un mot isolé en gras ne crée plus un faux titre, un nombre seul n'est plus transformé en formule, et le résumé de fin d'import dit ce que l'analyse a fait (redressement, filigranes retirés, pages illisibles).
 
-- **Texte : 9 paliers** au lieu de 4 (minuscule, très petit, assez petit, petit, grand, très grand, énorme, géant, maximal) — toute l'échelle de LaTeX, de `\tiny` à `\Huge`.
-- **Équations centrées** : chaque équation a sa propre taille, réglable dans le panneau de droite ou avec le bouton **A A** de la barre d'outils. Une formule dans le texte s'agrandit en la sélectionnant et en choisissant une taille.
-- **Taille du document : 8 pt, 9, 10, 11, 12, 14, 17 et 20 pt** au lieu des trois tailles imposées. À l'export, les tailles hors 10–12 pt utilisent la classe `extarticle`, prise en charge par TeX Live, MiKTeX et Overleaf.
+## Réagencer un import, en comparant avec le PDF
+
+Nouveau : **LaTeX ▾ → « Réagencer le PDF importé »**. Le PDF d'origine s'affiche **à gauche**, le résultat reconstruit **à droite**, page par page.
+
+On y règle l'orientation du texte, le découpage en paragraphes (recoller les lignes, ou une ligne = un paragraphe), la prise en compte des filigranes, des en-têtes répétés, des titres, formules, listes, tableaux, blocs de code et images ; on relance l'analyse autant de fois qu'on veut, et on applique au document quand les deux côtés correspondent. Le PDF importé reste en mémoire pendant toute la session.
+
+C'est un réagencement **algorithmique**, calculé sur la position réelle des caractères dans le PDF : l'application fonctionne hors ligne, sans intelligence artificielle ni envoi de vos documents sur un serveur.

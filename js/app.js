@@ -253,6 +253,7 @@ window.addEventListener('DOMContentLoaded', () => {
     viewtex: () => L.dlgViewTex(),
     importtex: () => L.dlgImportLatex(),
     importpdf: () => L.dlgImportPdf(),
+    reagencer: () => L.dlgReagencer(),
     check: () => L.dlgCheck(),
     overleaf: () => L.dlgOverleaf(),
     help: () => L.dlgHelp(),

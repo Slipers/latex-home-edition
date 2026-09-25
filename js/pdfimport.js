@@ -127,24 +127,97 @@
     return libPromise;
   }
 
-  /* ---------- Lecture d'une page ---------- */
-  async function readPage(pdf, n) {
+  /* ---------- Lecture d'une page ----------
+     Le texte d'un PDF peut être tracé penché ou tourné (page en paysage sans
+     indicateur de rotation, filigrane en diagonale…). On ramène donc tout dans
+     le repère du texte dominant : sans cela les lignes seraient reconstruites
+     dans le mauvais sens et le document ressortirait en bouillie. */
+  async function readPage(pdf, n, opts) {
+    opts = opts || {};
     const page = await pdf.getPage(n);
     const vp = page.getViewport({ scale: 1 });
     try { await page.getOperatorList(); } catch (e) {}      // charge les polices (noms réels)
     const tc = await page.getTextContent();
-    const items = [];
+    const U = window.pdfjsLib.Util;
+    const bruts = [];
     for (const it of tc.items) {
       if (typeof it.str !== 'string' || !it.str.length) continue;
-      const t = it.transform;
-      const size = Math.hypot(t[2], t[3]) || it.height || 10;
+      const m = U.transform(vp.transform, it.transform);     // repère d'affichage
+      const size = Math.hypot(m[2], m[3]) || it.height || 10;
       if (size < 1) continue;
       let font = it.fontName || '';
       try { const f = page.commonObjs.get(it.fontName); if (f && f.name) font = f.name; } catch (e) {}
       font = font.replace(/^[A-Z]{6}\+/, '');
-      items.push({ s: it.str, x: t[4], y: t[5], w: it.width || 0, size, font, eol: it.hasEOL });
+      const angle = Math.atan2(m[1], m[0]);
+      bruts.push({ s: it.str, X: m[4], Y: m[5], w: it.width || 0, size, font, eol: it.hasEOL, angle });
     }
-    return { n, items, W: vp.width, H: vp.height, page };
+    if (!bruts.length) return { n, items: [], W: vp.width, H: vp.height, page, angle: 0 };
+
+    // angle dominant (au quart de degré près), pondéré par le nombre de caractères
+    const poids = new Map();
+    bruts.forEach(b => {
+      const k = Math.round(b.angle * 180 / Math.PI);
+      poids.set(k, (poids.get(k) || 0) + b.s.replace(/\s/g, '').length);
+    });
+    let deg = 0, meilleur = -1;
+    poids.forEach((p, k) => { if (p > meilleur) { meilleur = p; deg = k; } });
+    if (opts.rotation !== undefined && opts.rotation !== null && opts.rotation !== 'auto') deg = +opts.rotation;
+    const theta = -deg * Math.PI / 180;
+    const cos = Math.cos(theta), sin = Math.sin(theta);
+    const droit = Math.abs(deg) < 1;
+
+    // on ne garde que le texte orienté comme le corps du document (le reste :
+    // filigranes en diagonale, mentions verticales dans la marge…)
+    const ecart = b => {
+      let d = (b.angle * 180 / Math.PI) - deg;
+      while (d > 180) d -= 360;
+      while (d < -180) d += 360;
+      return Math.abs(d);
+    };
+    const gardes = bruts.filter(b => ecart(b) <= 3);
+    const ecartes = bruts.length - gardes.length;
+
+    // rotation autour du centre de la page, puis passage en repère « bas gauche »
+    const cx = vp.width / 2, cy = vp.height / 2;
+    let W = vp.width, H = vp.height;
+    if (!droit && Math.abs(Math.abs(deg) - 90) < 5) { W = vp.height; H = vp.width; }
+    let items = gardes.map(b => {
+      let X = b.X, Y = b.Y;
+      if (!droit) {
+        const dx = b.X - cx, dy = b.Y - cy;
+        X = cx + dx * cos - dy * sin;
+        Y = cy + dx * sin + dy * cos;
+        if (W !== vp.width) { X += (W - vp.width) / 2; Y += (H - vp.height) / 2; }
+      }
+      return { s: b.s, x: X, y: H - Y, w: b.w, size: b.size, font: b.font, eol: b.eol };
+    });
+
+    /* Filigranes : un tampon géant en travers de la page (« CONFIDENTIEL », un nom
+       d'auteur…) se retrouverait au milieu d'une ligne et ferait passer tout le
+       texte pour des indices, puisque la taille de la ligne deviendrait énorme. */
+    let filigranes = 0;
+    if (opts.watermarks !== false) {
+      const poidsT = new Map();
+      items.forEach(i => {
+        const k = +i.size.toFixed(1);
+        poidsT.set(k, (poidsT.get(k) || 0) + i.s.replace(/\s/g, '').length);
+      });
+      let corps = 10, best = -1;
+      poidsT.forEach((p, t) => { if (p > best) { best = p; corps = t; } });
+      const compte = new Map();
+      items.forEach(i => {
+        const k = i.s.trim();
+        if (k.length >= 4 && !/\s/.test(k)) compte.set(k, (compte.get(k) || 0) + 1);
+      });
+      // un tampon est écrit en grand : sans ce garde-fou, un mot-clé répété dans
+      // un programme (« return »…) serait pris pour un filigrane
+      const estFiligrane = i => i.size > corps * 3.2
+        || (i.size > corps * 1.8 && (compte.get(i.s.trim()) || 0) >= 3);
+      const gardes2 = items.filter(i => !estFiligrane(i));
+      filigranes = items.length - gardes2.length;
+      if (gardes2.length) items = gardes2;
+    }
+    return { n, items, W, H, page, angle: deg, ecartes, filigranes, vp };
   }
 
   /* ---------- Items → lignes ----------
@@ -247,13 +320,22 @@
   function toParagraphs(lines, ctx) {
     const paras = [];
     let cur = null;
+    // interligne courant du document : un simple multiple du corps ne suffit pas,
+    // un texte en interligne 1,5 ferait alors un paragraphe par ligne
+    const ecarts = [];
+    for (let i = 1; i < lines.length; i++) {
+      const g = lines[i - 1].y - lines[i].y;
+      if (g > 1 && g < ctx.size * 4) ecarts.push(g);
+    }
+    const interligne = median(ecarts) || ctx.size * 1.2;
+    const parLigne = ctx.paraMode === 'ligne';
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i], p = lines[i - 1];
-      let cut = !cur;
+      let cut = !cur || parLigne;
       if (!cut) {
         const gap = p.y - l.y;
         const lead = Math.max(p.size, l.size);
-        if (gap > lead * 1.55) cut = true;                               // saut vertical
+        if (gap > interligne * 1.4) cut = true;                          // saut vertical
         else if (l.x0 > cur.x0 + lead * 0.7 && l.x0 > ctx.left + lead * 0.7) cut = true;  // alinéa
         else if (p.x1 < ctx.right - lead * 2.2 && l.x0 <= ctx.left + lead * 0.6) cut = true; // ligne précédente courte
         else if (Math.abs(l.size - p.size) > Math.max(l.size, p.size) * 0.12) cut = true;  // changement de corps
@@ -276,7 +358,9 @@
     const flushRun = () => {
       if (!run.length) return;
       const tex = toLatex(run, ref);
-      if (tex) html += '<span class="imath" data-latex="' + L.escHtml(tex) + '"></span>';
+      // un nombre seul (« 0,25 », « 1. ») n'est pas une formule : on le laisse en texte
+      if (tex && /^[\d.,:\s-]+$/.test(tex)) html += L.escHtml(tex.replace(/\s+/g, ' '));
+      else if (tex) html += '<span class="imath" data-latex="' + L.escHtml(tex) + '"></span>';
       run = [];
     };
     let prev = null;
@@ -569,18 +653,29 @@
   }
 
   /* ---------- Conversion complète ---------- */
+  let tachePdf = null;   // un seul document pdf.js gardé en mémoire à la fois
+
   async function convert(data, opts, onStep) {
     const pdfjs = await lib();
-    const pdf = await pdfjs.getDocument({ data, isEvalSupported: false }).promise;
+    if (tachePdf) { try { await tachePdf.destroy(); } catch (e) { /* ignoré */ } tachePdf = null; }
+    const tache = pdfjs.getDocument({ data, isEvalSupported: false });
+    tachePdf = tache;
+    const pdf = await tache.promise;
     const total = pdf.numPages;
     const nums = parseRange(opts.range, total);
     const pages = [];
+    const echecs = [];
     for (const n of nums) {
       if (onStep) onStep('Lecture de la page ' + n + ' sur ' + total + '…', (pages.length + 1) / nums.length);
-      const p = await readPage(pdf, n);
-      p.lines = toLines(p.items);
-      pages.push(p);
+      try {
+        const p = await readPage(pdf, n, opts);
+        p.lines = toLines(p.items);
+        pages.push(p);
+      } catch (e) {
+        echecs.push(n);        // page illisible : signalée, mais l'import continue
+      }
     }
+    if (!pages.length) throw new Error(echecs.length ? 'aucune page n\'a pu être lue (PDF protégé ou abîmé).' : 'ce PDF ne contient aucun texte.');
     if (opts.running !== false) stripRunning(pages);
 
     // police et corps du texte courant
@@ -591,22 +686,27 @@
     })));
     let bodyKey = '', bw = -1;
     weight.forEach((w, k) => { if (w > bw) { bw = w; bodyKey = k; } });
-    const ctx = { font: bodyKey.split('|')[0], size: +bodyKey.split('|')[1] || 10 };
+    const ctx = { font: bodyKey.split('|')[0], size: +bodyKey.split('|')[1] || 10, paraMode: opts.paraMode || 'auto' };
     const allX = [].concat(...pages.map(p => p.lines.map(l => l.x0)));
     const allR = [].concat(...pages.map(p => p.lines.map(l => l.x1)));
     ctx.left = mode(allX.map(x => Math.round(x / 4) * 4)) || Math.min(...allX);
-    ctx.right = Math.max(...allR);
+    // marge droite : on prend le 92e centile, pour qu'un élément isolé débordant
+    // dans la marge ne fasse pas passer toutes les lignes pour des lignes courtes
+    const tri = [...allR].sort((a, b) => a - b);
+    ctx.right = tri.length ? tri[Math.min(tri.length - 1, Math.floor(tri.length * 0.92))] : 0;
 
     const sizes = [];
     pages.forEach(p => p.lines.forEach(l => sizes.push(+l.size.toFixed(1))));
     const bigger = [...new Set(sizes.filter(s => s > ctx.size * 1.08))].sort((a, b) => b - a);
 
     const blocks = [];
+    const pagesBlocs = [];          // blocs produits page par page (pour la comparaison)
     const stats = { pages: nums.length, paragraphes: 0, titres: 0, equations: 0, listes: 0, tableaux: 0, figures: 0, formules: 0 };
     const meta = {};
     let scanned = 0;
 
     for (const p of pages) {
+      const debutPage = blocks.length;
       if (onStep) onStep('Conversion de la page ' + p.n + '…', 0.5 + 0.5 * (pages.indexOf(p) + 1) / pages.length);
       const images = opts.images !== false ? await pageImages(p).catch(() => []) : [];
       const chars = p.lines.reduce((n, l) => n + l.text.length, 0);
@@ -668,7 +768,8 @@
         }
         const text = para.lines.map(l => l.text).join(' ');
         const size = para.size;
-        const bold = para.lines[0].items.some(it => F_BOLD.test(it.font));
+        // « en gras » = la majorité des caractères de la ligne, pas un seul mot
+        const bold = para.lines.every(l => l.bold);
         const mr = mathRatio(para, ctx);
 
         // images placées à leur hauteur dans le flux
@@ -766,6 +867,7 @@
       }
       if (pendingCaption) { blocks.push(L.newBlock('paragraph', { html: pendingCaption, noindent: true })); pendingCaption = null; }
       if (opts.pagebreaks && p !== pages[pages.length - 1]) blocks.push(L.newBlock('pagebreak'));
+      pagesBlocs.push({ n: p.n, blocks: blocks.slice(debutPage), page: p.page, W: p.W, H: p.H, angle: p.angle });
     }
 
     stats.formules = blocks.reduce((n, b) => n + (JSON.stringify(b).match(/class=\\"imath/g) || []).length, 0) + stats.equations;
@@ -778,9 +880,14 @@
     } catch (e) {}
 
     const warnings = [];
+    if (echecs.length) warnings.push('Page(s) illisible(s), ignorée(s) : ' + echecs.join(', ') + '.');
+    const filig = pages.reduce((n, p) => n + (p.filigranes || 0), 0);
+    if (filig) warnings.push(filig + ' élément(s) reconnus comme filigrane ont été retirés (décochez « Filigranes ignorés » dans « Réagencer » pour les garder).');
+    const penche = pages.find(p => p.angle);
+    if (penche) warnings.push('Texte tracé de travers dans le PDF (' + penche.angle + '°) : il a été redressé automatiquement.');
     if (scanned) warnings.push(scanned + ' page(s) sans texte (document scanné) : importée(s) en image.');
     if (stats.formules) warnings.push('Les formules sont reconstruites automatiquement : vérifiez les fractions, racines et matrices, qui peuvent être approximatives.');
-    return { blocks, meta, stats, warnings, total };
+    return { blocks, pagesBlocs, meta, stats, warnings, total };
   }
 
   /* HTML d'un titre, débarrassé de sa numérotation (l'application numérote seule) */
@@ -898,8 +1005,10 @@
           };
         } else {
           msg.textContent = 'Ouverture du PDF…';
-          const res = await convert(new Uint8Array(data), opts, (m, p) => { msg.textContent = m; bar.style.width = Math.round(Math.min(1, p) * 100) + '%'; });
+          const res = await convert(new Uint8Array(data.slice(0)), opts, (m, p) => { msg.textContent = m; bar.style.width = Math.round(Math.min(1, p) * 100) + '%'; });
           blocks = res.blocks; meta = res.meta; stats = res.stats; warnings = res.warnings;
+          // on garde le PDF pour pouvoir le réanalyser et le comparer
+          L.PDF.dernier = { nom: name, data, opts: Object.assign({}, opts), res };
         }
         if (!blocks.length) throw new Error('aucun contenu n\'a pu être extrait de ce fichier.');
         if (dest.v === 'new') {
@@ -935,6 +1044,131 @@
     if (initialFile) setFile(initialFile);
   };
 
+  /* ================= Réagencer un PDF importé =================
+     Le PDF importé reste en mémoire : on peut relancer l'analyse avec d'autres
+     réglages et comparer, page par page, le PDF d'origine et le résultat. */
+  L.PDF.dernier = null;      // { nom, data, opts, res }
+
+  L.dlgReagencer = function () {
+    const d = L.PDF.dernier;
+    if (!d) {
+      L.modal({
+        title: 'Réagencer un PDF',
+        body: L.h('div', null, L.h('p', { class: 'pp-help', text: 'Aucun PDF n\'a été importé dans cette session. Importez d\'abord un PDF : la comparaison sera alors disponible.' })),
+        foot: [{ text: 'Fermer', onClick: c => c() }, { text: 'Importer un PDF…', cls: 'primary', onClick: c => { c(); L.dlgImportPdf(); } }],
+      });
+      return;
+    }
+    const opts = Object.assign({}, d.opts);
+    let res = d.res, page = 0, dlg = null, occupe = false;
+
+    const sel = (label, cle, choix) => {
+      const s = L.h('select', null, ...choix.map(([v, t]) => L.h('option', { value: v, text: t })));
+      s.value = String(opts[cle] === undefined ? choix[0][0] : opts[cle]);
+      s.onchange = () => { opts[cle] = s.value === 'true' ? true : s.value === 'false' ? false : s.value; };
+      return L.h('label', { class: 'rg-opt' }, L.h('span', { text: label }), s);
+    };
+    const coche = (label, cle) => {
+      const i = L.h('input', { type: 'checkbox' });
+      i.checked = opts[cle] !== false;
+      i.onchange = () => { opts[cle] = i.checked; };
+      return L.h('label', { class: 'imp-opt' }, i, L.h('span', null, L.h('b', { text: label })));
+    };
+
+    const gauche = L.h('div', { class: 'rg-vue' }, L.h('div', { class: 'rg-charge', text: 'Rendu du PDF…' }));
+    const droite = L.h('div', { class: 'rg-vue' });
+    const etiquette = L.h('div', { class: 'rg-pages' });
+    const msg = L.h('div', { class: 'imp-msg' });
+
+    async function afficher() {
+      const pb = res.pagesBlocs || [];
+      if (!pb.length) return;
+      page = Math.max(0, Math.min(page, pb.length - 1));
+      const cur = pb[page];
+      etiquette.textContent = 'Page ' + cur.n + ' sur ' + (res.total || pb.length);
+      // PDF d'origine
+      gauche.replaceChildren(L.h('div', { class: 'rg-charge', text: 'Rendu du PDF…' }));
+      try {
+        // on redresse l'aperçu du PDF comme l'analyse a redressé le texte,
+        // pour que les deux côtés se comparent dans le même sens
+        const quart = Math.round((cur.angle || 0) / 90) * 90;
+        const redress = ((-quart % 360) + 360) % 360;
+        const vp = cur.page.getViewport({ scale: 1, rotation: redress });
+        const ech = 360 / vp.width;
+        const v2 = cur.page.getViewport({ scale: ech * 2, rotation: redress });
+        const cv = document.createElement('canvas');
+        cv.width = Math.ceil(v2.width); cv.height = Math.ceil(v2.height);
+        cv.style.width = '100%';
+        const ctx2 = cv.getContext('2d');
+        ctx2.fillStyle = '#fff'; ctx2.fillRect(0, 0, cv.width, cv.height);
+        const tache = cur.page.render({ canvasContext: ctx2, viewport: v2 });
+        try { tache.onContinue = k => k(); } catch (e) {}
+        await Promise.race([tache.promise, new Promise(r => setTimeout(r, 15000))]);
+        gauche.replaceChildren(cv);
+      } catch (e) {
+        gauche.replaceChildren(L.h('div', { class: 'rg-charge', text: 'Aperçu du PDF indisponible.' }));
+      }
+      // résultat reconstruit
+      const doc = { meta: Object.assign(L.defaultMeta(), res.meta, { titleStyle: 'aucun' }), blocks: cur.blocks.length ? cur.blocks : [L.newBlock('paragraph', { html: '<i>(page vide)</i>' })], bib: [], assets: {} };
+      const feuille = L.h('div', { class: 'paper rg-paper ' + L.pageClasses(doc.meta) }, L.renderDoc(doc, 'view'));
+      droite.replaceChildren(feuille);
+    }
+
+    async function recalculer() {
+      if (occupe) return;
+      occupe = true;
+      msg.textContent = 'Nouvelle analyse du PDF…';
+      try {
+        res = await convert(new Uint8Array(d.data.slice(0)), opts, m => { msg.textContent = m; });
+        d.opts = Object.assign({}, opts);
+        d.res = res;
+        msg.textContent = 'Analyse terminée : ' + (res.stats.paragraphes || 0) + ' paragraphe(s), '
+          + (res.stats.titres || 0) + ' titre(s), ' + (res.stats.formules || 0) + ' formule(s).';
+        await afficher();
+      } catch (e) {
+        msg.textContent = 'Échec de l\'analyse : ' + (e && e.message ? e.message : e);
+      }
+      occupe = false;
+    }
+
+    const body = L.h('div', null,
+      L.h('p', { class: 'pp-help', text: 'À gauche le PDF d\'origine, à droite ce que l\'application en a reconstruit. Ajustez les réglages, relancez l\'analyse, puis appliquez au document.' }),
+      L.h('div', { class: 'rg-opts' },
+        sel('Orientation du texte', 'rotation', [['auto', 'Détection automatique'], ['0', 'Horizontal (0°)'], ['-90', 'Tourné à droite (90°)'], ['90', 'Tourné à gauche (270°)'], ['180', 'Retourné (180°)']]),
+        sel('Découpage en paragraphes', 'paraMode', [['auto', 'Automatique (recoller les lignes)'], ['ligne', 'Une ligne = un paragraphe']]),
+        coche('Filigranes ignorés', 'watermarks'),
+        coche('En-têtes et pieds de page ignorés', 'running'),
+        coche('Titres', 'headings'), coche('Formules', 'math'),
+        coche('Listes', 'lists'), coche('Tableaux', 'tables'),
+        coche('Blocs de code', 'code'), coche('Images', 'images')),
+      L.h('div', { class: 'rg-bar' },
+        L.h('button', { class: 'btn small', text: '←', title: 'Page précédente', onclick: () => { page--; afficher(); } }),
+        etiquette,
+        L.h('button', { class: 'btn small', text: '→', title: 'Page suivante', onclick: () => { page++; afficher(); } }),
+        L.h('span', { style: { flex: '1' } }),
+        L.h('button', { class: 'btn', text: '↻ Relancer l\'analyse', onclick: () => recalculer() })),
+      L.h('div', { class: 'rg-cmp' },
+        L.h('div', null, L.h('div', { class: 'rg-titre', text: 'PDF d\'origine' }), gauche),
+        L.h('div', null, L.h('div', { class: 'rg-titre', text: 'Résultat reconstruit' }), droite)),
+      msg);
+
+    dlg = L.modal({
+      title: 'Réagencer « ' + d.nom + ' »', wide: true, body,
+      foot: [
+        { text: 'Fermer', onClick: c => c() },
+        { text: 'Appliquer au document', cls: 'primary', onClick: c => {
+          if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Le remplacer par le résultat ?')) return;
+          App.load({ meta: Object.assign(L.defaultMeta(), res.meta), blocks: res.blocks, bib: [], assets: {} }, null);
+          App.fileName = null; App.filePath = null; App.fileHandle = null;
+          App.updateName();
+          c();
+          L.toast('Document remplacé par le résultat réagencé. Ctrl+Z pour revenir en arrière.');
+        } },
+      ],
+    });
+    afficher();
+  };
+
   /* Résumé affiché après l'import */
   L.dlgImportDone = function (name, stats, warnings) {
     const lines = [];
@@ -957,8 +1191,9 @@
         L.h('p', { class: 'pp-help', text: 'Relisez le document : les coupures de paragraphes et les formules complexes (fractions, racines, matrices) peuvent demander une retouche. Ctrl+Z annule l\'import.' })),
       foot: [
         { text: 'Fermer', onClick: c => c() },
+        L.PDF.dernier ? { text: 'Comparer avec le PDF…', onClick: c => { c(); L.dlgReagencer(); } } : null,
         { text: 'Exporter en .tex', cls: 'primary', onClick: c => { c(); App.exportTex(); } },
-      ],
+      ].filter(Boolean),
     });
   };
 })();

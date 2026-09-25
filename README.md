@@ -82,6 +82,12 @@ Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
 On choisit les pages à importer, ce que l'on veut reconnaître, et si le résultat ouvre un nouveau document ou s'insère dans le document courant. Ensuite, **LaTeX ▾ → Télécharger le fichier .tex** donne le code LaTeX.
 
+L'analyse redresse d'elle-même le texte tracé de travers (page en paysage sans indicateur de rotation) et écarte les filigranes ; le résumé de fin d'import signale ce qu'elle a fait.
+
+### Réagencer un import raté
+
+Si le résultat ne ressemble pas au PDF, **LaTeX ▾ → « Réagencer le PDF importé »** ouvre une comparaison **page à page** : le PDF d'origine à gauche, le résultat reconstruit à droite. On change alors l'orientation du texte, le découpage en paragraphes, la prise en compte des filigranes, des titres, des formules, des tableaux ou du code, on relance l'analyse, et on applique au document quand les deux côtés se correspondent. Le PDF reste en mémoire pour toute la session : on peut réessayer autant de fois que nécessaire.
+
 Ce que la conversion ne sait pas faire : les fractions, matrices et intégrales complexes sortent approximatives (le texte est conservé, la structure est à retoucher), les PDF protégés ou sans couche texte ne donnent que des images, et la mise en page multicolonne est remise à plat. **LaTeX ▾ → Vérifier le document** liste justement les formules illisibles, les références cassées et les éléments vides, et amène directement dessus.
 
 ## Banque de sujets de mathématiques
