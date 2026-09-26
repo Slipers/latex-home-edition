@@ -53,6 +53,7 @@
 .doc-title-fiche .f-rule { border-top: 0.4pt solid #000; margin: 3pt 0 12pt; }
 .doc-title-fiche .t-title { text-align: center; font-size: var(--fs-Large); font-weight: 700; line-height: 1.25; }
 .doc-title-fiche .t-subtitle { text-align: center; font-size: var(--fs-large); line-height: 1.3; margin-top: 4pt; }
+.doc-title-fiche .t-author-fiche { text-align: center; font-size: var(--fs); font-style: italic; margin-top: 5pt; }
 
 /* Page de garde */
 .doc-titlepage { text-align: center; text-indent: 0; display: flex; flex-direction: column; min-height: 100%; }

@@ -1,16 +1,18 @@
-## Import de PDF : les documents « en bouillie » sont corrigés
+## Correction : l'auteur ne s'affichait pas en mode « fiche »
 
-Certains PDF ressortaient illisibles, le texte éparpillé et les formules cassées. Deux causes, toutes deux réglées :
+En style de titre **« fiche » (feuille d'exercices / devoir)**, le champ **Auteur** n'apparaissait que pendant l'édition — il disparaissait de l'aperçu, du PDF et de l'export LaTeX. C'est corrigé : il s'affiche maintenant partout, en italique sous le titre.
 
-- **Texte tracé de travers.** Beaucoup de PDF (sortie d'imprimante, scan, page en paysage) stockent leur texte pivoté à 90°, sans l'indiquer. L'analyse lisait alors les coordonnées dans le mauvais sens et reconstruisait les lignes n'importe comment. Le texte est désormais **redressé automatiquement** avant analyse.
-- **Filigranes.** Un tampon écrit en très grand en travers de la page (un nom, « CONFIDENTIEL »…) se retrouvait au milieu des lignes et faisait passer tout le texte pour des indices et des exposants. Les filigranes sont maintenant **reconnus et retirés**.
+## Zoomer dans l'éditeur, pas seulement dans l'aperçu
 
-Autres améliorations de l'import : les paragraphes sont recollés d'après l'interligne réel du document (un texte en interligne 1,5 ne donne plus un paragraphe par ligne), un mot isolé en gras ne crée plus un faux titre, un nombre seul n'est plus transformé en formule, et le résumé de fin d'import dit ce que l'analyse a fait (redressement, filigranes retirés, pages illisibles).
+Une pastille de zoom apparaît maintenant en bas à droite de la feuille, **dans l'éditeur lui-même** (pas seulement dans l'aperçu paginé) : boutons **−** / **+** / **⟲**, **Ctrl + molette**, ou **Ctrl+/Ctrl-/Ctrl+0** au clavier. La mise en pages (sauts de page, feuilles A4) reste bien alignée à n'importe quel niveau de zoom.
 
-## Réagencer un import, en comparant avec le PDF
+## En-tête et pied de page : visibles et proposés sur chaque page
 
-Nouveau : **LaTeX ▾ → « Réagencer le PDF importé »**. Le PDF d'origine s'affiche **à gauche**, le résultat reconstruit **à droite**, page par page.
+Le réglage existait déjà (« Document » → En-tête, pied de page), mais rien ne signalait qu'on pouvait en ajouter un tant que les pages suivantes restaient vides. Un rappel discret **« + En-tête »** / **« + Pied de page »** apparaît désormais en haut/bas de chaque page tant qu'aucun n'est défini ; un clic dessus ouvre directement les réglages. Une fois rempli, le texte (ex. `PCSI 1 - Lycée Joffre … {date}`) se répète automatiquement sur toutes les pages, comme pour un devoir de plusieurs pages.
 
-On y règle l'orientation du texte, le découpage en paragraphes (recoller les lignes, ou une ligne = un paragraphe), la prise en compte des filigranes, des en-têtes répétés, des titres, formules, listes, tableaux, blocs de code et images ; on relance l'analyse autant de fois qu'on veut, et on applique au document quand les deux côtés correspondent. Le PDF importé reste en mémoire pendant toute la session.
+## Un changement de page plus fluide pendant la frappe
 
-C'est un réagencement **algorithmique**, calculé sur la position réelle des caractères dans le PDF : l'application fonctionne hors ligne, sans intelligence artificielle ni envoi de vos documents sur un serveur.
+Deux optimisations, sans rien changer visuellement :
+
+- les formules KaTeX déjà affichées sont mises en cache, au lieu d'être reconstruites en entier à chaque repagination — le gain se sent surtout sur les documents chargés en formules ;
+- la repagination (le calcul le plus lourd de l'éditeur) se déclenche désormais pendant un moment creux du navigateur plutôt que pile à la fin de la frappe, pour ne pas saccader le dernier caractère tapé.

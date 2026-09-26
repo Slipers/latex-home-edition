@@ -422,6 +422,10 @@ pre.texview { background: #f7f8fa; border: 1px solid var(--line); border-radius:
 .pmark-lab { position: absolute; right: -10px; top: -10px; transform: translateX(100%); font: 600 10.5px var(--ui); color: #fff; background: #7f97c2; padding: 2px 7px; border-radius: 10px; white-space: nowrap; }
 #main { position: relative; }
 #pageIndicator { position: absolute; left: 264px; bottom: 12px; z-index: 6; font: 600 11.5px var(--ui); color: #4a5568; background: rgba(255,255,255,.92); border: 1px solid var(--line2); padding: 4px 11px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08); pointer-events: none; }
+.edit-zoom { position: absolute; right: 296px; bottom: 12px; z-index: 6; display: flex; align-items: center; gap: 4px; font: 600 11.5px var(--ui); color: #4a5568; background: rgba(255,255,255,.94); border: 1px solid var(--line2); padding: 3px 4px 3px 10px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.edit-zoom button { width: 24px; height: 24px; line-height: 1; border-radius: 50%; border: 1px solid transparent; background: none; color: inherit; font-size: 14px; }
+.edit-zoom button:hover { background: var(--bg); border-color: var(--line2); }
+.edit-zoom .ez-val { min-width: 42px; text-align: center; }
 
 /* ---------- Version et mises à jour ---------- */
 #appVersion { position: fixed; right: 10px; bottom: 6px; z-index: 30; font: 11px var(--ui); color: #5b6477; opacity: .55; pointer-events: none; letter-spacing: .02em; }
@@ -437,6 +441,9 @@ pre.texview { background: #f7f8fa; border: 1px solid var(--line); border-radius:
 .sheet { position: absolute; left: 0; right: 0; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.14), 0 6px 22px rgba(0,0,0,.08); }
 .sheet .page-head, .sheet .page-hfoot { pointer-events: auto; cursor: pointer; }
 .sheet .page-head:hover, .sheet .page-hfoot:hover { outline: 1px dashed #b5c4de; outline-offset: 3px; }
+/* Rappel discret qu'un en-tête/pied de page (répété sur chaque page) peut être ajouté ici */
+.page-head.hint, .page-hfoot.hint { color: #d3d9e6; font: italic 8.5pt var(--ui); align-items: center; }
+.page-head.hint:hover, .page-hfoot.hint:hover { color: var(--acc2); }
 .pg-sp { display: block; pointer-events: none; user-select: none; }
 .pg-float { float: left; width: 100%; display: block; pointer-events: none; user-select: none; }
 .paper .meta-blk:not(:focus-within) .rt.is-empty:not(.t-title) { display: none; }

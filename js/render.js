@@ -107,7 +107,7 @@ L.renderTitle = function (ctx) {
       L.h('div', { class: 'f-rule' }),
       f('title', 't-title', 'Titre de la feuille'),
       f('subtitle', 't-subtitle', 'Sous-titre (facultatif)'),
-      edit ? f('author', 't-author-fiche', 'Auteur (facultatif)') : null);
+      f('author', 't-author-fiche', 'Auteur (facultatif)'));
   } else if (m.titleStyle === 'pagegarde') {
     box = L.h('div', { class: 'doc-titlepage' },
       f('institution', 'tp-inst', 'Établissement'),

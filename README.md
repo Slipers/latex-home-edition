@@ -53,7 +53,8 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Taille du texte (9 paliers, de « minuscule » à « maximal ») | Bouton **A A** : sélectionnez le texte, puis la taille |
 | Agrandir une équation centrée | Cliquez sur l'équation → **Taille** dans le panneau de droite (ou bouton **A A**) |
 | Taille du texte du document (8 pt à 20 pt) | « Document » → Mise en page → Taille du texte |
-| En-têtes, pieds de page, numérotation des pages | « Document » → En-tête, pied de page (ou double-clic sur le pied de page) |
+| En-têtes, pieds de page, numérotation des pages | « Document » → En-tête, pied de page (ou double-clic sur le pied de page) ; se répète sur chaque page — un rappel discret « + En-tête » apparaît en haut de chaque page tant qu'aucun n'est défini |
+| Zoomer dans l'éditeur (pas seulement l'aperçu) | Pastille en bas à droite de la feuille, Ctrl + molette, ou Ctrl+/Ctrl-/Ctrl+0 |
 | Forcer un numéro (ex. commencer à 0) | Panneau de droite du titre, tableau, équation… |
 | Coller du code LaTeX (texte + formules) | Ctrl+V dans le document : converti en paragraphes et équations |
 | Alignement d'un paragraphe | Menu ☰ de la barre, ou Ctrl+J / L / E / R |

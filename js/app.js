@@ -99,6 +99,7 @@ Object.assign(App, {
     L.$('#deskInner').hidden = on;
     wrap.hidden = !on;
     L.$('#btnPreview').classList.toggle('on', on);
+    const ez = L.$('#editZoom'); if (ez) ez.hidden = on;
     if (!on) return;
     this.commit();
     const host = L.$('#pages');
@@ -116,6 +117,21 @@ Object.assign(App, {
   applyZoom() {
     L.$('#pages').style.zoom = this.zoom;
     L.$('#zoomVal').textContent = Math.round(this.zoom * 100) + ' %';
+  },
+
+  /* ---------- Zoom dans l'éditeur (hors aperçu) ---------- */
+  editZoom: 1,
+  applyEditZoom() {
+    L.$('#paper').style.zoom = this.editZoom;
+    const pill = L.$('#editZoom');
+    if (pill) pill.querySelector('.ez-val').textContent = Math.round(this.editZoom * 100) + ' %';
+    // Les repères de page (feuilles, sauts) dépendent du zoom pour rester bien placés
+    if (!L.$('#previewWrap').hidden) return;
+    this.layoutSheets();
+  },
+  setEditZoom(z) {
+    this.editZoom = Math.max(0.5, Math.min(2, z));
+    this.applyEditZoom();
   },
   async preparePrint() {
     const root = L.$('#printRoot');
@@ -282,7 +298,16 @@ window.addEventListener('DOMContentLoaded', () => {
     if (f) App.format(f.dataset.fmt);
     const z = e.target.closest('[data-zoom]');
     if (z) { App.zoom = Math.max(0.4, Math.min(2, App.zoom + (z.dataset.zoom === '+' ? 0.1 : -0.1))); App.applyZoom(); }
+    const ez = e.target.closest('[data-ezoom]');
+    if (ez) App.setEditZoom(ez.dataset.ezoom === 'reset' ? 1 : App.editZoom + (ez.dataset.ezoom === '+' ? 0.1 : -0.1));
   });
+
+  // Zoom de l'éditeur (hors aperçu) à la molette + Ctrl, comme dans un PDF
+  L.$('#desk').addEventListener('wheel', e => {
+    if (!(e.ctrlKey || e.metaKey) || !L.$('#previewWrap').hidden) return;
+    e.preventDefault();
+    App.setEditZoom(App.editZoom + (e.deltaY < 0 ? 0.1 : -0.1));
+  }, { passive: false });
 
   // Raccourcis globaux
   document.addEventListener('keydown', e => {
@@ -305,6 +330,13 @@ window.addEventListener('DOMContentLoaded', () => {
     else if (k === 'f' || k === 'h') { e.preventDefault(); L.FindBar.open(k === 'h'); }
     else if (['e', 'l', 'r', 'j'].includes(k) && !e.shiftKey && !e.altKey) { e.preventDefault(); App.setAlign({ e: 'center', l: 'left', r: 'right', j: 'justify' }[k]); }
     else if (k === 'm') { e.preventDefault(); App.insertInlineMath(); }
+    else if (k === '=' || k === '+' || k === '-' || k === '0') {
+      e.preventDefault();
+      const inPreview = !L.$('#previewWrap').hidden;
+      const delta = k === '0' ? null : (k === '-' ? -0.1 : 0.1);
+      if (inPreview) { App.zoom = delta === null ? 1 : Math.max(0.4, Math.min(2, App.zoom + delta)); App.applyZoom(); }
+      else App.setEditZoom(delta === null ? 1 : App.editZoom + delta);
+    }
   });
 
   window.addEventListener('beforeunload', e => { if (App.dirty) { App.autosave(); } });

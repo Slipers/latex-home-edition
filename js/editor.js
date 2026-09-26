@@ -195,7 +195,14 @@ Object.assign(App, {
   },
 
   /* ================= Changements de page visibles pendant l'écriture ================= */
-  pagesSoon: L.debounce(() => App.computePages(), 350),
+  pagesSoon: L.debounce(() => {
+    // La repagination est le calcul le plus lourd de l'éditeur (elle rejoue
+    // toute la mise en page) : on la laisse au navigateur pour un moment
+    // creux plutôt que de la forcer pile à la fin de la frappe, pour ne pas
+    // saccader le dernier caractère tapé.
+    if (window.requestIdleCallback) requestIdleCallback(() => App.computePages(), { timeout: 500 });
+    else setTimeout(() => App.computePages(), 0);
+  }, 350),
   async computePages() {
     if (this._paginating) { this._paginateAgain = true; return; }
     this._paginating = true;
@@ -238,8 +245,15 @@ Object.assign(App, {
     if (!layer) { layer = L.h('div', { class: 'sheets', 'aria-hidden': 'true' }); paper.insertBefore(layer, paper.firstChild); }
     layer.innerHTML = '';
     const cs = getComputedStyle(paper);
-    const mtop = parseFloat(cs.paddingTop), mbot = parseFloat(cs.paddingBottom);
-    const P = paper.offsetWidth * 297 / 210, GAP = 26;
+    // Le zoom de l'éditeur (CSS zoom sur #paper) laisse offsetWidth et
+    // getComputedStyle inchangés (« unités locales »), alors que
+    // getBoundingClientRect (utilisé plus bas pour les repères d'écran)
+    // reflète le zoom. On ramène donc ces trois valeurs dans les mêmes
+    // unités d'écran, sans quoi les feuilles seraient mal découpées dès
+    // que le zoom n'est pas à 100 %.
+    const z = this.editZoom || 1;
+    const mtop = parseFloat(cs.paddingTop) * z, mbot = parseFloat(cs.paddingBottom) * z;
+    const P = paper.offsetWidth * 297 / 210 * z, GAP = 26 * z;
     const info = this.pageInfo;
     const pTop = () => paper.getBoundingClientRect().top;
     const sheets = [{ top: 0 }];
@@ -270,7 +284,19 @@ Object.assign(App, {
       const el = L.h('div', { class: 'sheet', style: { top: sh.top + 'px', height: (sh.bottom - sh.top) + 'px' } });
       const n = info ? nums[i] : L.pageStart(m) + i;
       const skip = n === null || n === undefined || (i === firstNum && m.hfFirst === false && m.titleStyle !== 'pagegarde');
-      if (!skip) L.renderHF(m, n, total).forEach(x => el.appendChild(x));
+      if (!skip) {
+        const hf = L.renderHF(m, n, total);
+        hf.forEach(x => el.appendChild(x));
+        // Discret rappel, cliquable, que l'en-tête (et le pied de page) se répètent
+        // sur chaque page — sinon rien n'indique qu'on peut en ajouter un.
+        if (!hf.some(x => x.classList.contains('page-head'))) {
+          el.appendChild(L.h('div', { class: 'page-head hint', text: '+ En-tête (sur chaque page)' }));
+        }
+        if (!hf.some(x => x.classList.contains('page-hfoot'))) {
+          el.appendChild(L.h('div', { class: 'page-hfoot hint', text: '+ Pied de page (sur chaque page)' }));
+        }
+      }
+      el.addEventListener('click', e => { if (e.target.closest('.page-head.hint, .page-hfoot.hint')) L.dlgSettings('hf'); });
       el.addEventListener('dblclick', e => { if (e.target.closest('.page-head, .page-hfoot')) L.dlgSettings('hf'); });
       const pn = info && info.notes ? info.notes[i] : null;
       if (pn && pn.length) {
@@ -302,7 +328,10 @@ Object.assign(App, {
     if (!el) return null;
     if (!b.offset) return { kind: 'block', before: el };
     const content = Array.from(el.children).find(c => !c.classList.contains('gutter')) || el;
-    const yT = content.getBoundingClientRect().top + b.offset - 3;
+    // b.offset vient de la pagination (mesurée hors zoom, sur l'hôte caché) :
+    // on le ramène dans les mêmes unités d'écran que le reste (voir layoutSheets).
+    const z = this.editZoom || 1;
+    const yT = content.getBoundingClientRect().top + b.offset * z - 3 * z;
     const blockish = '.blk, .li, .eq, .tvwrap, .tbl, .fig, .code, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h';
     let found = null;
     const visit = node => {

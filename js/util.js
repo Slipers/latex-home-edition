@@ -36,16 +36,29 @@ L.KATEX_MACROS = {
   '\\placeholder': '\\square',
 };
 
+/* Un même document redessine souvent les mêmes formules (repagination
+   complète à chaque pause de frappe) : on met en cache le rendu KaTeX,
+   pur et déterministe, pour que ça reste fluide même avec beaucoup de
+   formules. Taille bornée pour ne pas grossir indéfiniment. */
+const KATEX_CACHE = new Map();
+const KATEX_CACHE_MAX = 1000;
 L.katex = function (latex, display = false) {
   if (!window.katex) return L.escHtml(latex);
+  const key = (display ? '1|' : '0|') + latex;
+  const hit = KATEX_CACHE.get(key);
+  if (hit !== undefined) return hit;
+  let out;
   try {
-    return katex.renderToString(latex || '', {
+    out = katex.renderToString(latex || '', {
       displayMode: display, throwOnError: false, strict: 'ignore', trust: false,
       macros: Object.assign({}, L.KATEX_MACROS),
     });
   } catch (e) {
-    return '<span class="math-err">' + L.escHtml(latex) + '</span>';
+    out = '<span class="math-err">' + L.escHtml(latex) + '</span>';
   }
+  if (KATEX_CACHE.size >= KATEX_CACHE_MAX) KATEX_CACHE.delete(KATEX_CACHE.keys().next().value);
+  KATEX_CACHE.set(key, out);
+  return out;
 };
 
 /* Nettoie le LaTeX renvoyé par l'éditeur visuel */

@@ -322,7 +322,8 @@ L.titleToLatex = function (m, X) {
   if (m.titleStyle === 'fiche') {
     return '\\noindent ' + (has('institution') ? R(m.institution) : '') + '\\hfill ' + (has('date') ? R(m.date) : '') + '\\\\[-0.6em]\n' +
       '\\rule{\\textwidth}{0.4pt}\n\\begin{center}\n  {\\Large\\bfseries ' + R(m.title) + '}' +
-      (has('subtitle') ? '\\\\[4pt]\n  {\\large ' + R(m.subtitle) + '}' : '') + '\n\\end{center}';
+      (has('subtitle') ? '\\\\[4pt]\n  {\\large ' + R(m.subtitle) + '}' : '') +
+      (has('author') ? '\\\\[5pt]\n  {\\itshape ' + R(m.author) + '}' : '') + '\n\\end{center}';
   }
   if (m.titleStyle === 'pagegarde') {
     return '\\begin{titlepage}\n  \\centering\n' +
