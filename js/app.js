@@ -121,17 +121,75 @@ Object.assign(App, {
 
   /* ---------- Zoom dans l'éditeur (hors aperçu) ---------- */
   editZoom: 1,
-  applyEditZoom() {
-    L.$('#paper').style.zoom = this.editZoom;
+  /* La feuille est agrandie par transform: scale() et non par CSS zoom :
+     la mise en page reste exactement celle à 100 % (mêmes retours à la
+     ligne, mêmes sauts de page que le PDF, à tous les niveaux), et changer
+     de zoom ne relance aucun calcul de mise en page — le navigateur se
+     contente de redessiner, d'où un zoom fluide. #paperZoom réserve à côté
+     la place de la feuille agrandie pour que le défilement suive. */
+  zoomTarget: 1,
+  setEditZoom(z, at, instant) {
+    z = Math.max(0.5, Math.min(2, z));
+    this.zoomTarget = z;
     const pill = L.$('#editZoom');
-    if (pill) pill.querySelector('.ez-val').textContent = Math.round(this.editZoom * 100) + ' %';
-    // Les repères de page (feuilles, sauts) dépendent du zoom pour rester bien placés
-    if (!L.$('#previewWrap').hidden) return;
-    this.layoutSheets();
+    if (pill) pill.querySelector('.ez-val').textContent = Math.round(z * 100) + ' %';
+    try { localStorage.setItem('lhe-edit-zoom', String(z)); } catch (e) {}
+    // Point de la feuille (en unités locales) à garder immobile sous `at`
+    // (pointeur de la souris ; par défaut le centre de l'écran)
+    const desk = L.$('#desk'), d = desk.getBoundingClientRect();
+    const ax = at ? at.x : d.left + desk.clientWidth / 2, ay = at ? at.y : d.top + desk.clientHeight / 2;
+    const pr = L.$('#paper').getBoundingClientRect(), old = this.editZoom;
+    this._zAnchor = { ax, ay, lx: (ax - pr.left) / old, ly: (ay - pr.top) / old };
+    const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (instant || reduce) {
+      if (this._zAnim) { cancelAnimationFrame(this._zAnim); this._zAnim = null; }
+      this.applyZoomNow(z); this.zoomSettled(); return;
+    }
+    // Filet de sécurité : si l'animation ne peut pas tourner (fenêtre masquée…),
+    // on termine directement au niveau visé.
+    clearTimeout(this._zFallback);
+    this._zFallback = setTimeout(() => { if (this._zAnim) this.setEditZoom(this.zoomTarget, null, true); }, 700);
+    if (this._zAnim) return;
+    // Animation douce vers le niveau visé ; will-change le temps de
+    // l'animation : la feuille est mise à l'échelle par la carte graphique,
+    // puis redessinée nette une fois le zoom stabilisé.
+    L.$('#paper').style.willChange = 'transform';
+    const frame = () => {
+      const cur = this.editZoom, t = this.zoomTarget;
+      const next = Math.abs(t - cur) < 0.002 ? t : cur + (t - cur) * 0.32;
+      this.applyZoomNow(next);
+      if (next !== t) this._zAnim = requestAnimationFrame(frame);
+      else { this._zAnim = null; this.zoomSettled(); }
+    };
+    this._zAnim = requestAnimationFrame(frame);
   },
-  setEditZoom(z) {
-    this.editZoom = Math.max(0.5, Math.min(2, z));
-    this.applyEditZoom();
+  applyZoomNow(z) {
+    const paper = L.$('#paper'), desk = L.$('#desk');
+    this.editZoom = z;
+    paper.style.transform = z === 1 ? '' : 'scale(' + z + ')';
+    this.sizeZoomBox();
+    const a = this._zAnchor;
+    if (!a) return;
+    const pr = paper.getBoundingClientRect();
+    desk.scrollLeft += pr.left + a.lx * z - a.ax;
+    desk.scrollTop += pr.top + a.ly * z - a.ay;
+  },
+  sizeZoomBox() {
+    const paper = L.$('#paper'), box = L.$('#paperZoom'), z = this.editZoom;
+    if (!box) return;
+    box.style.width = z === 1 ? '' : paper.offsetWidth * z + 'px';
+    box.style.height = z === 1 ? '' : paper.offsetHeight * z + 'px';
+  },
+  zoomSettled() {
+    L.$('#paper').style.willChange = '';
+    this._zAnchor = null;
+    this.updatePageIndicator();
+  },
+  /* Crans « ronds » (…, 90 %, 100 %, 110 %, …) pour les boutons et le clavier,
+     comptés depuis le niveau visé : des clics rapprochés s'additionnent. */
+  zoomStep(dir) {
+    const z = this.zoomTarget;
+    this.setEditZoom(dir === 0 ? 1 : dir > 0 ? Math.floor(z * 10 + 1e-6) / 10 + 0.1 : Math.ceil(z * 10 - 1e-6) / 10 - 0.1);
   },
   async preparePrint() {
     const root = L.$('#printRoot');
@@ -299,14 +357,18 @@ window.addEventListener('DOMContentLoaded', () => {
     const z = e.target.closest('[data-zoom]');
     if (z) { App.zoom = Math.max(0.4, Math.min(2, App.zoom + (z.dataset.zoom === '+' ? 0.1 : -0.1))); App.applyZoom(); }
     const ez = e.target.closest('[data-ezoom]');
-    if (ez) App.setEditZoom(ez.dataset.ezoom === 'reset' ? 1 : App.editZoom + (ez.dataset.ezoom === '+' ? 0.1 : -0.1));
+    if (ez) App.zoomStep(ez.dataset.ezoom === 'reset' ? 0 : ez.dataset.ezoom === '+' ? 1 : -1);
   });
 
-  // Zoom de l'éditeur (hors aperçu) à la molette + Ctrl, comme dans un PDF
+  // Zoom de l'éditeur (hors aperçu) à la molette + Ctrl, comme dans un PDF.
+  // Proportionnel au défilement : un cran de molette ≈ 10 %, et le pincement
+  // du pavé tactile (qui envoie une rafale de petits événements Ctrl+molette)
+  // zoome en douceur au lieu de sauter de 10 % à chaque événement.
   L.$('#desk').addEventListener('wheel', e => {
     if (!(e.ctrlKey || e.metaKey) || !L.$('#previewWrap').hidden) return;
     e.preventDefault();
-    App.setEditZoom(App.editZoom + (e.deltaY < 0 ? 0.1 : -0.1));
+    const dy = Math.max(-100, Math.min(100, e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1)));
+    App.setEditZoom(App.zoomTarget * Math.exp(-dy * 0.0012), { x: e.clientX, y: e.clientY });
   }, { passive: false });
 
   // Raccourcis globaux
@@ -335,7 +397,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const inPreview = !L.$('#previewWrap').hidden;
       const delta = k === '0' ? null : (k === '-' ? -0.1 : 0.1);
       if (inPreview) { App.zoom = delta === null ? 1 : Math.max(0.4, Math.min(2, App.zoom + delta)); App.applyZoom(); }
-      else App.setEditZoom(delta === null ? 1 : App.editZoom + delta);
+      else App.zoomStep(delta === null ? 0 : delta);
     }
   });
 
@@ -346,6 +408,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   App.bindEditor();
   App.showVersion();
+  // Dernier niveau de zoom de l'éditeur utilisé
+  try { const z0 = parseFloat(localStorage.getItem('lhe-edit-zoom')); if (z0 >= 0.5 && z0 <= 2 && z0 !== 1) App.setEditZoom(z0, null, true); } catch (e) {}
+  // La place réservée à la feuille zoomée suit sa hauteur (frappe, sauts de page)
+  if (window.ResizeObserver) new ResizeObserver(() => App.sizeZoomBox()).observe(L.$('#paper'));
 
   // Reprise du dernier document (sauvegarde automatique) ou écran d'accueil
   let restored = false;

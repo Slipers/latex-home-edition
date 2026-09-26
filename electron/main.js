@@ -61,7 +61,23 @@ function macMenu() {
         { label: 'Symboles…', click: () => inPage('App.openSymbols(null)') },
       ],
     },
-    { role: 'viewMenu', label: 'Affichage' },
+    {
+      // Pas de role 'viewMenu' : ses Cmd+/Cmd- zoomaient toute l'interface
+      // (barres d'outils comprises) en plus de la feuille. Les raccourcis sont
+      // affichés mais laissés à la page (registerAccelerator: false), qui zoome
+      // la feuille seule — ou l'aperçu quand il est ouvert.
+      label: 'Affichage',
+      submenu: [
+        { label: 'Zoom avant', accelerator: 'Cmd+=', registerAccelerator: false, click: () => inPage('App.zoomStep(1)') },
+        { label: 'Zoom arrière', accelerator: 'Cmd+-', registerAccelerator: false, click: () => inPage('App.zoomStep(-1)') },
+        { label: 'Taille réelle', accelerator: 'Cmd+0', registerAccelerator: false, click: () => inPage('App.zoomStep(0)') },
+        { type: 'separator' },
+        { label: 'Aperçu paginé', click: () => inPage('App.showPreview()') },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Plein écran' },
+        { role: 'toggleDevTools', label: 'Outils de développement' },
+      ],
+    },
     { role: 'windowMenu', label: 'Fenêtre' },
     {
       label: 'Aide',
@@ -87,6 +103,12 @@ function createWindow() {
   Menu.setApplicationMenu(isMac ? macMenu() : null);
   win.loadFile(path.join(__dirname, '..', 'index.html'));
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
+  // Seule la feuille se zoome (géré dans la page) : on bloque le zoom de toute
+  // la fenêtre (pincement, niveau de zoom mémorisé par Chromium).
+  win.webContents.on('did-finish-load', () => {
+    win.webContents.setZoomFactor(1);
+    win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  });
 
   // Liens externes : navigateur par défaut ; Overleaf : fenêtre dédiée (formulaire POST)
   win.webContents.setWindowOpenHandler(({ url }) => {

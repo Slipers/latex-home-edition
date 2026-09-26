@@ -80,7 +80,9 @@ kbd { font-family: var(--ui); font-size: 11px; background: #eef0f4; border: 1px 
 /* ---------- Bureau et feuille ---------- */
 #desk { flex: 1; overflow: auto; background: var(--desk); position: relative; }
 #deskInner { padding: 28px 70px 280px; min-width: min-content; }
-#paper { width: 210mm; min-height: 297mm; margin: 0 auto; padding: var(--m-top) var(--m-side) var(--m-bottom); position: relative; box-sizing: border-box; background: transparent; isolation: isolate; }
+/* #paperZoom réserve la place de la feuille agrandie ou réduite (zoom de l'éditeur, en transform : la mise en page reste exactement celle à 100 %) */
+#paperZoom { width: 210mm; margin: 0 auto; }
+#paper { width: 210mm; min-height: 297mm; margin: 0; padding: var(--m-top) var(--m-side) var(--m-bottom); position: relative; box-sizing: border-box; background: transparent; isolation: isolate; transform-origin: 0 0; }
 
 /* Blocs éditables */
 .paper .blk { position: relative; border-radius: 2px; }

@@ -245,17 +245,19 @@ Object.assign(App, {
     if (!layer) { layer = L.h('div', { class: 'sheets', 'aria-hidden': 'true' }); paper.insertBefore(layer, paper.firstChild); }
     layer.innerHTML = '';
     const cs = getComputedStyle(paper);
-    // Le zoom de l'éditeur (CSS zoom sur #paper) laisse offsetWidth et
-    // getComputedStyle inchangés (« unités locales »), alors que
-    // getBoundingClientRect (utilisé plus bas pour les repères d'écran)
-    // reflète le zoom. On ramène donc ces trois valeurs dans les mêmes
-    // unités d'écran, sans quoi les feuilles seraient mal découpées dès
-    // que le zoom n'est pas à 100 %.
+    // Zoom de l'éditeur (transform: scale sur #paper) : offsetWidth,
+    // getComputedStyle et les tailles qu'on écrit en px sur les éléments DANS
+    // #paper sont en unités locales (non zoomées) — le navigateur les agrandit
+    // ensuite lui-même. Seul getBoundingClientRect est en unités d'écran : on
+    // divise donc ses écarts par z pour tout calculer en unités locales.
+    // (Écrire des mesures d'écran dans les styles appliquait le zoom deux
+    // fois : feuilles 1,5× trop hautes à 150 %, texte décalé des pages.)
     const z = this.editZoom || 1;
-    const mtop = parseFloat(cs.paddingTop) * z, mbot = parseFloat(cs.paddingBottom) * z;
-    const P = paper.offsetWidth * 297 / 210 * z, GAP = 26 * z;
+    const mtop = parseFloat(cs.paddingTop), mbot = parseFloat(cs.paddingBottom);
+    const P = paper.offsetWidth * 297 / 210, GAP = 26;
     const info = this.pageInfo;
     const pTop = () => paper.getBoundingClientRect().top;
+    const local = el => (el.getBoundingClientRect().top - pTop()) / z;
     const sheets = [{ top: 0 }];
     let prevTop = 0;
     (info ? info.breaks : []).forEach(b => {
@@ -264,7 +266,7 @@ Object.assign(App, {
       let sp;
       if (pos.kind === 'block') { sp = L.h('div', { class: 'pg-sp', contenteditable: 'false' }); pos.before.parentNode.insertBefore(sp, pos.before); }
       else { sp = L.h('span', { class: 'pg-float', contenteditable: 'false' }); pos.range.insertNode(sp); }
-      const y = sp.getBoundingClientRect().top - pTop();
+      const y = local(sp);
       const bottom = Math.max(prevTop + P, y + 12);
       const nextTop = bottom + GAP;
       sp.style.height = Math.max(0, nextTop + mtop - y) + 'px';
@@ -272,7 +274,7 @@ Object.assign(App, {
       sheets.push({ top: nextTop });
       prevTop = nextTop;
     });
-    const end = flow.getBoundingClientRect().bottom - pTop() + mbot;
+    const end = (flow.getBoundingClientRect().bottom - pTop()) / z + mbot;
     sheets[sheets.length - 1].bottom = Math.max(prevTop + P, end);
     paper.style.minHeight = sheets[sheets.length - 1].bottom + 'px';
     // 2. Dessin des feuilles, avec en-têtes et pieds de page
@@ -382,6 +384,7 @@ Object.assign(App, {
       if (r.top || r.bottom) y = r.top - paper.getBoundingClientRect().top;
     }
     if (y === null) { const d = L.$('#desk'); y = d.getBoundingClientRect().top + d.clientHeight / 3 - paper.getBoundingClientRect().top; }
+    y /= this.editZoom || 1; // this.sheets est en unités locales (voir layoutSheets)
     const page = Math.max(1, this.sheets.filter(sh => sh.top <= y + 2).length);
     pill.textContent = 'Page ' + page + ' sur ' + this.sheets.length;
     pill.hidden = false;
@@ -1420,7 +1423,7 @@ App.bindEditor = function () {
 
   L.$('#desk').addEventListener('scroll', L.debounce(() => this.updatePageIndicator(), 60));
   L.$('#desk').addEventListener('mousedown', e => {
-    if (e.target.id === 'desk' || e.target.id === 'deskInner') { this.select(null); L.InsertMenu.hide(); }
+    if (e.target.id === 'desk' || e.target.id === 'deskInner' || e.target.id === 'paperZoom') { this.select(null); L.InsertMenu.hide(); }
   });
   document.addEventListener('mousedown', e => { if (!e.target.closest('#slashMenu')) L.InsertMenu.hide(); });
 
