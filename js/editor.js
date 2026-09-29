@@ -76,6 +76,7 @@ Object.assign(App, {
     this.updateName();
     L.$('#desk').scrollTop = 0;
     this.autosave();
+    if (L.Live) L.Live.docLoaded();   // partage : envoi des modifications / nouvelles versions
   },
   snapshot() { const d = this.doc; return JSON.stringify({ meta: d.meta, blocks: d.blocks, bib: d.bib }); },
   commit() {
@@ -109,7 +110,7 @@ Object.assign(App, {
     this.last = this.future.pop();
     this.restore(this.last);
   },
-  setDirty(v) { this.dirty = v; L.$('#docName').classList.toggle('dirty', v); },
+  setDirty(v) { this.dirty = v; L.$('#docName').classList.toggle('dirty', v); if (v && L.Live) L.Live.changed(); },
   updateName() {
     const t = L.plain(this.doc.meta.title);
     L.$('#docName').textContent = this.fileName || (t ? t : 'Sans titre');

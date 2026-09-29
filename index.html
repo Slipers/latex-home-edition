@@ -16,6 +16,7 @@
   <header id="topbar">
     <div class="brand"><span class="logo">∑</span><span class="brand-name">LaTeX <b>Home</b></span></div>
     <div class="doc-name" id="docName" title="Nom du fichier">Sans titre</div>
+    <button class="share-pill" id="shareStatus" data-act="share" hidden></button>
     <nav class="tb">
       <div class="tb-group g-file">
         <button data-act="new" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
@@ -163,6 +164,7 @@
     </section>
 
     <div id="pageIndicator" hidden></div>
+    <div id="updCard" role="status" aria-live="polite" hidden></div>
     <div class="edit-zoom" id="editZoom" title="Zoom (Ctrl + molette)">
       <button data-ezoom="-" title="Réduire">−</button>
       <span class="ez-val">100 %</span>
@@ -242,6 +244,7 @@
 <script src="js/pdfimport.js"></script>
 <script src="js/check.js"></script>
 <script src="js/share.js"></script>
+<script src="js/live.js"></script>
 <script src="js/find.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>

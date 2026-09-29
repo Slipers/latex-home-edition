@@ -54,6 +54,7 @@
       <b>Vous obtiendrez votre propre copie du document.</b>
       Si rien ne s'ouvre, l'application n'est peut-être pas installée : téléchargez-la (gratuit), puis revenez sur ce lien.
       Vous pouvez aussi copier ce lien et le coller dans l'application (Ctrl+V).
+      <span id="liveNote" hidden><br><br>L'auteur partage ses mises à jour : quand il modifiera le document, l'application vous proposera la nouvelle version.</span>
     </div>
     <div class="row">
       <button class="btn" id="copy">Copier le lien</button>
@@ -97,8 +98,11 @@
     }
     if (!info) return fail('Ce document n\'est plus partagé : le lien a expiré ou a été désactivé par la personne qui l\'a créé.');
     $('title').textContent = info.title || 'Document sans titre';
-    const d = new Date(info.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-    $('meta').textContent = 'Partagé le ' + d;
+    const fd = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    $('meta').textContent = 'Partagé le ' + fd(info.created_at)
+      + (info.version > 1 && info.updated_at ? ' · mis à jour le ' + fd(info.updated_at) : '')
+      + (info.live ? ' · mises à jour en direct' : '');
+    if (info.live) $('liveNote').hidden = false;
     document.title = (info.title || 'Document') + ' — LaTeX Home Edition';
     $('open').href = 'lhe://s/' + id;
     $('copy').onclick = async () => {
