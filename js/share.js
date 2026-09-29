@@ -1,14 +1,27 @@
-/* Partage par lien : le document entier (texte, formules, images) est
-   compressé dans le lien lui-même — aucun serveur, rien n'est stocké en
-   ligne. Celui qui reçoit le lien l'ouvre dans l'application (bouton
-   « Partager » → « Ouvrir un lien reçu », collage direct, ou clic sur le lien
-   quand l'application est installée) et obtient sa propre copie. */
+/* Partage par lien. Deux sortes de liens :
+   - lien court (recommandé) : le document compressé est déposé sur le serveur
+     de partage (Supabase) et le lien ne contient qu'un identifiant de 10
+     caractères — https://slipers.github.io/latex-home-edition/p/#Ab3xK9pQ2z,
+     cliquable partout ; la page ouvre l'application (lhe://s/Ab3xK9pQ2z) ;
+   - lien long (sans connexion) : le document entier est compressé dans le
+     lien lui-même (lhe://partage/…), rien n'est stocké en ligne.
+   Celui qui reçoit le lien l'ouvre dans l'application (clic, « Partager » →
+   « Ouvrir un lien reçu », ou Ctrl+V n'importe où) et obtient sa propre copie. */
 (function () {
+  /* Serveur de partage. La clé « publishable » est faite pour être publique :
+     la base n'expose que quatre fonctions (créer, lire par identifiant, infos,
+     désactiver avec le code du créateur) — voir supabase/partage.sql. */
+  const SUPABASE_URL = 'https://temejdqaocdqqoodqjyk.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_MCpfjyXJgTyh64p80I5hiA_xAq30XtY';
+  const PAGE_URL = 'https://slipers.github.io/latex-home-edition/p/';
+
   const PREFIX = 'lhe://partage/1/';
   // lhe://partage/<version>/<longueur>/<données> : la longueur dit où le lien
   // s'arrête (les messageries le coupent parfois en plusieurs lignes, et du
   // texte peut le suivre) et permet de repérer un lien tronqué.
   const LINK_RE = /lhe:\/\/partage\/(\d+)\/(\d+)\/([A-Za-z0-9_\-\s]+)/i;
+  // Lien court : page web (…/p/#id), lien de l'application (lhe://s/id)
+  const SHORT_RE = /(?:latex-home-edition\/p\/?#|lhe:\/\/s\/)([A-Za-z0-9]{10})(?![A-Za-z0-9])/i;
   const CUT = 'Ce lien est incomplet ou abîmé (il a peut-être été coupé en le copiant). Demandez à l\'expéditeur de vous le renvoyer.';
 
   /* ---------- Encodage : JSON → deflate → base64url ---------- */
@@ -25,23 +38,85 @@
   };
   const pipe = async (bytes, stream) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
 
-  async function encode(data) {
-    const z = await pipe(new TextEncoder().encode(JSON.stringify(data)), new CompressionStream('deflate-raw'));
-    const payload = toB64url(z);
-    return PREFIX + payload.length + '/' + payload;
-  }
-  async function decode(text) {
-    const m = String(text || '').match(LINK_RE);
-    if (!m) throw new Error('Aucun lien de partage LaTeX Home Edition trouvé dans ce texte.');
-    if (m[1] !== '1') throw new Error('Ce lien a été créé par une version plus récente de LaTeX Home Edition : mettez l\'application à jour pour l\'ouvrir.');
-    const len = +m[2], data = m[3].replace(/\s+/g, '').slice(0, len);
-    if (data.length < len) throw new Error(CUT);
+  const pack = async data => toB64url(await pipe(new TextEncoder().encode(JSON.stringify(data)), new CompressionStream('deflate-raw')));
+  async function unpack(payload) {
     let json;
-    try { json = new TextDecoder().decode(await pipe(fromB64url(data), new DecompressionStream('deflate-raw'))); }
+    try { json = new TextDecoder().decode(await pipe(fromB64url(payload), new DecompressionStream('deflate-raw'))); }
     catch (e) { throw new Error(CUT); }
     const d = JSON.parse(json);
     if (!d || !Array.isArray(d.blocks) || !d.meta) throw new Error('Ce lien ne contient pas de document valide.');
     return L.sanitizeDoc({ meta: d.meta, blocks: d.blocks, bib: d.bib || [], assets: d.assets || {} });
+  }
+  async function encode(data) {
+    const payload = await pack(data);
+    return PREFIX + payload.length + '/' + payload;
+  }
+
+  /* ---------- Serveur de partage ---------- */
+  const ERRORS = {
+    LHE_RATE: 'Trop de liens créés en peu de temps depuis cette connexion. Réessayez dans une heure.',
+    LHE_SIZE: 'Ce document est trop volumineux pour un lien (trop d\'images ?). Cochez « Alléger les images », ou envoyez le fichier .lhe.',
+    LHE_FULL: 'Le serveur de partage est plein pour le moment. Utilisez le lien sans connexion, ou envoyez le fichier .lhe.',
+    LHE_FORMAT: 'Document illisible par le serveur de partage.',
+  };
+  async function rpc(fn, body) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), 30000);
+    let r;
+    try {
+      r = await fetch(SUPABASE_URL + '/rest/v1/rpc/' + fn, {
+        method: 'POST', signal: ctl.signal,
+        headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      throw new Error('Impossible de joindre le serveur de partage. Vérifiez votre connexion internet (ou utilisez le lien sans connexion).');
+    } finally { clearTimeout(t); }
+    const text = await r.text();
+    let j = null;
+    try { j = text ? JSON.parse(text) : null; } catch (e) { /* réponse non JSON */ }
+    if (!r.ok) {
+      const code = j && j.message && Object.keys(ERRORS).find(k => j.message.includes(k));
+      throw new Error(code ? ERRORS[code] : 'Le serveur de partage ne répond pas correctement (' + r.status + '). Réessayez plus tard, ou utilisez le lien sans connexion.');
+    }
+    return j;
+  }
+  const shortUrl = id => PAGE_URL + '#' + id;
+
+  /* Liens courts créés depuis cet ordinateur (pour pouvoir les désactiver) */
+  const MINE = 'lhe-mes-partages';
+  const mine = () => { try { return JSON.parse(localStorage.getItem(MINE) || '[]'); } catch (e) { return []; } };
+  const saveMine = list => { try { localStorage.setItem(MINE, JSON.stringify(list.slice(0, 50))); } catch (e) { /* stockage indisponible */ } };
+
+  async function createShort(data, title) {
+    const r = await rpc('create_share', { p_payload: await pack(data), p_title: title });
+    if (!r || !r.id) throw new Error('Le serveur de partage n\'a pas renvoyé de lien.');
+    saveMine([{ id: r.id, token: r.token, title, at: Date.now(), exp: r.expires_at }, ...mine()]);
+    return r;
+  }
+  async function revoke(id) {
+    const e = mine().find(x => x.id === id);
+    if (e) await rpc('delete_share', { p_id: id, p_token: e.token });
+    saveMine(mine().filter(x => x.id !== id));
+  }
+
+  /* Texte collé / lien reçu → document (lien court ou lien long) */
+  async function decode(text) {
+    const s = String(text || '');
+    const m = s.match(LINK_RE);
+    if (m) {
+      if (m[1] !== '1') throw new Error('Ce lien a été créé par une version plus récente de LaTeX Home Edition : mettez l\'application à jour pour l\'ouvrir.');
+      const len = +m[2], data = m[3].replace(/\s+/g, '').slice(0, len);
+      if (data.length < len) throw new Error(CUT);
+      return unpack(data);
+    }
+    const k = s.match(SHORT_RE);
+    if (k) {
+      const r = await rpc('get_share', { p_id: k[1] });
+      if (!r || !r.payload) throw new Error('Ce lien n\'existe plus : il a expiré ou a été désactivé par la personne qui l\'a créé.');
+      return unpack(r.payload);
+    }
+    throw new Error('Aucun lien de partage LaTeX Home Edition trouvé dans ce texte.');
   }
 
   /* ---------- Images allégées (lien plus court) ---------- */
@@ -69,83 +144,141 @@
     } catch (e) { return src; }
   }
 
-  async function buildLink(light) {
+  async function docData(light) {
     App.commit();
     const data = JSON.parse(App.serialize());
     if (light) for (const k of Object.keys(data.assets)) data.assets[k] = await lighten(data.assets[k]);
-    return encode(data);
+    return data;
   }
 
   const fmtLen = n => n < 1000 ? n + ' caractères' : (Math.round(n / 100) / 10).toLocaleString('fr-FR') + ' k caractères';
+  const fmtDate = t => new Date(t).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   const copy = async (text, msg) => {
     try { await navigator.clipboard.writeText(text); L.toast(msg); }
     catch (e) { L.toast('Copie impossible : sélectionnez le texte et faites Ctrl+C.', 'err'); }
   };
   const docTitle = doc => L.plain(doc.meta.title) || 'Sans titre';
+  const APP_URL = 'https://github.com/Slipers/latex-home-edition/releases/latest';
+  const mailto = (subject, body) => window.open('mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body));
 
   /* ---------- Envoyer : créer le lien ---------- */
   L.dlgShare = function () {
     const nImg = Object.keys(JSON.parse(App.serialize()).assets).length;
     const title = docTitle(App.doc);
-    const out = L.h('textarea', { class: 'shr-link', readonly: true, rows: 4, spellcheck: 'false' });
+    const light = L.h('input', { type: 'checkbox' });
+    light.checked = nImg > 0;
+
+    /* Lien court */
+    const sOut = L.h('input', { class: 'shr-short', type: 'text', readonly: true, spellcheck: 'false' });
+    sOut.onfocus = () => sOut.select();
+    const sErr = L.h('div', { class: 'note', hidden: true });
+    const sMeta = L.h('div', { class: 'shr-size' });
+    let sLink = '', sId = '';
+    const sMsg = () => 'Je te partage mon document « ' + title + ' » :\n' + sLink + '\n\n'
+      + 'Ouvre le lien : il lance LaTeX Home Edition (ou te propose de l\'installer, c\'est gratuit), et tu obtiendras ta propre copie du document.\n';
+    const sRes = L.h('div', { class: 'shr-res', hidden: true },
+      sOut, sMeta,
+      L.h('div', { class: 'shr-acts' },
+        L.h('button', { class: 'btn primary', text: '⧉ Copier le lien', onclick: () => copy(sLink, 'Lien copié') }),
+        L.h('button', { class: 'btn', text: 'Copier le message', onclick: () => copy(sMsg(), 'Message copié') }),
+        L.h('button', { class: 'btn', text: '✉ Envoyer par e-mail…', onclick: () => mailto('Document partagé : ' + title, sMsg()) }),
+        L.h('button', { class: 'btn danger-soft', text: 'Désactiver ce lien', onclick: async () => {
+          if (!confirm('Désactiver ce lien ? Il ne fonctionnera plus pour personne (les copies déjà importées restent chez leurs destinataires).')) return;
+          try { await revoke(sId); L.toast('Lien désactivé'); sRes.hidden = true; sBtn.hidden = false; sBtn.textContent = 'Créer un nouveau lien court'; renderMine(); }
+          catch (e) { L.toast(e.message, 'err'); }
+        } })));
+    const sBtn = L.h('button', { class: 'btn primary', text: '🔗 Créer le lien court' });
+    sBtn.onclick = async () => {
+      sBtn.disabled = true; sBtn.textContent = 'Envoi du document…'; sErr.hidden = true;
+      try {
+        const r = await createShort(await docData(light.checked), title);
+        sId = r.id; sLink = shortUrl(r.id);
+        sOut.value = sLink;
+        sMeta.textContent = 'Valable jusqu\'au ' + fmtDate(r.expires_at) + ' · vous pouvez le désactiver à tout moment';
+        sRes.hidden = false; sBtn.hidden = true;
+        renderMine();
+        copy(sLink, 'Lien créé et copié');
+      } catch (e) { sErr.hidden = false; sErr.textContent = e.message; sBtn.textContent = 'Réessayer'; }
+      sBtn.disabled = false;
+    };
+
+    /* Lien long, sans connexion */
+    const out = L.h('textarea', { class: 'shr-link', readonly: true, rows: 3, spellcheck: 'false' });
     out.onfocus = () => out.select();
     const size = L.h('div', { class: 'shr-size' });
     const warn = L.h('div', { class: 'note', hidden: true });
-    const light = L.h('input', { type: 'checkbox' });
-    light.checked = nImg > 0;
     let link = '';
     const msg = () => 'Je te partage mon document « ' + title + ' ».\n\n'
       + 'Pour l\'ouvrir : dans LaTeX Home Edition, clique sur « Partager » puis « Ouvrir un lien reçu » et colle ce lien (ou colle-le directement dans l\'application) — tu obtiendras ta propre copie.\n\n'
       + link + '\n\n'
-      + 'Pas encore l\'application ? Elle est gratuite (Windows et Mac) : https://github.com/Slipers/latex-home-edition/releases/latest\n';
-    const mailBtn = L.h('button', { class: 'btn', text: '✉ Envoyer par e-mail…' });
+      + 'Pas encore l\'application ? Elle est gratuite (Windows et Mac) : ' + APP_URL + '\n';
     const refresh = async () => {
       out.value = 'Création du lien…'; size.textContent = '';
-      try { link = await buildLink(light.checked); }
+      try { link = await encode(await docData(light.checked)); }
       catch (e) { out.value = ''; warn.hidden = false; warn.textContent = 'Impossible de créer le lien : ' + e.message; return; }
       out.value = link;
       size.textContent = 'Lien de ' + fmtLen(link.length) + (nImg ? ' · ' + nImg + ' image' + (nImg > 1 ? 's' : '') + ' incluse' + (nImg > 1 ? 's' : '') : '');
       warn.hidden = link.length < 60000;
-      warn.textContent = 'Ce lien est très long' + (nImg && !light.checked ? ' (images en pleine qualité)' : '') + ' : certaines messageries risquent de le couper. Préférez l\'e-mail ou « Copier le message », ou envoyez plutôt le fichier .lhe (Enregistrer).';
-      // Les liens mailto longs sont tronqués par Windows : au-delà, on passe par le presse-papiers
-      mailBtn.title = link.length > 1500 ? 'Ouvre votre messagerie ; le message complet (avec le lien) est copié : collez-le dans le corps du mail.' : '';
+      warn.textContent = 'Ce lien est très long : certaines messageries risquent de le couper. Préférez le lien court, ou envoyez le fichier .lhe.';
     };
-    light.onchange = refresh;
-    mailBtn.onclick = async () => {
-      if (!link) return;
-      const subject = 'Document partagé : ' + title;
-      if (link.length <= 1500) { window.open('mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(msg())); return; }
-      await copy(msg(), 'Message copié : collez-le dans le corps de l\'e-mail (Ctrl+V)');
-      window.open('mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent('(Collez ici le message copié : Ctrl+V)'));
-    };
-    const body = L.h('div', { class: 'shr' },
-      L.h('p', { class: 'shr-intro', html: 'Toute personne qui reçoit ce lien peut <b>importer sa propre copie</b> de « ' + L.escHtml(title) + ' » dans LaTeX Home Edition, sans que vous ayez à envoyer le fichier. Le document est entièrement contenu dans le lien : rien n\'est envoyé sur internet.' }),
-      out, size,
+    const long = L.h('details', { class: 'shr-more' },
+      L.h('summary', { text: 'Sans connexion : lien long, rien n\'est stocké en ligne' }),
+      L.h('p', { class: 'shr-foot', text: 'Le document entier est compressé dans le lien lui-même. Plus long et pas cliquable, mais aucun serveur n\'est utilisé : le destinataire le colle dans l\'application.' }),
+      out, size, warn,
       L.h('div', { class: 'shr-acts' },
-        L.h('button', { class: 'btn primary', text: '⧉ Copier le lien', onclick: () => link && copy(link, 'Lien copié') }),
-        L.h('button', { class: 'btn', text: 'Copier le message (avec explications)', onclick: () => link && copy(msg(), 'Message copié') }),
-        mailBtn),
-      nImg ? L.h('label', { class: 'chk shr-light' }, light, 'Alléger les images (lien plus court, qualité suffisante pour l\'écran et l\'impression)') : null,
-      warn,
+        L.h('button', { class: 'btn', text: '⧉ Copier le lien long', onclick: () => link && copy(link, 'Lien copié') }),
+        L.h('button', { class: 'btn', text: 'Copier le message', onclick: () => link && copy(msg(), 'Message copié') })));
+    long.addEventListener('toggle', () => { if (long.open && !link) refresh(); });
+    light.onchange = () => { link = ''; if (long.open) refresh(); if (!sRes.hidden) { sRes.hidden = true; sBtn.hidden = false; sBtn.textContent = 'Créer un nouveau lien court'; } };
+
+    /* Liens déjà créés depuis cet ordinateur */
+    const mineBox = L.h('details', { class: 'shr-more' });
+    const renderMine = () => {
+      const list = mine();
+      mineBox.hidden = !list.length;
+      mineBox.replaceChildren(L.h('summary', { text: 'Vos liens courts (' + list.length + ')' }),
+        L.h('div', { class: 'shr-mine' }, ...list.map(e => L.h('div', { class: 'shr-row' },
+          L.h('span', { class: 'shr-row-t' }, L.h('b', { text: e.title || 'Sans titre' }), L.h('em', { text: ' · ' + fmtDate(e.at) })),
+          L.h('button', { class: 'btn small', text: 'Copier', onclick: () => copy(shortUrl(e.id), 'Lien copié') }),
+          L.h('button', { class: 'btn small', text: 'Désactiver', onclick: async () => {
+            if (!confirm('Désactiver le lien de « ' + (e.title || 'Sans titre') + ' » ? Il ne fonctionnera plus pour personne.')) return;
+            try { await revoke(e.id); L.toast('Lien désactivé'); renderMine(); } catch (err) { L.toast(err.message, 'err'); }
+          } })))));
+    };
+    renderMine();
+
+    const body = L.h('div', { class: 'shr' },
+      L.h('p', { class: 'shr-intro', html: 'Toute personne qui reçoit le lien peut <b>importer sa propre copie</b> de « ' + L.escHtml(title) + ' » dans LaTeX Home Edition, sans que vous ayez à envoyer le fichier.' }),
+      L.h('div', { class: 'shr-box' },
+        L.h('div', { class: 'shr-h', text: 'Lien court' }),
+        L.h('p', { class: 'shr-foot', text: 'Le document est déposé sur le serveur de partage (en Europe) pendant un an. Seules les personnes qui ont le lien peuvent l\'ouvrir, et vous pouvez le désactiver à tout moment.' }),
+        sBtn, sErr, sRes),
+      nImg ? L.h('label', { class: 'chk shr-light' }, light, 'Alléger les images (' + nImg + ') : envoi plus rapide, qualité suffisante pour l\'écran et l\'impression') : null,
+      long, mineBox,
       L.h('p', { class: 'shr-foot', text: 'Le destinataire reçoit une copie figée : vos modifications ultérieures ne lui parviennent pas. Pour lui envoyer une nouvelle version, créez un nouveau lien.' }));
     L.modal({ title: 'Partager une copie par lien', body, wide: true });
-    refresh();
   };
 
   /* ---------- Recevoir : importer une copie ---------- */
   L.dlgOpenShare = function (initial) {
-    const inp = L.h('textarea', { class: 'shr-link', rows: 4, spellcheck: 'false', placeholder: 'Collez ici le lien reçu (il commence par lhe://partage/…)' });
+    const inp = L.h('textarea', { class: 'shr-link', rows: 3, spellcheck: 'false', placeholder: 'Collez ici le lien reçu (https://slipers.github.io/latex-home-edition/p/#… ou lhe://…)' });
     const card = L.h('div', { class: 'shr-card', hidden: true });
     const err = L.h('div', { class: 'note', hidden: true });
-    let doc = null, dlg = null;
+    const wait = L.h('div', { class: 'shr-size', hidden: true, text: 'Récupération du document…' });
+    let doc = null, dlg = null, seq = 0;
     const importBtn = L.h('button', { class: 'btn primary', text: 'Importer une copie', disabled: true });
     const check = async () => {
+      const my = ++seq;
       doc = null; importBtn.disabled = true; card.hidden = true; err.hidden = true;
       const v = inp.value.trim();
       if (!v) return;
-      try { doc = await decode(v); }
-      catch (e) { err.hidden = false; err.textContent = e.message; return; }
-      if (inp.value.trim() !== v) return; // texte modifié entre-temps
+      wait.hidden = false;
+      let d;
+      try { d = await decode(v); }
+      catch (e) { if (my === seq) { wait.hidden = true; err.hidden = false; err.textContent = e.message; } return; }
+      if (my !== seq) return; // texte modifié entre-temps
+      wait.hidden = true;
+      doc = d;
       let blocks = 0, eqs = 0;
       L.walk(doc.blocks, b => { blocks++; if (b.type === 'equation') eqs++; });
       eqs += (JSON.stringify(doc.blocks).match(/class=\\"imath\\"/g) || []).length;
@@ -163,7 +296,7 @@
       card.hidden = false;
       importBtn.disabled = false;
     };
-    inp.oninput = L.debounce(check, 200);
+    inp.oninput = L.debounce(check, 250);
     importBtn.onclick = () => {
       if (!doc) return;
       if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir la copie quand même ?')) return;
@@ -177,13 +310,13 @@
     };
     const body = L.h('div', { class: 'shr' },
       L.h('p', { class: 'shr-intro', text: 'Collez le lien de partage qu\'on vous a envoyé : vous obtiendrez votre propre copie du document, modifiable librement.' }),
-      inp, err, card,
+      inp, wait, err, card,
       L.h('div', { class: 'shr-acts' }, importBtn));
     dlg = L.modal({ title: 'Ouvrir un lien de partage', body, wide: true });
     if (initial) { inp.value = initial; check(); }
   };
 
-  L.Share = { encode, decode, LINK_RE, isLink: t => LINK_RE.test(String(t || '')) };
+  L.Share = { encode, decode, pack, unpack, rpc, shortUrl, LINK_RE, SHORT_RE, isLink: t => LINK_RE.test(String(t || '')) || SHORT_RE.test(String(t || '')) };
 })();
 
 /* ---------- Nettoyage d'un document venu d'ailleurs ----------

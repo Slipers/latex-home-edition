@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Document partagé — LaTeX Home Edition</title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --txt: #1f2430; --mut: #6b7385; --line: #e1e4ea;
+    --acc: #2b4c7e; --acc2: #3f6bb0; --acc-bg: #e9f0fb; --err-bg: #fdf0f0; --err: #a33;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15181e; --card: #1f232b; --txt: #e7e9ee; --mut: #9aa2b3; --line: #2f3440;
+      --acc: #8fb2ea; --acc2: #a9c4f0; --acc-bg: #243049; --err-bg: #3a2326; --err: #f0a3a3; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+    font: 15px/1.55 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; color: var(--txt); background: var(--bg); }
+  main { width: 100%; max-width: 520px; background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 28px 26px; box-shadow: 0 10px 30px rgba(20, 30, 50, .08); }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--mut); font-size: 13px; margin-bottom: 18px; }
+  .logo { width: 30px; height: 30px; border-radius: 8px; background: #2b4c7e; color: #fff; display: grid; place-items: center;
+    font: 18px "Latin Modern Roman", "Cambria Math", serif; }
+  h1 { font-size: 21px; line-height: 1.3; margin: 0 0 4px; overflow-wrap: anywhere; }
+  .sub { color: var(--mut); font-size: 13px; margin: 0 0 22px; }
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px 16px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--txt); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .btn:hover { border-color: var(--acc2); }
+  .btn.primary { background: #2b4c7e; border-color: #2b4c7e; color: #fff; }
+  .btn.primary:hover { background: #3f6bb0; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+  .steps { margin: 22px 0 0; padding: 14px 16px; background: var(--acc-bg); border-radius: 10px; font-size: 13.5px; }
+  .steps b { display: block; margin-bottom: 4px; }
+  .steps ol { margin: 0; padding-left: 20px; }
+  .muted { color: var(--mut); font-size: 12.5px; margin-top: 18px; }
+  .muted a { color: var(--acc); }
+  .err { background: var(--err-bg); color: var(--err); border-radius: 10px; padding: 12px 14px; }
+  [hidden] { display: none !important; }
+  @media (max-width: 420px) { .row { grid-template-columns: 1fr; } main { padding: 22px 18px; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand"><span class="logo">∑</span><span>LaTeX Home Edition — document partagé</span></div>
+
+  <div id="loading"><p class="sub">Chargement…</p></div>
+
+  <div id="ok" hidden>
+    <h1 id="title"></h1>
+    <p class="sub" id="meta"></p>
+    <a class="btn primary" id="open">Ouvrir dans LaTeX Home Edition</a>
+    <div class="steps">
+      <b>Vous obtiendrez votre propre copie du document.</b>
+      Si rien ne s'ouvre, l'application n'est peut-être pas installée : téléchargez-la (gratuit), puis revenez sur ce lien.
+      Vous pouvez aussi copier ce lien et le coller dans l'application (Ctrl+V).
+    </div>
+    <div class="row">
+      <button class="btn" id="copy">Copier le lien</button>
+      <a class="btn" id="dl" href="https://github.com/Slipers/latex-home-edition/releases/latest">Télécharger l'application</a>
+    </div>
+    <div class="row" id="dlRow" hidden>
+      <a class="btn" id="dlWin">Windows (.exe)</a>
+      <a class="btn" id="dlMac">Mac (puce Apple M1, M2…)</a>
+    </div>
+    <p class="muted" id="dlIntel" hidden>Mac plus ancien, avec processeur Intel : <a id="dlMacIntel">version Intel</a>.</p>
+  </div>
+
+  <div id="ko" hidden>
+    <h1>Lien indisponible</h1>
+    <p class="err" id="why"></p>
+    <a class="btn" href="https://github.com/Slipers/latex-home-edition/releases/latest">Découvrir LaTeX Home Edition</a>
+  </div>
+
+  <p class="muted">Éditeur gratuit pour écrire des documents scientifiques avec le rendu de LaTeX, sans code.</p>
+</main>
+
+<script>
+  // Serveur de partage (clé publique : la base n'expose que la lecture par identifiant)
+  const SUPABASE_URL = 'https://temejdqaocdqqoodqjyk.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_MCpfjyXJgTyh64p80I5hiA_xAq30XtY';
+  const $ = id => document.getElementById(id);
+  const fail = msg => { $('loading').hidden = true; $('ok').hidden = true; $('ko').hidden = false; $('why').textContent = msg; };
+
+  async function show() {
+    const id = (location.hash || '').replace(/^#/, '').trim();
+    if (!/^[A-Za-z0-9]{10}$/.test(id)) return fail('Ce lien est incomplet : il a peut-être été coupé en le copiant. Demandez à la personne qui vous l\'a envoyé de vous le renvoyer.');
+    let info;
+    try {
+      const r = await fetch(SUPABASE_URL + '/rest/v1/rpc/share_info', {
+        method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ p_id: id }),
+      });
+      if (!r.ok) throw new Error(r.status);
+      info = await r.json();
+    } catch (e) {
+      return fail('Le serveur de partage ne répond pas pour le moment. Réessayez dans quelques minutes.');
+    }
+    if (!info) return fail('Ce document n\'est plus partagé : le lien a expiré ou a été désactivé par la personne qui l\'a créé.');
+    $('title').textContent = info.title || 'Document sans titre';
+    const d = new Date(info.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    $('meta').textContent = 'Partagé le ' + d;
+    document.title = (info.title || 'Document') + ' — LaTeX Home Edition';
+    $('open').href = 'lhe://s/' + id;
+    $('copy').onclick = async () => {
+      try { await navigator.clipboard.writeText(location.href); $('copy').textContent = 'Lien copié ✓'; }
+      catch (e) { prompt('Copiez ce lien :', location.href); }
+    };
+    $('loading').hidden = true; $('ok').hidden = false;
+
+    // Liens de téléchargement directs vers la dernière version, si GitHub répond
+    try {
+      const rel = await (await fetch('https://api.github.com/repos/Slipers/latex-home-edition/releases/latest')).json();
+      const a = (rel.assets || []).map(x => x.browser_download_url);
+      const win = a.find(u => /\.exe$/i.test(u));
+      // Les navigateurs des Mac à puce Apple se présentent comme « Intel » : on propose les deux
+      const arm = a.find(u => /arm64\.dmg$/i.test(u)), intel = a.find(u => /x64\.dmg$/i.test(u));
+      if (win && arm) {
+        $('dlWin').href = win; $('dlMac').href = arm; $('dlRow').hidden = false; $('dl').hidden = true;
+        if (intel) { $('dlMacIntel').href = intel; $('dlIntel').hidden = false; }
+      }
+    } catch (e) { /* on garde le lien vers la page des versions */ }
+  }
+  window.addEventListener('hashchange', () => location.reload());
+  show();
+</script>
+</body>
+</html>
