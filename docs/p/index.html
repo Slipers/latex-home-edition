@@ -116,6 +116,7 @@
       const arm = a.find(u => /arm64\.dmg$/i.test(u)), intel = a.find(u => /x64\.dmg$/i.test(u));
       if (win && arm) {
         $('dlWin').href = win; $('dlMac').href = arm; $('dlRow').hidden = false; $('dl').hidden = true;
+        $('copy').parentElement.style.gridTemplateColumns = '1fr';
         if (intel) { $('dlMacIntel').href = intel; $('dlIntel').hidden = false; }
       }
     } catch (e) { /* on garde le lien vers la page des versions */ }

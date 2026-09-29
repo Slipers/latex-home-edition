@@ -94,14 +94,17 @@ Ce que la conversion ne sait pas faire : les fractions, matrices et intégrales 
 
 ## Partager un document par lien
 
-**Partager ▾ → « Partager une copie par lien »** crée un lien (`lhe://partage/…`) qui contient tout le document : texte, formules, mise en page et images. Pas besoin d'envoyer le fichier `.lhe` : on copie le lien (ou un message tout prêt qui explique comment l'ouvrir) et on l'envoie par e-mail, messagerie, ENT…
+**Partager ▾ → « Partager une copie par lien »**, puis **« Créer le lien court »** : on obtient un lien du type `https://slipers.github.io/latex-home-edition/p/#Ab3xK9pQ2z`, cliquable partout. Pas besoin d'envoyer le fichier `.lhe`.
 
-Celui qui le reçoit le colle dans LaTeX Home Edition (**Partager ▾ → « Ouvrir un lien reçu »**, ou simplement Ctrl+V n'importe où dans l'application), voit un aperçu du document, et en importe **sa propre copie**, modifiable librement. Quand l'application est installée, un clic sur le lien l'ouvre directement.
+Celui qui clique dessus voit le titre du document et un bouton **« Ouvrir dans LaTeX Home Edition »** qui lance l'application et importe **sa propre copie**, modifiable librement (ou un lien pour installer l'application). Coller le lien dans l'application (Ctrl+V n'importe où) fonctionne aussi.
 
-- Rien n'est envoyé sur internet : le document est entièrement contenu dans le lien, compressé (2 à 3 000 caractères pour un devoir complet avec son corrigé).
-- Les images alourdissent le lien : l'option « Alléger les images » les réduit fortement, mais pour un document plein de photos, envoyer le fichier `.lhe` reste plus pratique.
-- C'est une copie figée : les modifications faites ensuite par l'un ou l'autre ne sont pas synchronisées.
+- Le document est déposé sur le serveur de partage (Supabase, en Europe) pendant un an. Seules les personnes qui ont le lien peuvent l'ouvrir : les documents partagés ne peuvent être ni listés ni devinés.
+- Chaque lien peut être désactivé à tout moment (« Désactiver ce lien », ou la liste « Vos liens courts »).
+- C'est une copie figée : les modifications faites ensuite ne sont pas synchronisées.
+- **Sans connexion**, un lien long (`lhe://partage/…`) contient le document entier et ne dépose rien en ligne ; il se colle dans l'application.
 - Un document reçu (lien ou fichier) est nettoyé à l'ouverture : il ne peut contenir que ce que l'éditeur produit lui-même.
+
+Côté serveur : [supabase/partage.sql](supabase/partage.sql) (à exécuter une fois dans le SQL Editor du projet Supabase), page du lien dans [docs/p/index.html](docs/p/index.html) (GitHub Pages, branche `main`, dossier `/docs`).
 
 ## Banque de sujets de mathématiques
 
@@ -145,7 +148,7 @@ js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
-js/share.js         partage par lien (document compressé dans le lien) et nettoyage des documents reçus
+js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus
 js/check.js         vérification du document (références, formules, statistiques)
 js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)

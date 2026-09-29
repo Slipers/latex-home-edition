@@ -1,22 +1,18 @@
-## Nouveau : partager un document par lien
+## Liens de partage courts et cliquables
 
-Plus besoin d'envoyer le fichier `.lhe` pour partager un document. Le nouveau bouton **Partager ▾** en haut à droite crée un **lien** qui contient tout le document : texte, formules, mise en page et images.
+Partager un document tient maintenant dans un lien court, **cliquable partout** (e-mail, WhatsApp, Discord, ENT…) :
 
-**Pour envoyer :** **Partager ▾ → « Partager une copie par lien »**, puis au choix :
+`https://slipers.github.io/latex-home-edition/p/#Ab3xK9pQ2z`
 
-- **Copier le lien** ;
-- **Copier le message**, un texte tout prêt qui explique à votre destinataire comment ouvrir le lien (et où télécharger l'application s'il ne l'a pas) ;
-- **Envoyer par e-mail**, qui ouvre votre messagerie.
+**Pour envoyer :** **Partager ▾ → « Partager une copie par lien » → « Créer le lien court »**. Le lien est créé et copié aussitôt ; vous pouvez aussi copier un message tout prêt ou l'envoyer par e-mail.
 
-**Pour recevoir :** collez le lien dans LaTeX Home Edition, avec **Partager ▾ → « Ouvrir un lien reçu »**, avec le lien de l'écran d'accueil, ou simplement **Ctrl+V n'importe où dans l'application**. Un aperçu du document s'affiche ; **« Importer une copie »** l'ouvre comme un nouveau document, que vous pouvez modifier librement et enregistrer. Si l'application est installée, un clic sur le lien l'ouvre directement.
+**Pour recevoir :** cliquer sur le lien ouvre une petite page avec le titre du document et un bouton **« Ouvrir dans LaTeX Home Edition »**, qui lance l'application et propose d'importer votre propre copie. Si l'application n'est pas installée, la page propose de la télécharger (Windows, Mac à puce Apple ou Mac Intel). Coller le lien dans l'application (Ctrl+V) fonctionne aussi.
 
-Bon à savoir :
+Confidentialité et contrôle :
 
-- **rien n'est envoyé sur internet** : le document est compressé dans le lien lui-même (2 à 3 000 caractères pour un devoir complet avec son corrigé) ;
-- les **images** allongent beaucoup le lien : l'option « Alléger les images » les réduit fortement, mais pour un document rempli de photos, le fichier `.lhe` reste plus pratique (l'application vous prévient) ;
-- c'est une **copie** : les modifications faites ensuite par l'un ou l'autre ne sont pas synchronisées. La modification à plusieurs en direct viendra dans une prochaine étape ;
-- un lien coupé en le copiant est repéré (« lien incomplet ») au lieu de donner un document abîmé.
+- **seules les personnes qui ont le lien** peuvent ouvrir le document : il est impossible de lister ou de chercher les documents partagés, et l'identifiant (10 caractères aléatoires) ne se devine pas ;
+- chaque lien reste valable **un an** ;
+- vous pouvez **désactiver un lien à tout moment** : bouton « Désactiver ce lien », ou liste **« Vos liens courts »** dans la fenêtre de partage. Les copies déjà importées restent chez leurs destinataires ;
+- même un document avec des images passe (jusqu'à environ 8 Mo, en une ou deux secondes).
 
-## Sécurité : documents reçus nettoyés
-
-Un document reçu, par lien ou par fichier `.lhe`, est maintenant nettoyé à l'ouverture. Il ne peut contenir que ce que l'éditeur produit lui-même (texte, mise en forme, formules, images intégrées) : aucun script, lien piégé ou image chargée depuis internet.
+Le **lien long sans connexion** de la version précédente reste disponible (« Sans connexion : lien long ») pour partager sans rien déposer en ligne.
