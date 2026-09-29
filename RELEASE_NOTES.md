@@ -1,18 +1,26 @@
-## Liens de partage courts et cliquables
+## Partage : un lien par document, et des copies qui restent à jour
 
-Partager un document tient maintenant dans un lien court, **cliquable partout** (e-mail, WhatsApp, Discord, ENT…) :
+### Un seul lien par document
+Quand vous partagez un document, son lien lui reste attaché. En rouvrant **Partager**, vous retrouvez le même lien, et vous le gérez : mode de mise à jour, état, désactivation.
 
-`https://slipers.github.io/latex-home-edition/p/#Ab3xK9pQ2z`
+### Vous choisissez : en direct ou version figée
+Au moment de créer le lien :
 
-**Pour envoyer :** **Partager ▾ → « Partager une copie par lien » → « Créer le lien court »**. Le lien est créé et copié aussitôt ; vous pouvez aussi copier un message tout prêt ou l'envoyer par e-mail.
+- **Mises à jour en direct** : chaque modification est envoyée automatiquement, quelques secondes après que vous arrêtez d'écrire ;
+- **Version figée** : le lien donne la version actuelle. Le bouton **« Envoyer la version actuelle »** envoie une nouvelle version quand vous le décidez.
 
-**Pour recevoir :** cliquer sur le lien ouvre une petite page avec le titre du document et un bouton **« Ouvrir dans LaTeX Home Edition »**, qui lance l'application et propose d'importer votre propre copie. Si l'application n'est pas installée, la page propose de la télécharger (Windows, Mac à puce Apple ou Mac Intel). Coller le lien dans l'application (Ctrl+V) fonctionne aussi.
+Vous pouvez changer de mode à tout moment. Une petite pastille à côté du nom du document indique l'état : **● En direct · à jour**, envoi en cours, hors ligne, ou modifications pas encore partagées. Un clic dessus ouvre le partage. Sans connexion, les modifications partent dès le retour du réseau, ou à la prochaine ouverture du document.
 
-Confidentialité et contrôle :
+### Chez ceux qui ont importé le document
+L'application vérifie régulièrement si l'auteur a publié une version plus récente, y compris pour un fichier enregistré puis rouvert plus tard. Si c'est le cas, une carte discrète apparaît en bas à gauche : **« Nouvelle version disponible »**, avec trois choix :
 
-- **seules les personnes qui ont le lien** peuvent ouvrir le document : il est impossible de lister ou de chercher les documents partagés, et l'identifiant (10 caractères aléatoires) ne se devine pas ;
-- chaque lien reste valable **un an** ;
-- vous pouvez **désactiver un lien à tout moment** : bouton « Désactiver ce lien », ou liste **« Vos liens courts »** dans la fenêtre de partage. Les copies déjà importées restent chez leurs destinataires ;
-- même un document avec des images passe (jusqu'à environ 8 Mo, en une ou deux secondes).
+- **Mettre à jour** : si vous aviez modifié votre copie, l'application demande d'abord confirmation. **Ctrl+Z** ramène toujours à votre version précédente ;
+- **Plus tard** : la carte revient à la version suivante ;
+- **Ne plus suivre** : votre copie ne recevra plus les mises à jour.
 
-Le **lien long sans connexion** de la version précédente reste disponible (« Sans connexion : lien long ») pour partager sans rien déposer en ligne.
+Si l'auteur désactive son lien, vous en êtes informé, et votre copie vous reste.
+
+### Bon à savoir
+- Les liens déjà créés avec la version précédente continuent de fonctionner.
+- Le code qui permet de modifier un lien reste sur l'ordinateur qui l'a créé : il n'est jamais écrit dans le fichier `.lhe`. Envoyer le fichier à quelqu'un ne lui permet donc pas de modifier votre lien.
+- La page web du lien affiche maintenant la date de la dernière mise à jour.

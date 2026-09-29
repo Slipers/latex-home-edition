@@ -100,7 +100,9 @@ Celui qui clique dessus voit le titre du document et un bouton **« Ouvrir dans 
 
 - Le document est déposé sur le serveur de partage (Supabase, en Europe) pendant un an. Seules les personnes qui ont le lien peuvent l'ouvrir : les documents partagés ne peuvent être ni listés ni devinés.
 - Chaque lien peut être désactivé à tout moment (« Désactiver ce lien », ou la liste « Vos liens courts »).
-- C'est une copie figée : les modifications faites ensuite ne sont pas synchronisées.
+- **Un seul lien par document**, au choix **en direct** (chaque modification est envoyée automatiquement) ou **figé** (« Envoyer la version actuelle » quand on le décide). Une pastille à côté du nom du document indique l'état.
+- Ceux qui ont importé le document voient une carte **« Nouvelle version disponible »** (Mettre à jour / Plus tard / Ne plus suivre) ; s'ils ont modifié leur copie, une confirmation est demandée, et Ctrl+Z ramène à leur version. Leurs propres modifications ne remontent pas vers l'auteur.
+- Le code qui permet de modifier un lien reste sur l'ordinateur qui l'a créé (jamais dans le fichier `.lhe`).
 - **Sans connexion**, un lien long (`lhe://partage/…`) contient le document entier et ne dépose rien en ligne ; il se colle dans l'application.
 - Un document reçu (lien ou fichier) est nettoyé à l'ouverture : il ne peut contenir que ce que l'éditeur produit lui-même.
 
@@ -149,6 +151,7 @@ js/app.js           démarrage, fichiers, exports
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus
+js/live.js          partage en direct : envoi des modifications, nouvelles versions proposées aux destinataires
 js/check.js         vérification du document (références, formules, statistiques)
 js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
