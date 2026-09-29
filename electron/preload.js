@@ -5,10 +5,12 @@ contextBridge.exposeInMainWorld('lheDesktop', {
   open: () => ipcRenderer.invoke('lhe:open'),
   save: opts => ipcRenderer.invoke('lhe:save', opts),
   pendingFile: () => ipcRenderer.invoke('lhe:pending'),
+  pendingLink: () => ipcRenderer.invoke('lhe:pending-link'),
   exportPdf: name => ipcRenderer.invoke('lhe:pdf', { name }),
   exportFile: (name, bytes) => ipcRenderer.invoke('lhe:export', { name, bytes }),
   version: () => ipcRenderer.invoke('lhe:version'),
   checkUpdates: () => ipcRenderer.invoke('lhe:check-updates'),
   onUpdate: cb => ipcRenderer.on('lhe:update', (e, info) => cb(info)),
   onOpenFile: cb => ipcRenderer.on('lhe:open-file', (e, f) => cb(f)),
+  onOpenLink: cb => ipcRenderer.on('lhe:open-link', (e, url) => cb(url)),
 });

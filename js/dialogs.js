@@ -45,7 +45,9 @@ L.dlgTemplates = function (welcome) {
     welcome ? L.h('div', { class: 'welcome-hero' },
       L.h('h3', { text: 'Bienvenue dans LaTeX Home Edition' }),
       L.h('p', { text: 'Écrivez vos comptes rendus, cours et exercices comme dans un traitement de texte : titres, formules, tableaux, figures et références se mettent en forme et se numérotent tout seuls, avec le rendu typographique de LaTeX. Aucun code à écrire.' })) : null,
-    L.h('div', { class: 'set-h', text: 'Commencer à partir d\'un modèle' }), grid);
+    L.h('div', { class: 'set-h', text: 'Commencer à partir d\'un modèle' }), grid,
+    L.h('div', { class: 'tpl-share' }, 'Quelqu\'un vous a envoyé un lien de partage ? ',
+      L.h('button', { class: 'linkish', text: 'Ouvrir un lien reçu…', onclick: () => { dlg.close(); L.dlgOpenShare(); } })));
   dlg = L.modal({ title: welcome ? 'Nouveau document' : 'Nouveau document', body, wide: true });
 };
 

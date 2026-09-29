@@ -117,6 +117,15 @@
         "repo": "latex-home-edition",
         "releaseType": "draft"
       }
+    ],
+    "protocols": [
+      {
+        "name": "Lien de partage LaTeX Home Edition",
+        "schemes": [
+          "lhe"
+        ],
+        "role": "Viewer"
+      }
     ]
   }
 }

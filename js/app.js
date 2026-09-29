@@ -71,7 +71,8 @@ Object.assign(App, {
       if (!d.blocks || !d.meta) throw new Error('format');
       this.fileHandle = handle;
       this.filePath = filePath;
-      this.load({ meta: d.meta, blocks: d.blocks, bib: d.bib || [], assets: d.assets || {} }, name);
+      // Un fichier reçu peut avoir été fabriqué à la main : on n'en garde que ce que l'éditeur produit
+      this.load(L.sanitizeDoc({ meta: d.meta, blocks: d.blocks, bib: d.bib, assets: d.assets }), name);
       L.toast('Document ouvert : ' + name);
     } catch (e) { L.toast('Ce fichier n\'est pas un document LaTeX Home Edition valide.', 'err'); }
   },
@@ -228,6 +229,7 @@ if (window.lheDesktop) {
     const blob = data instanceof Blob ? data : new Blob([data]);
     return lheDesktop.exportFile(name, new Uint8Array(await blob.arrayBuffer()));
   };
+  if (lheDesktop.onOpenLink) lheDesktop.onOpenLink(url => L.dlgOpenShare(url));
   lheDesktop.onOpenFile(f => {
     if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir « ' + f.name + ' » quand même ?')) return;
     App.openText(f.text, f.name, null, f.path);
@@ -327,6 +329,9 @@ window.addEventListener('DOMContentLoaded', () => {
     viewtex: () => L.dlgViewTex(),
     importtex: () => L.dlgImportLatex(),
     importpdf: () => L.dlgImportPdf(),
+    'share-menu': () => App.toggleMenu('#shareMenu'),
+    share: () => L.dlgShare(),
+    openshare: () => L.dlgOpenShare(),
     reagencer: () => L.dlgReagencer(),
     check: () => L.dlgCheck(),
     overleaf: () => L.dlgOverleaf(),
@@ -402,6 +407,13 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   window.addEventListener('beforeunload', e => { if (App.dirty) { App.autosave(); } });
+  // Coller un lien de partage n'importe où (hors de la fenêtre d'import) propose d'en importer une copie
+  document.addEventListener('paste', e => {
+    const t = e.clipboardData && e.clipboardData.getData('text/plain');
+    if (!t || !L.Share.isLink(t) || e.target.closest && e.target.closest('#modal')) return;
+    e.preventDefault(); e.stopPropagation();
+    L.dlgOpenShare(t);
+  }, true);
   // Les menus sont ancrés à l'écran : on les referme si la barre bouge sous eux
   window.addEventListener('resize', () => App.closeMenus());
   L.$('.tb').addEventListener('scroll', () => App.closeMenus());
@@ -440,5 +452,11 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!f) return;
     L.$('#modal').hidden = true;
     App.openText(f.text, f.name, null, f.path);
+  });
+  // Application lancée par un clic sur un lien de partage
+  if (window.lheDesktop && lheDesktop.pendingLink) lheDesktop.pendingLink().then(url => {
+    if (!url) return;
+    L.$('#modal').hidden = true;
+    L.dlgOpenShare(url);
   });
 });

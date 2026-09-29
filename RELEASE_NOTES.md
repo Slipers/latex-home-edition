@@ -1,11 +1,22 @@
-## Zoom de l'éditeur : corrigé et fluide
+## Nouveau : partager un document par lien
 
-Le zoom ajouté dans la version précédente était très buggé. Il a été entièrement refait :
+Plus besoin d'envoyer le fichier `.lhe` pour partager un document. Le nouveau bouton **Partager ▾** en haut à droite crée un **lien** qui contient tout le document : texte, formules, mise en page et images.
 
-- **Les pages restent parfaitement alignées à tous les niveaux de zoom.** Avant, les feuilles blanches étaient dessinées trop grandes ou trop petites dès qu'on n'était plus à 100 % (1,5× trop hautes à 150 %), et le texte glissait dans les marges ou entre deux pages.
-- **La mise en page ne change plus avec le zoom** : mêmes retours à la ligne et mêmes sauts de page qu'à 100 %, donc identiques au PDF, que l'on soit à 50 % ou à 200 %.
-- **Zoom fluide** : le changement de niveau est animé en douceur et ne relance plus aucun calcul de mise en page. Un cran de molette (Ctrl + molette) fait environ 10 %, et le pincement du pavé tactile zoome progressivement au lieu de sauter de 10 % à chaque mouvement.
-- **L'écran ne saute plus** : le point du document situé sous la souris (ou au centre de l'écran pour les boutons et le clavier) reste en place pendant le zoom.
-- Les boutons **−** / **+** avancent par crans ronds (90 %, 100 %, 110 %…), et plusieurs clics rapides s'additionnent.
-- Le niveau de zoom est mémorisé d'une ouverture à l'autre.
-- **Mac** : Cmd+ / Cmd− agrandissaient toute l'interface (barres d'outils comprises) en plus de la feuille. Ces raccourcis zooment maintenant seulement la feuille, comme sous Windows.
+**Pour envoyer :** **Partager ▾ → « Partager une copie par lien »**, puis au choix :
+
+- **Copier le lien** ;
+- **Copier le message**, un texte tout prêt qui explique à votre destinataire comment ouvrir le lien (et où télécharger l'application s'il ne l'a pas) ;
+- **Envoyer par e-mail**, qui ouvre votre messagerie.
+
+**Pour recevoir :** collez le lien dans LaTeX Home Edition, avec **Partager ▾ → « Ouvrir un lien reçu »**, avec le lien de l'écran d'accueil, ou simplement **Ctrl+V n'importe où dans l'application**. Un aperçu du document s'affiche ; **« Importer une copie »** l'ouvre comme un nouveau document, que vous pouvez modifier librement et enregistrer. Si l'application est installée, un clic sur le lien l'ouvre directement.
+
+Bon à savoir :
+
+- **rien n'est envoyé sur internet** : le document est compressé dans le lien lui-même (2 à 3 000 caractères pour un devoir complet avec son corrigé) ;
+- les **images** allongent beaucoup le lien : l'option « Alléger les images » les réduit fortement, mais pour un document rempli de photos, le fichier `.lhe` reste plus pratique (l'application vous prévient) ;
+- c'est une **copie** : les modifications faites ensuite par l'un ou l'autre ne sont pas synchronisées. La modification à plusieurs en direct viendra dans une prochaine étape ;
+- un lien coupé en le copiant est repéré (« lien incomplet ») au lieu de donner un document abîmé.
+
+## Sécurité : documents reçus nettoyés
+
+Un document reçu, par lien ou par fichier `.lhe`, est maintenant nettoyé à l'ouverture. Il ne peut contenir que ce que l'éditeur produit lui-même (texte, mise en forme, formules, images intégrées) : aucun script, lien piégé ou image chargée depuis internet.

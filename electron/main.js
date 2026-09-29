@@ -7,6 +7,7 @@ const { autoUpdater } = require('electron-updater');
 
 let win = null;
 let pendingFile = null;       // fichier .lhe passé au lancement (double-clic dans l'explorateur)
+let pendingLink = null;       // lien de partage lhe://… qui a lancé l'application
 let allowClose = false;
 
 const isMac = process.platform === 'darwin';
@@ -14,6 +15,7 @@ const REPO = 'Slipers/latex-home-edition';
 const RELEASES_URL = 'https://github.com/' + REPO + '/releases/latest';
 
 const fileFromArgs = argv => argv.slice(app.isPackaged ? 1 : 2).find(a => /\.lhe$/i.test(a) && fs.existsSync(a));
+const linkFromArgs = argv => argv.find(a => /^lhe:\/\//i.test(a));
 
 /* Exécute du code dans la fenêtre (entrées de menu macOS) */
 const inPage = js => { if (win && !win.isDestroyed()) win.webContents.executeJavaScript(js).catch(() => {}); };
@@ -33,6 +35,9 @@ function macMenu() {
         { label: 'Exporter en PDF…', accelerator: 'Cmd+P', click: () => inPage('App.print()') },
         { label: 'Télécharger le fichier .tex', click: () => inPage('App.exportTex()') },
         { label: 'Importer un PDF…', click: () => inPage('L.dlgImportPdf()') },
+        { type: 'separator' },
+        { label: 'Partager une copie par lien…', click: () => inPage('L.dlgShare()') },
+        { label: 'Ouvrir un lien de partage reçu…', click: () => inPage('L.dlgOpenShare()') },
         { type: 'separator' },
         { role: 'close', label: 'Fermer la fenêtre' },
       ],
@@ -165,6 +170,7 @@ ipcMain.handle('lhe:save', async (e, { path: p, name, data, saveAs }) => {
   app.addRecentDocument(p);
   return { path: p, name: path.basename(p) };
 });
+ipcMain.handle('lhe:pending-link', () => { const l = pendingLink; pendingLink = null; return l; });
 ipcMain.handle('lhe:pending', () => {
   const p = pendingFile; pendingFile = null;
   if (!p) return null;
@@ -298,12 +304,24 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', (e, argv) => {
-    const f = fileFromArgs(argv);
+    const f = fileFromArgs(argv), l = linkFromArgs(argv);
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
       if (f) send('lhe:open-file', { path: f, name: path.basename(f), text: fs.readFileSync(f, 'utf8') });
+      if (l) send('lhe:open-link', l);
     }
+  });
+  // Liens de partage lhe://partage/… : l'application s'ouvre et propose d'importer une copie
+  // (Windows : clé de registre de l'utilisateur ; macOS : aussi déclaré dans Info.plist)
+  if (app.isPackaged) app.setAsDefaultProtocolClient('lhe');
+  app.on('open-url', (e, url) => {
+    e.preventDefault();
+    if (!/^lhe:\/\//i.test(url)) return;
+    if (!win || win.isDestroyed()) { pendingLink = url; return; }
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    send('lhe:open-link', url);
   });
   // macOS : double-clic sur un .lhe dans le Finder
   app.on('open-file', (e, p) => {
@@ -317,6 +335,7 @@ if (!app.requestSingleInstanceLock()) {
     } catch (_) { /* ignoré */ }
   });
   pendingFile = fileFromArgs(process.argv);
+  pendingLink = pendingLink || linkFromArgs(process.argv);
   app.setAppUserModelId('com.slipers.latexhome');
   app.whenReady().then(() => {
     createWindow();

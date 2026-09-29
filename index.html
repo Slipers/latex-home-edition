@@ -104,6 +104,13 @@
         </div>
       </div>
       <div class="tb-group">
+        <div class="dropdown">
+          <button data-act="share-menu" title="Partager une copie par lien, ou ouvrir un lien reçu"><i>🔗</i><span>Partager ▾</span></button>
+          <div class="menu" id="shareMenu">
+            <button data-act="share">Partager une copie par lien…</button>
+            <button data-act="openshare">Ouvrir un lien de partage reçu…</button>
+          </div>
+        </div>
         <button data-act="settings" title="Mise en page, titre, police, marges…"><i>⚙</i><span>Document</span></button>
         <button data-act="preview" class="toggle" id="btnPreview" title="Voir les pages comme dans le PDF final"><i>👁</i><span>Aperçu</span></button>
         <button data-act="pdf" class="primary" title="Exporter en PDF (Ctrl+P)"><i>⤓</i><span>PDF</span></button>
@@ -234,6 +241,7 @@
 <script src="js/import.js"></script>
 <script src="js/pdfimport.js"></script>
 <script src="js/check.js"></script>
+<script src="js/share.js"></script>
 <script src="js/find.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>

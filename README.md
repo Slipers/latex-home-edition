@@ -67,6 +67,7 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Importer un PDF et le convertir | Menu **LaTeX ▾** → « Importer un PDF », ou glissez le PDF sur la feuille |
 | Importer un fichier `.tex` | Même fenêtre que l'import PDF |
 | Vérifier références, citations et formules | Menu **LaTeX ▾** → « Vérifier le document » |
+| Partager une copie sans envoyer le fichier | **Partager ▾** → « Partager une copie par lien » |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
@@ -90,6 +91,17 @@ L'analyse redresse d'elle-même le texte tracé de travers (page en paysage sans
 Si le résultat ne ressemble pas au PDF, **LaTeX ▾ → « Réagencer le PDF importé »** ouvre une comparaison **page à page** : le PDF d'origine à gauche, le résultat reconstruit à droite. On change alors l'orientation du texte, le découpage en paragraphes, la prise en compte des filigranes, des titres, des formules, des tableaux ou du code, on relance l'analyse, et on applique au document quand les deux côtés se correspondent. Le PDF reste en mémoire pour toute la session : on peut réessayer autant de fois que nécessaire.
 
 Ce que la conversion ne sait pas faire : les fractions, matrices et intégrales complexes sortent approximatives (le texte est conservé, la structure est à retoucher), les PDF protégés ou sans couche texte ne donnent que des images, et la mise en page multicolonne est remise à plat. **LaTeX ▾ → Vérifier le document** liste justement les formules illisibles, les références cassées et les éléments vides, et amène directement dessus.
+
+## Partager un document par lien
+
+**Partager ▾ → « Partager une copie par lien »** crée un lien (`lhe://partage/…`) qui contient tout le document : texte, formules, mise en page et images. Pas besoin d'envoyer le fichier `.lhe` : on copie le lien (ou un message tout prêt qui explique comment l'ouvrir) et on l'envoie par e-mail, messagerie, ENT…
+
+Celui qui le reçoit le colle dans LaTeX Home Edition (**Partager ▾ → « Ouvrir un lien reçu »**, ou simplement Ctrl+V n'importe où dans l'application), voit un aperçu du document, et en importe **sa propre copie**, modifiable librement. Quand l'application est installée, un clic sur le lien l'ouvre directement.
+
+- Rien n'est envoyé sur internet : le document est entièrement contenu dans le lien, compressé (2 à 3 000 caractères pour un devoir complet avec son corrigé).
+- Les images alourdissent le lien : l'option « Alléger les images » les réduit fortement, mais pour un document plein de photos, envoyer le fichier `.lhe` reste plus pratique.
+- C'est une copie figée : les modifications faites ensuite par l'un ou l'autre ne sont pas synchronisées.
+- Un document reçu (lien ou fichier) est nettoyé à l'ouverture : il ne peut contenir que ce que l'éditeur produit lui-même.
 
 ## Banque de sujets de mathématiques
 
@@ -133,6 +145,7 @@ js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
+js/share.js         partage par lien (document compressé dans le lien) et nettoyage des documents reçus
 js/check.js         vérification du document (références, formules, statistiques)
 js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
