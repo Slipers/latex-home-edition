@@ -313,7 +313,7 @@ window.addEventListener('DOMContentLoaded', () => {
     preview: () => App.showPreview(),
     pdf: () => App.print(),
     print: () => App.print(),
-    'latex-menu': () => L.$('#latexMenu').classList.toggle('open'),
+    'latex-menu': () => App.toggleMenu('#latexMenu'),
     'color-menu': () => App.toggleMenu('#colorMenu'),
     'size-menu': () => App.toggleMenu('#sizeMenu'),
     'align-menu': () => App.toggleMenu('#alignMenu'),
@@ -431,6 +431,21 @@ window.addEventListener('DOMContentLoaded', () => {
 
   App.bindEditor();
   App.showVersion();
+  /* Barre d'outils sur une seule ligne : si elle déborde, on retire des libellés
+     par niveaux (data-lv : d'abord les moins utiles ; l'icône et son info-bulle
+     restent), jusqu'à ce que tout tienne. */
+  App.fitToolbar = () => {
+    const top = L.$('#topbar'), tb = L.$('#topbar .tb');
+    if (!top || !tb) return;
+    for (let k = 1; k <= 9; k++) top.classList.remove('fit' + k);
+    for (let k = 1; k <= 9 && tb.scrollWidth > tb.clientWidth + 1; k++) top.classList.add('fit' + k);
+  };
+  const fitSoon = () => { cancelAnimationFrame(App._fitRaf); App._fitRaf = requestAnimationFrame(App.fitToolbar); };
+  window.addEventListener('resize', fitSoon);
+  if (window.ResizeObserver) new ResizeObserver(fitSoon).observe(L.$('#topbar .tb'));
+  new MutationObserver(fitSoon).observe(L.$('#topbar'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSoon);
+  App.fitToolbar();
   // Compte (Live Modification) : la session enregistrée est rechargée en arrière-plan
   if (L.Cloud && L.Cloud.available()) { L.Cloud.onChange(() => L.CollabUI.paintAccount()); L.Cloud.init(); }
   L.CollabUI.paintAccount();

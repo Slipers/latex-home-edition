@@ -9,6 +9,15 @@
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/paper.css">
 <link rel="stylesheet" href="css/app.css">
+<script>
+  /* Thème de l'interface (clair / sombre / automatique), appliqué avant l'affichage */
+  try {
+    var t = localStorage.getItem('lhe-theme') || 'light';
+    var dark = t === 'dark' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+    if (dark && localStorage.getItem('lhe-paper-dark') === '1') document.documentElement.dataset.paper = 'dark';
+  } catch (e) {}
+</script>
 </head>
 <body>
 <div id="app">
@@ -20,9 +29,9 @@
     <div class="collab-bar" id="collabBar" hidden></div>
     <nav class="tb">
       <div class="tb-group g-file">
-        <button data-act="new" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
-        <button data-act="open" title="Ouvrir un fichier .lhe (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
-        <button data-act="save" title="Enregistrer (Ctrl+S)"><i>💾</i><span>Enregistrer</span></button>
+        <button data-act="new" data-lv="2" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
+        <button data-act="open" data-lv="2" title="Ouvrir un fichier .lhe (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
+        <button data-act="save" data-lv="2" title="Enregistrer (Ctrl+S)"><i>💾</i><span>Enregistrer</span></button>
       </div>
       <div class="tb-group g-edit">
         <button data-act="undo" title="Annuler (Ctrl+Z)"><i>↶</i></button>
@@ -87,17 +96,17 @@
         </div>
       </div>
       <div class="tb-group g-ins g-edit">
-        <button data-act="imath" class="accent" title="Formule dans le texte (Ctrl+M ou tapez $)"><i class="serif">∑</i><span>Formule</span></button>
-        <button data-act="ins-equation" title="Équation centrée numérotée (Ctrl+Maj+M)"><i class="serif">(1)</i><span>Équation</span></button>
-        <button data-act="xref" title="Référence à une section, équation, figure…"><i>🔗</i><span>Référence</span></button>
-        <button data-act="cite" title="Citer une source"><i>❝</i><span>Citation</span></button>
-        <button data-act="footnote" title="Note de bas de page"><i class="serif">¹</i><span>Note</span></button>
-        <button data-act="symbols" title="Chercher un symbole : maths, physique, chimie… (touche Tab)"><i class="serif">Ω</i><span>Symboles</span></button>
+        <button data-act="imath" data-lv="4" class="accent" title="Formule dans le texte (Ctrl+M ou tapez $)"><i class="serif">∑</i><span>Formule</span></button>
+        <button data-act="ins-equation" data-lv="4" title="Équation centrée numérotée (Ctrl+Maj+M)"><i class="serif">(1)</i><span>Équation</span></button>
+        <button data-act="xref" data-lv="1" title="Référence à une section, équation, figure…"><i>🔗</i><span>Référence</span></button>
+        <button data-act="cite" data-lv="1" title="Citer une source"><i>❝</i><span>Citation</span></button>
+        <button data-act="footnote" data-lv="1" title="Note de bas de page"><i class="serif">¹</i><span>Note</span></button>
+        <button data-act="symbols" data-lv="1" title="Chercher un symbole : maths, physique, chimie… (touche Tab)"><i class="serif">Ω</i><span>Symboles</span></button>
       </div>
       <div class="tb-spacer"></div>
       <div class="tb-group g-corr" id="corrGrp" hidden>
         <div class="dropdown">
-          <button data-act="corr-menu" id="btnCorr" title="Corrigé du sujet"><i>✓</i><span>Corrigé ▾</span></button>
+          <button data-act="corr-menu" data-lv="3" id="btnCorr" title="Corrigé du sujet"><i>✓</i><span>Corrigé ▾</span></button>
           <div class="menu" id="corrMenu">
             <button data-act="corr-open">Ouvrir le corrigé du sujet</button>
             <button data-act="corr-back">Revenir à l'énoncé</button>
@@ -105,22 +114,12 @@
           </div>
         </div>
       </div>
-      <div class="tb-group">
+      <div class="tb-group g-out">
+        <button data-act="settings" data-lv="3" title="Mise en page, titre, police, marges…"><i>⚙</i><span>Document</span></button>
+        <button data-act="preview" data-lv="3" class="toggle" id="btnPreview" title="Voir les pages comme dans le PDF final"><i>👁</i><span>Aperçu</span></button>
+        <button data-act="pdf" data-lv="7" class="primary" title="Exporter en PDF (Ctrl+P)"><i>⤓</i><span>PDF</span></button>
         <div class="dropdown">
-          <button data-act="share-menu" title="Partager une copie par lien, ou ouvrir un lien reçu"><i>🔗</i><span>Partager ▾</span></button>
-          <div class="menu" id="shareMenu">
-            <button data-act="collab">⚡ Live Modification : modifier à plusieurs en direct…</button>
-            <button data-act="clouddocs">Documents en ligne (partagés avec moi)…</button>
-            <hr>
-            <button data-act="share">Partager une copie par lien…</button>
-            <button data-act="openshare">Ouvrir un lien de partage reçu…</button>
-          </div>
-        </div>
-        <button data-act="settings" title="Mise en page, titre, police, marges…"><i>⚙</i><span>Document</span></button>
-        <button data-act="preview" class="toggle" id="btnPreview" title="Voir les pages comme dans le PDF final"><i>👁</i><span>Aperçu</span></button>
-        <button data-act="pdf" class="primary" title="Exporter en PDF (Ctrl+P)"><i>⤓</i><span>PDF</span></button>
-        <div class="dropdown">
-          <button data-act="latex-menu" title="Exporter en LaTeX"><i class="serif">T<sub>E</sub>X</i><span>LaTeX ▾</span></button>
+          <button data-act="latex-menu" data-lv="5" title="Exporter en LaTeX"><i class="serif">T<sub>E</sub>X</i><span>LaTeX ▾</span></button>
           <div class="menu" id="latexMenu">
             <button data-act="tex">Télécharger le fichier .tex</button>
             <button data-act="zip">Télécharger le projet complet (.zip, avec images)</button>
@@ -136,9 +135,19 @@
         <button data-act="help" title="Aide et raccourcis"><i>?</i></button>
       </div>
       <div class="tb-group g-live">
-        <button data-act="collab" class="live-btn" title="Live Modification : inviter des personnes par e-mail et modifier à plusieurs en direct"><i>⚡</i><span>Live</span></button>
         <div class="dropdown">
-          <button data-act="account-menu" id="accountBtn" class="account-btn" title="Se connecter ou créer un compte"><i>👤</i><span>Se connecter</span></button>
+          <button data-act="share-menu" data-lv="5" title="Partager une copie par lien, ou ouvrir un lien reçu"><i>🔗</i><span>Partager ▾</span></button>
+          <div class="menu" id="shareMenu">
+            <button data-act="collab">⚡ Live Modification : modifier à plusieurs en direct…</button>
+            <button data-act="clouddocs">Documents en ligne (partagés avec moi)…</button>
+            <hr>
+            <button data-act="share">Partager une copie par lien…</button>
+            <button data-act="openshare">Ouvrir un lien de partage reçu…</button>
+          </div>
+        </div>
+        <button data-act="collab" data-lv="5" class="live-btn" title="Live Modification : inviter des personnes par e-mail et modifier à plusieurs en direct"><i>⚡</i><span>Live</span></button>
+        <div class="dropdown">
+          <button data-act="account-menu" data-lv="6" id="accountBtn" class="account-btn" title="Se connecter ou créer un compte"><i>👤</i><span>Se connecter</span></button>
           <div class="menu" id="accountMenu"></div>
         </div>
       </div>
@@ -238,6 +247,7 @@
 <script src="vendor/katex/contrib/mhchem.min.js"></script>
 <script src="vendor/mathlive/mathlive.min.js"></script>
 <script src="js/util.js"></script>
+<script src="js/theme.js"></script>
 <script src="js/version.js"></script>
 <script src="js/model.js"></script>
 <script src="js/render.js"></script>

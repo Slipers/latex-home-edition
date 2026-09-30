@@ -157,8 +157,13 @@ L.dlgSettings = function (section) {
     chk('footRule', 'Trait au-dessus du pied de page'),
     chk('hfFirst', 'Afficher l\'en-tête et le pied de page sur la première page'));
 
+  // ---- Apparence de l'application (réglage de l'ordinateur, pas du document) ----
+  const themeSec = L.Theme.settingsSection();
+  body.append(themeSec);
+
   const dlg = L.modal({ title: 'Document', body, wide: true, foot: [{ text: 'Terminé', cls: 'primary', onClick: c => c() }] });
   if (section === 'hf') setTimeout(() => hfSec.scrollIntoView({ block: 'start' }), 50);
+  if (section === 'theme') setTimeout(() => themeSec.scrollIntoView({ block: 'start' }), 50);
   return dlg;
 };
 

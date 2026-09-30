@@ -1,5 +1,5 @@
 /* Application de bureau LaTeX Home Edition (Electron) */
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const https = require('https');
@@ -111,8 +111,11 @@ function macMenu() {
    est une instance indépendante : son propre stockage (document, sauvegarde
    automatique, connexion au compte), dans une partition « instance-N ». */
 const PREFS_FILE = () => path.join(app.getPath('userData'), 'preferences.json');
-let prefs = { multiInstance: false };
+let prefs = { multiInstance: false, theme: 'light', paperDark: false };
 function loadPrefs() { try { prefs = Object.assign(prefs, JSON.parse(fs.readFileSync(PREFS_FILE(), 'utf8'))); } catch (_) { /* première utilisation */ } }
+/* Barre de titre et fond de fenêtre assortis au thème de l'application */
+function applyTheme() { nativeTheme.themeSource = prefs.theme === 'auto' ? 'system' : prefs.theme === 'dark' ? 'dark' : 'light'; }
+const winBg = () => (nativeTheme.shouldUseDarkColors ? '#0f1115' : '#e6e8ec');
 function savePrefs() { try { fs.writeFileSync(PREFS_FILE(), JSON.stringify(prefs, null, 2)); } catch (_) { /* ignoré */ } }
 
 const windows = new Set();
@@ -129,7 +132,7 @@ function createWindow(opts = {}) {
     width: 1500, height: 950, minWidth: 1000, minHeight: 650,
     title: 'LaTeX Home Edition',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
-    backgroundColor: '#e6e8ec',
+    backgroundColor: winBg(),
     show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, spellcheck: true,
@@ -230,6 +233,8 @@ ipcMain.handle('lhe:pending', e => {
 ipcMain.handle('lhe:prefs-get', () => prefs);
 ipcMain.handle('lhe:prefs-set', (e, patch) => {
   if (patch && typeof patch.multiInstance === 'boolean') prefs.multiInstance = patch.multiInstance;
+  if (patch && ['light', 'dark', 'auto'].includes(patch.theme)) { prefs.theme = patch.theme; applyTheme(); for (const w of windows) if (!w.isDestroyed()) w.setBackgroundColor(winBg()); }
+  if (patch && typeof patch.paperDark === 'boolean') prefs.paperDark = patch.paperDark;
   savePrefs();
   return prefs;
 });
@@ -403,6 +408,7 @@ if (!app.requestSingleInstanceLock()) {
   app.setAppUserModelId('com.slipers.latexhome');
   app.whenReady().then(() => {
     loadPrefs();
+    applyTheme();
     createWindow({ file: pendingFile, link: pendingLink });
     pendingFile = pendingLink = null;
     setTimeout(() => checkUpdates(false), 2500);

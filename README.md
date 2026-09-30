@@ -71,6 +71,7 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Modifier à plusieurs en direct (invitation par e-mail) | Bouton **⚡ Live** |
 | Commenter un passage | Sélection → **💬 Commenter** (document en Live Modification) |
 | Ouvrir plusieurs fenêtres | Menu du compte → **Préférences** |
+| Thème sombre | **Document** → Apparence de l'application (Clair / Sombre / Comme le système) |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
@@ -179,6 +180,7 @@ js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus
 js/live.js          partage en direct : envoi des modifications, nouvelles versions proposées aux destinataires
+js/theme.js         apparence : thème clair / sombre / automatique, feuille sombre
 js/cloud.js         comptes et serveur de la Live Modification (Supabase)
 js/collab.js        co-édition en direct (Yjs) : fusion des modifications, curseurs des autres, rôles
 js/comments.js      commentaires (fils, résoudre, passages surlignés)
