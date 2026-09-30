@@ -1,2 +1,2 @@
 /* Généré automatiquement à partir de package.json (npm version) */
-L.VERSION = '1.14.0';
+L.VERSION = '1.15.0';
