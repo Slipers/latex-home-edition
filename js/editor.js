@@ -215,9 +215,9 @@ Object.assign(App, {
     // toute la mise en page) : on la laisse au navigateur pour un moment
     // creux plutôt que de la forcer pile à la fin de la frappe, pour ne pas
     // saccader le dernier caractère tapé.
-    if (window.requestIdleCallback) requestIdleCallback(() => App.computePages(), { timeout: 500 });
+    if (window.requestIdleCallback) requestIdleCallback(() => App.computePages(), { timeout: 300 });
     else setTimeout(() => App.computePages(), 0);
-  }, 350),
+  }, 300),
   async computePages() {
     if (this._paginating) { this._paginateAgain = true; return; }
     this._paginating = true;
@@ -270,14 +270,35 @@ Object.assign(App, {
     const z = this.editZoom || 1;
     const mtop = parseFloat(cs.paddingTop), mbot = parseFloat(cs.paddingBottom);
     const P = paper.offsetWidth * 297 / 210, GAP = 26;
+    this._pageH = P;
     const info = this.pageInfo;
     const pTop = () => paper.getBoundingClientRect().top;
     const local = el => (el.getBoundingClientRect().top - pTop()) / z;
+    // Positions de coupure : avant un élément (block) ou dans un texte (float)
+    const boundary = pos => pos.kind === 'block' ? [pos.before.parentNode, Array.prototype.indexOf.call(pos.before.parentNode.childNodes, pos.before)] : [pos.range.startContainer, pos.range.startOffset];
+    const posBefore = (a, b) => { const [na, oa] = boundary(a), [nb, ob] = boundary(b); const r = document.createRange(); r.setStart(na, oa); r.collapse(true); return r.comparePoint(nb, ob) === 1; };
+    const posTop = pos => {
+      if (pos.kind === 'block') return pos.before.getBoundingClientRect().top;
+      const r = pos.range.cloneRange(), n = r.startContainer;
+      if (n.nodeType === 3 && r.startOffset < n.nodeValue.length) r.setEnd(n, r.startOffset + 1);
+      const rc = r.getClientRects()[0] || r.getBoundingClientRect();
+      return rc.top;
+    };
     const sheets = [{ top: 0 }];
     let prevTop = 0;
-    (info ? info.breaks : []).forEach(b => {
-      const pos = this.breakPoint(paper, b);
-      if (!pos) return;
+    // Hauteur des notes de bas de page de chaque page (elles prennent sur la place du texte)
+    const noteCache = {};
+    const noteH = i => {
+      if (noteCache[i] !== undefined) return noteCache[i];
+      const pn = info && info.notes ? info.notes[i] : null;
+      if (!pn || !pn.length) return (noteCache[i] = 0);
+      const box = L.h('div', { class: 'sheet-notes', style: { visibility: 'hidden', position: 'absolute', top: '0' } }, L.h('div', { class: 'fn-rule' }), ...pn.map(nt => L.h('p', { class: 'fn', html: nt.html })));
+      layer.appendChild(box);
+      const h = box.offsetHeight;
+      box.remove();
+      return (noteCache[i] = h);
+    };
+    const newPage = pos => {
       let sp;
       if (pos.kind === 'block') { sp = L.h('div', { class: 'pg-sp', contenteditable: 'false' }); pos.before.parentNode.insertBefore(sp, pos.before); }
       else { sp = L.h('span', { class: 'pg-float', contenteditable: 'false' }); pos.range.insertNode(sp); }
@@ -288,7 +309,32 @@ Object.assign(App, {
       sheets[sheets.length - 1].bottom = bottom;
       sheets.push({ top: nextTop });
       prevTop = nextTop;
+    };
+    // Là où le texte affiché dépasse le bas de la page, on passe à la page suivante —
+    // tout de suite, sans attendre la mise en page complète (qui suit en arrière-plan).
+    let drifted = false;
+    const fixOverflow = until => {
+      for (let guard = 0; guard < 500; guard++) {
+        const limit = pTop() + (prevTop + P - mbot - noteH(sheets.length - 1)) * z;
+        const ov = this.overflowPoint(flow, limit, pTop() + (prevTop + mtop) * z);
+        if (!ov || (until && !posBefore(ov, until))) return;
+        newPage(ov);
+        drifted = true;
+      }
+    };
+    // 1 bis. Sauts de la mise en page du PDF, tant que l'éditeur affiche la même chose.
+    // S'il affiche autre chose (titre vide en attente, texte tapé depuis…), il pagine ce
+    // qu'il affiche ; les sauts imposés (saut de page, page de garde) sont toujours gardés.
+    (info ? info.breaks : []).forEach(b => {
+      const pos = this.breakPoint(paper, b);
+      if (!pos) return;
+      fixOverflow(pos);
+      if (drifted && !b.forced) return;
+      if (posTop(pos) <= pTop() + (prevTop + mtop) * z + 2) return;   // déjà en haut d'une page
+      newPage(pos);
+      drifted = false;
     });
+    fixOverflow(null);
     const end = (flow.getBoundingClientRect().bottom - pTop()) / z + mbot;
     sheets[sheets.length - 1].bottom = Math.max(prevTop + P, end);
     paper.style.minHeight = sheets[sheets.length - 1].bottom + 'px';
@@ -389,6 +435,102 @@ Object.assign(App, {
     visit(el);
     if (found) return found;
     return el.nextElementSibling && el.nextElementSibling.matches('.blk') ? { kind: 'block', before: el.nextElementSibling } : { kind: 'block', before: el };
+  },
+  /* Premier endroit où le texte affiché dépasse `limitS` (bas de la zone de texte de la
+     page, en coordonnées d'écran) : avant un élément insécable (équation, figure,
+     tableau, titre…), ou au début de la ligne qui dépasse. `topS` : haut de la zone de
+     texte de la page (on ne coupe jamais avant ce qui est déjà en haut de page). */
+  overflowPoint(flow, limitS, topS) {
+    const NOSPLIT = '.eq, .tvwrap, .tbl, .fig, .code, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk, .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="code"], .blk[data-type="vspace"], .blk[data-type="rule"]';
+    const SKIP = '.gutter, .pg-sp, .pg-float, .num, .li-mark, .env-head-inline, .collab-layer, .cmt-layer, .vspace-lab, .tv-hint';
+    const BLOCKLIKE = '.blk, .li, [data-f], ' + NOSPLIT;
+    const above = r => r.bottom <= limitS + 0.5;
+    const movable = r => r.top > topS + 1;
+    // Couper avant le bloc entier (et ses poignées) quand c'est son premier champ
+    const blockOf = n => {
+      if (!n.matches('[data-f]')) return n;
+      const li = n.closest('.li');
+      if (li) return li;
+      const blk = n.closest('.blk');
+      return blk && blk.querySelector('[data-f]') === n ? blk : n;
+    };
+    let found = null;
+    const visit = node => {
+      for (const n of Array.from(node.childNodes)) {
+        if (found) return;
+        if (n.nodeType === 1) {
+          if (n.matches(SKIP)) continue;
+          if (n.matches('.imath, .xref, .cite, .timg, .fn')) {
+            const r = n.getBoundingClientRect();
+            if (r.height && !above(r) && movable(r) && n.closest('[data-f]')) { const rg = document.createRange(); rg.setStartBefore(n); rg.collapse(true); found = { kind: 'float', range: rg }; return; }
+            continue;
+          }
+          const r = n.getBoundingClientRect();
+          if ((!r.height && !r.width) || above(r)) continue;
+          const blockLike = n.matches(BLOCKLIKE);
+          if (blockLike && r.top >= limitS - 0.5 && movable(r)) { found = { kind: 'block', before: blockOf(n) }; return; }
+          if (n.matches(NOSPLIT)) { if (movable(r)) { found = { kind: 'block', before: n }; return; } continue; }
+          if (n.tagName === 'TABLE' || n.tagName === 'svg') continue;
+          visit(n);
+          // Rien de coupable dedans (paragraphe vide qui dépasse) : on passe le bloc entier
+          if (!found && n.matches('.blk, [data-f], .li') && movable(r)) found = { kind: 'block', before: blockOf(n) };
+        } else if (n.nodeType === 3 && n.parentElement && n.parentElement.closest('[data-f]')) {
+          const t = n.nodeValue;
+          for (let i = 0; i < t.length; i++) {
+            if (i > 0 && !/\s/.test(t[i - 1])) continue;
+            if (/\s/.test(t[i])) continue;
+            const rg = document.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1);
+            const rc = rg.getClientRects()[0];
+            if (rc && rc.bottom > limitS + 0.5 && movable(rc)) { rg.collapse(true); found = { kind: 'float', range: rg }; return; }
+          }
+        }
+      }
+    };
+    visit(flow);
+    return found ? this.keepTogether(found, topS) : null;
+  },
+  /* Mêmes règles que la pagination du PDF : pas une seule ligne d'un paragraphe en
+     bas de page, et un titre n'y reste pas seul (il passe avec la suite). */
+  keepTogether(pos, topS) {
+    const z = this.editZoom || 1;
+    let blk = null, first = false;
+    if (pos.kind === 'block') {
+      blk = pos.before.closest('.blk');
+      first = !!blk && (pos.before === blk || blk.querySelector('[data-f]') === pos.before || blk.querySelector('.li') === pos.before);
+    } else {
+      const sc = pos.range.startContainer, el = sc.nodeType === 1 ? sc : sc.parentElement;
+      blk = el.closest('.blk');
+      const field = el.closest('[data-f]');
+      if (field && blk) {
+        const fr = field.getBoundingClientRect();
+        const lh = (parseFloat(getComputedStyle(field).lineHeight) || 18) * z;
+        const r = pos.range.cloneRange();
+        if (sc.nodeType === 3 && r.startOffset < sc.nodeValue.length) r.setEnd(sc, r.startOffset + 1);
+        const top = (r.getClientRects()[0] || r.getBoundingClientRect()).top;
+        if (top - fr.top < lh * 1.5 && top - fr.top > lh * 0.5 && fr.height > lh * 2.5 && fr.top > topS + 1) return this.keepTogether({ kind: 'block', before: field.closest('.li') || blk }, topS);
+        first = top - fr.top < lh * 0.5 && (blk.querySelector('[data-f]') === field);
+      }
+    }
+    if (blk && first) {
+      let prev = blk.previousElementSibling;
+      while (prev && prev.matches('.pg-sp')) prev = prev.previousElementSibling;
+      if (prev && prev.matches('.blk[data-type="heading"]') && prev.getBoundingClientRect().top > topS + 1) return { kind: 'block', before: prev };
+    }
+    return pos;
+  },
+  /* Vérification rapide après une frappe : du texte dépasse-t-il le bas d'une page ?
+     (alors on recoupe les pages tout de suite, sans attendre la mise en page complète) */
+  pagesStale() {
+    const paper = L.$('#paper'), flow = paper.querySelector(':scope > .flow');
+    if (!flow || !this.sheets || !this._pageH || !L.$('#previewWrap').hidden) return false;
+    const z = this.editZoom || 1, pt = paper.getBoundingClientRect().top;
+    const mb = parseFloat(getComputedStyle(paper).paddingBottom);
+    const sps = paper.querySelectorAll('.pg-sp, .pg-float');
+    for (let i = 0; i < sps.length && i < this.sheets.length; i++) {
+      if ((sps[i].getBoundingClientRect().top - pt) / z > this.sheets[i].top + this._pageH - mb + 2) return true;
+    }
+    const last = this.sheets[this.sheets.length - 1];
+    return (flow.getBoundingClientRect().bottom - pt) / z > last.top + this._pageH - mb + 2;
   },
   updatePageIndicator() {
     const pill = L.$('#pageIndicator');
@@ -1141,6 +1283,8 @@ App.bindEditor = function () {
     this.syncField(field);
     this.commitSoon();
     this.pagesSoon();
+    // Le texte vient de déborder en bas d'une page : il passe tout de suite à la suivante
+    if (this.pagesStale()) this.layoutSheets();
     const blk = field.closest('.blk');
     const type = blk && blk.dataset.type;
     if (type === 'heading' || field.dataset.b === 'meta') this.refreshAux();

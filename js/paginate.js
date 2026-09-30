@@ -182,9 +182,10 @@ L.paginate = async function (doc, host) {
       content.style.height = '100%';
       place(el);
       newPage();
+      page._forced = true;
       continue;
     }
-    if (role === 'pagebreak') { if (!empty()) newPage(); continue; }
+    if (role === 'pagebreak') { if (!empty()) { newPage(); page._forced = true; } continue; }
     const isHead = el.matches('.sec');
     if (fits(el, isHead ? 2.2 * lh : 0)) { place(el); continue; }
     if (!isHead) {
@@ -202,7 +203,8 @@ L.paginate = async function (doc, host) {
   pages.forEach((pg, i) => {
     if (!i) return;
     const first = pg.querySelector('.page-content > *');
-    if (first) breaks.push({ page: i + 1, id: first.dataset.id || null, offset: first._splitOffset || 0 });
+    // forced : saut imposé (saut de page, page de garde), que l'éditeur respecte toujours
+    if (first) breaks.push({ page: i + 1, id: first.dataset.id || null, offset: first._splitOffset || 0, forced: !!pg._forced });
   });
   // Notes de chaque page (affichées en bas des feuilles dans l'éditeur)
   const notes = pages.map(pg => Array.from(pg.querySelectorAll('.page-foot .fn')).map(p => ({ html: p.innerHTML, fn: p.dataset.fn || null, pnote: p.dataset.pnote || null })));
