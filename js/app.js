@@ -229,7 +229,7 @@ if (window.lheDesktop) {
     const blob = data instanceof Blob ? data : new Blob([data]);
     return lheDesktop.exportFile(name, new Uint8Array(await blob.arrayBuffer()));
   };
-  if (lheDesktop.onOpenLink) lheDesktop.onOpenLink(url => L.dlgOpenShare(url));
+  if (lheDesktop.onOpenLink) lheDesktop.onOpenLink(url => App.openAnyLink(url));
   lheDesktop.onOpenFile(f => {
     if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir « ' + f.name + ' » quand même ?')) return;
     App.openText(f.text, f.name, null, f.path);
@@ -332,6 +332,15 @@ window.addEventListener('DOMContentLoaded', () => {
     'share-menu': () => App.toggleMenu('#shareMenu'),
     share: () => L.dlgShare(),
     openshare: () => L.dlgOpenShare(),
+    collab: () => L.dlgCollab(),
+    clouddocs: () => L.dlgCloudDocs(),
+    'account-menu': () => L.CollabUI.accountMenu(),
+    account: () => L.dlgAccount(),
+    login: () => L.dlgAuth('login'),
+    signup: () => L.dlgAuth('signup'),
+    logout: () => L.Cloud.signOut().then(() => L.toast('Déconnecté')),
+    prefs: () => L.dlgPrefs(),
+    newwindow: () => window.lheDesktop && lheDesktop.newWindow && lheDesktop.newWindow(),
     reagencer: () => L.dlgReagencer(),
     check: () => L.dlgCheck(),
     overleaf: () => L.dlgOverleaf(),
@@ -396,6 +405,7 @@ window.addEventListener('DOMContentLoaded', () => {
     else if (k === 'm' && e.shiftKey) { e.preventDefault(); App.insertBlock(L.newBlock('equation')); }
     else if (k === 'f' || k === 'h') { e.preventDefault(); L.FindBar.open(k === 'h'); }
     else if (['e', 'l', 'r', 'j'].includes(k) && !e.shiftKey && !e.altKey) { e.preventDefault(); App.setAlign({ e: 'center', l: 'left', r: 'right', j: 'justify' }[k]); }
+    else if (k === 'n' && e.shiftKey && window.lheDesktop && lheDesktop.newWindow) { e.preventDefault(); lheDesktop.getPrefs().then(p => p.multiInstance ? lheDesktop.newWindow() : L.toast('Activez « plusieurs instances » dans les Préférences (menu du compte) pour ouvrir une nouvelle fenêtre.')); }
     else if (k === 'm') { e.preventDefault(); App.insertInlineMath(); }
     else if (k === '=' || k === '+' || k === '-' || k === '0') {
       e.preventDefault();
@@ -410,9 +420,10 @@ window.addEventListener('DOMContentLoaded', () => {
   // Coller un lien de partage n'importe où (hors de la fenêtre d'import) propose d'en importer une copie
   document.addEventListener('paste', e => {
     const t = e.clipboardData && e.clipboardData.getData('text/plain');
-    if (!t || !L.Share.isLink(t) || e.target.closest && e.target.closest('#modal')) return;
+    if (!t || e.target.closest && e.target.closest('#modal')) return;
+    if (!L.Share.isLink(t) && !(L.Cloud && L.Cloud.DOC_RE.test(t))) return;
     e.preventDefault(); e.stopPropagation();
-    L.dlgOpenShare(t);
+    App.openAnyLink(t);
   }, true);
   // Les menus sont ancrés à l'écran : on les referme si la barre bouge sous eux
   window.addEventListener('resize', () => App.closeMenus());
@@ -420,6 +431,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   App.bindEditor();
   App.showVersion();
+  // Compte (Live Modification) : la session enregistrée est rechargée en arrière-plan
+  if (L.Cloud && L.Cloud.available()) { L.Cloud.onChange(() => L.CollabUI.paintAccount()); L.Cloud.init(); }
+  L.CollabUI.paintAccount();
   // Dernier niveau de zoom de l'éditeur utilisé
   try { const z0 = parseFloat(localStorage.getItem('lhe-edit-zoom')); if (z0 >= 0.5 && z0 <= 2 && z0 !== 1) App.setEditZoom(z0, null, true); } catch (e) {}
   // La place réservée à la feuille zoomée suit sa hauteur (frappe, sauts de page)
@@ -457,6 +471,13 @@ window.addEventListener('DOMContentLoaded', () => {
   if (window.lheDesktop && lheDesktop.pendingLink) lheDesktop.pendingLink().then(url => {
     if (!url) return;
     L.$('#modal').hidden = true;
-    L.dlgOpenShare(url);
+    App.openAnyLink(url);
   });
 });
+
+/* Lien reçu (collé, cliqué) : document en Live Modification, ou lien de partage d'une copie */
+App.openAnyLink = function (text) {
+  const m = L.Cloud && String(text || '').match(L.Cloud.DOC_RE);
+  if (m) return L.openLiveDoc(m[1].toLowerCase());
+  if (L.Share.isLink(text)) L.dlgOpenShare(text);   // sinon (lhe://ouvrir…) : l'application est juste mise au premier plan
+};

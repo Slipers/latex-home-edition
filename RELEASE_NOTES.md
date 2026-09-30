@@ -1,26 +1,34 @@
-## Partage : un lien par document, et des copies qui restent à jour
+## ⚡ Live Modification : modifier à plusieurs, en direct
 
-### Un seul lien par document
-Quand vous partagez un document, son lien lui reste attaché. En rouvrant **Partager**, vous retrouvez le même lien, et vous le gérez : mode de mise à jour, état, désactivation.
+Comme sur Google Docs. Bouton **⚡ Live** en haut à droite, puis « Activer la Live Modification pour ce document » : le document est mis en ligne, et vous invitez des personnes **par leur adresse e-mail**, directement dans l'application, en choisissant leur rôle :
 
-### Vous choisissez : en direct ou version figée
-Au moment de créer le lien :
+- **Éditeur** : modifie le document avec vous, en direct ;
+- **Commentateur** : lit et ajoute des commentaires ;
+- **Lecteur** : lit seulement.
 
-- **Mises à jour en direct** : chaque modification est envoyée automatiquement, quelques secondes après que vous arrêtez d'écrire ;
-- **Version figée** : le lien donne la version actuelle. Le bouton **« Envoyer la version actuelle »** envoie une nouvelle version quand vous le décidez.
+Ensuite :
 
-Vous pouvez changer de mode à tout moment. Une petite pastille à côté du nom du document indique l'état : **● En direct · à jour**, envoi en cours, hors ligne, ou modifications pas encore partagées. Un clic dessus ouvre le partage. Sans connexion, les modifications partent dès le retour du réseau, ou à la prochaine ouverture du document.
+- **Chaque modification apparaît immédiatement chez tout le monde**, sans bouton à presser. Même si deux personnes écrivent dans la même phrase au même moment, tout est fusionné sans rien perdre.
+- **Vous voyez où les autres écrivent** : un trait de couleur avec leur pseudo, et ce qu'ils sélectionnent. Leurs avatars s'affichent en haut, à côté de la pastille **● Live**.
+- **Ctrl+Z n'annule que vos propres modifications**, jamais celles des autres.
+- **Commentaires** : sélectionnez un passage, puis **💬 Commenter** (ou Ctrl+Alt+M). Les discussions s'affichent dans un panneau, avec réponses et « Résoudre », et le passage commenté est surligné sur la feuille.
+- Tout est enregistré en ligne automatiquement. Hors connexion, vos modifications restent sur l'ordinateur et partent au retour du réseau.
 
-### Chez ceux qui ont importé le document
-L'application vérifie régulièrement si l'auteur a publié une version plus récente, y compris pour un fichier enregistré puis rouvert plus tard. Si c'est le cas, une carte discrète apparaît en bas à gauche : **« Nouvelle version disponible »**, avec trois choix :
+### Comptes
+Pour modifier à plusieurs, chacun crée un compte : **pseudo, adresse e-mail et mot de passe**, dans l'application (bouton en haut à droite) ou sur le site. L'adresse est **confirmée par un e-mail** : une invitation ne donne accès qu'à la personne qui possède vraiment l'adresse invitée. « Documents en ligne » regroupe vos documents et ceux partagés avec vous. Vous pouvez changer de pseudo ou de mot de passe, et supprimer votre compte.
 
-- **Mettre à jour** : si vous aviez modifié votre copie, l'application demande d'abord confirmation. **Ctrl+Z** ramène toujours à votre version précédente ;
-- **Plus tard** : la carte revient à la version suivante ;
-- **Ne plus suivre** : votre copie ne recevra plus les mises à jour.
+### Sécurité
+Tout est vérifié **par le serveur**, pas seulement par l'application :
 
-Si l'auteur désactive son lien, vous en êtes informé, et votre copie vous reste.
+- un lecteur ne peut ni écrire ni diffuser, un commentateur ne peut pas modifier le texte ;
+- seul le propriétaire invite, change les rôles ou retire un accès ;
+- personne d'autre ne peut ni lister ni ouvrir les documents.
 
-### Bon à savoir
-- Les liens déjà créés avec la version précédente continuent de fonctionner.
-- Le code qui permet de modifier un lien reste sur l'ordinateur qui l'a créé : il n'est jamais écrit dans le fichier `.lhe`. Envoyer le fichier à quelqu'un ne lui permet donc pas de modifier votre lien.
-- La page web du lien affiche maintenant la date de la dernière mise à jour.
+Ces règles sont vérifiées par 77 tests automatiques.
+
+## Plusieurs fenêtres (instances)
+Nouvelle option dans **Préférences** (menu du compte) : **« Autoriser plusieurs instances de LaTeX Home Edition »**. Chaque nouvelle fenêtre est une instance indépendante, avec son propre document, sa propre sauvegarde automatique et sa propre connexion. Pour en ouvrir une : Ctrl+Maj+N, le menu du compte, ou en relançant l'application. Vous pouvez donc être connecté avec deux comptes en même temps, par exemple pour tester la Live Modification.
+
+## Corrections
+- Si l'affichage graphique tarde au démarrage, la fenêtre s'ouvre quand même au bout de quelques secondes, au lieu de rester invisible.
+- Si la partie de l'application qui affiche le document plante, la fenêtre se recharge toute seule au lieu de rester vide.

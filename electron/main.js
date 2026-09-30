@@ -8,7 +8,6 @@ const { autoUpdater } = require('electron-updater');
 let win = null;
 let pendingFile = null;       // fichier .lhe passé au lancement (double-clic dans l'explorateur)
 let pendingLink = null;       // lien de partage lhe://… qui a lancé l'application
-let allowClose = false;
 
 const isMac = process.platform === 'darwin';
 const REPO = 'Slipers/latex-home-edition';
@@ -18,16 +17,25 @@ const fileFromArgs = argv => argv.slice(app.isPackaged ? 1 : 2).find(a => /\.lhe
 const linkFromArgs = argv => argv.find(a => /^lhe:\/\//i.test(a));
 
 /* Exécute du code dans la fenêtre (entrées de menu macOS) */
-const inPage = js => { if (win && !win.isDestroyed()) win.webContents.executeJavaScript(js).catch(() => {}); };
+const inPage = js => { const w = focusedWin(); if (w && !w.isDestroyed()) w.webContents.executeJavaScript(js).catch(() => {}); };
 
 /* Menu macOS : sans lui, Cmd+C, Cmd+V et Cmd+Q ne fonctionnent pas. */
 function macMenu() {
   return Menu.buildFromTemplate([
-    { role: 'appMenu' },
+    { label: 'LaTeX Home Edition', submenu: [
+      { role: 'about', label: 'À propos de LaTeX Home Edition' },
+      { label: 'Préférences…', accelerator: 'Cmd+,', click: () => inPage('L.dlgPrefs()') },
+      { label: 'Mon compte…', click: () => inPage('L.dlgAccount()') },
+      { type: 'separator' },
+      { role: 'hide', label: 'Masquer LaTeX Home Edition' }, { role: 'hideOthers', label: 'Masquer les autres' }, { role: 'unhide', label: 'Tout afficher' },
+      { type: 'separator' },
+      { role: 'quit', label: 'Quitter LaTeX Home Edition' },
+    ] },
     {
       label: 'Fichier',
       submenu: [
         { label: 'Nouveau document…', accelerator: 'Cmd+N', click: () => inPage('L.dlgTemplates(false)') },
+        { label: 'Nouvelle fenêtre (instance)', accelerator: 'Shift+Cmd+N', registerAccelerator: false, click: () => { if (prefs.multiInstance) newWindow(); else inPage('L.dlgPrefs()'); } },
         { label: 'Ouvrir…', accelerator: 'Cmd+O', click: () => inPage('App.open()') },
         { label: 'Enregistrer', accelerator: 'Cmd+S', click: () => inPage('App.save()') },
         { label: 'Enregistrer sous…', accelerator: 'Shift+Cmd+S', click: () => inPage('App.save(true)') },
@@ -38,6 +46,8 @@ function macMenu() {
         { type: 'separator' },
         { label: 'Partager une copie par lien…', click: () => inPage('L.dlgShare()') },
         { label: 'Ouvrir un lien de partage reçu…', click: () => inPage('L.dlgOpenShare()') },
+        { label: 'Live Modification…', click: () => inPage('L.dlgCollab()') },
+        { label: 'Documents en ligne…', click: () => inPage('L.dlgCloudDocs()') },
         { type: 'separator' },
         { role: 'close', label: 'Fermer la fenêtre' },
       ],
@@ -95,48 +105,85 @@ function macMenu() {
   ]);
 }
 
-function createWindow() {
-  win = new BrowserWindow({
+/* ---------- Fenêtres ----------
+   Par défaut, une seule fenêtre (relancer l'application la ramène au premier
+   plan). Avec la préférence « plusieurs instances », chaque nouvelle fenêtre
+   est une instance indépendante : son propre stockage (document, sauvegarde
+   automatique, connexion au compte), dans une partition « instance-N ». */
+const PREFS_FILE = () => path.join(app.getPath('userData'), 'preferences.json');
+let prefs = { multiInstance: false };
+function loadPrefs() { try { prefs = Object.assign(prefs, JSON.parse(fs.readFileSync(PREFS_FILE(), 'utf8'))); } catch (_) { /* première utilisation */ } }
+function savePrefs() { try { fs.writeFileSync(PREFS_FILE(), JSON.stringify(prefs, null, 2)); } catch (_) { /* ignoré */ } }
+
+const windows = new Set();
+let quitting = false;
+const focusedWin = () => { const f = BrowserWindow.getFocusedWindow(); return f && windows.has(f) ? f : win; };
+const winOf = e => BrowserWindow.fromWebContents(e.sender) || focusedWin();
+
+function createWindow(opts = {}) {
+  // Numéro d'instance : 1 = stockage habituel, 2, 3… = stockages séparés
+  const used = new Set(Array.from(windows).map(w => w._slot));
+  let slot = 1;
+  while (used.has(slot)) slot++;
+  const w = new BrowserWindow({
     width: 1500, height: 950, minWidth: 1000, minHeight: 650,
     title: 'LaTeX Home Edition',
     icon: path.join(__dirname, '..', 'build', 'icon.png'),
     backgroundColor: '#e6e8ec',
     show: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, spellcheck: true },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, spellcheck: true,
+      partition: slot > 1 ? 'persist:instance-' + slot : undefined,
+    },
   });
-  win.webContents.session.setSpellCheckerLanguages(['fr', 'en-US']);
+  w._slot = slot;
+  w._pendingFile = opts.file || null;
+  w._pendingLink = opts.link || null;
+  windows.add(w);
+  win = w;
+  w.webContents.session.setSpellCheckerLanguages(['fr', 'en-US']);
   Menu.setApplicationMenu(isMac ? macMenu() : null);
-  win.loadFile(path.join(__dirname, '..', 'index.html'));
-  win.once('ready-to-show', () => { win.maximize(); win.show(); });
+  w.loadFile(path.join(__dirname, '..', 'index.html'));
+  let shown = false;
+  const show = () => { if (shown || w.isDestroyed()) return; shown = true; if (windows.size === 1) w.maximize(); w.show(); };
+  w.once('ready-to-show', show);
+  // Filet de sécurité : si le premier dessin tarde (pilote graphique…), on affiche quand même
+  setTimeout(show, 4000);
+  w.on('focus', () => { win = w; });
+  // Les instances supplémentaires portent leur numéro dans le titre
+  w.on('page-title-updated', (e, t) => { if (w._slot > 1) { e.preventDefault(); w.setTitle(t + ' — instance ' + w._slot); } });
   // Seule la feuille se zoome (géré dans la page) : on bloque le zoom de toute
   // la fenêtre (pincement, niveau de zoom mémorisé par Chromium).
-  win.webContents.on('did-finish-load', () => {
-    win.webContents.setZoomFactor(1);
-    win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  w.webContents.on('did-finish-load', () => {
+    w.webContents.setZoomFactor(1);
+    w.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
   });
+  // Un processus de rendu qui plante : on le recharge au lieu de laisser une fenêtre vide
+  w.webContents.on('render-process-gone', (e, d) => { if (d.reason !== 'clean-exit' && !w.isDestroyed()) setTimeout(() => w.reload(), 500); });
 
   // Liens externes : navigateur par défaut ; Overleaf : fenêtre dédiée (formulaire POST)
-  win.webContents.setWindowOpenHandler(({ url }) => {
+  w.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://www.overleaf.com/')) return { action: 'allow', overrideBrowserWindowOptions: { width: 1400, height: 900, autoHideMenuBar: true } };
-    if (/^https?:/.test(url)) shell.openExternal(url);
+    if (/^(https?|mailto):/.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); shell.openExternal(url); } });
+  w.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); if (/^(https?|mailto):/.test(url)) shell.openExternal(url); } });
 
-  // Raccourcis utiles (menu masqué) : F12 outils, Ctrl+molette zoom géré par Chromium
-  win.webContents.on('before-input-event', (e, input) => {
-    if (input.type === 'keyDown' && input.key === 'F12') win.webContents.toggleDevTools();
-    if (input.type === 'keyDown' && input.key === 'F11') win.setFullScreen(!win.isFullScreen());
+  // Raccourcis utiles (menu masqué) : F12 outils, F11 plein écran
+  w.webContents.on('before-input-event', (e, input) => {
+    if (input.type === 'keyDown' && input.key === 'F12') w.webContents.toggleDevTools();
+    if (input.type === 'keyDown' && input.key === 'F11') w.setFullScreen(!w.isFullScreen());
   });
 
   // Confirmation avant de fermer s'il reste des modifications non enregistrées
-  win.on('close', async e => {
-    if (allowClose) return;
+  let allowClose = false;
+  w.on('close', async e => {
+    if (allowClose || quitting) return;
     e.preventDefault();
     let dirty = false;
-    try { dirty = await win.webContents.executeJavaScript('!!(window.App && App.dirty)'); } catch (_) {}
+    try { dirty = await w.webContents.executeJavaScript('!!(window.App && App.dirty)'); } catch (_) {}
     if (dirty) {
-      const r = await dialog.showMessageBox(win, {
+      const r = await dialog.showMessageBox(w, {
         type: 'question', buttons: ['Enregistrer', 'Quitter sans enregistrer', 'Annuler'], defaultId: 0, cancelId: 2,
         title: 'Modifications non enregistrées',
         message: 'Le document contient des modifications non enregistrées.',
@@ -144,25 +191,28 @@ function createWindow() {
       });
       if (r.response === 2) return;
       if (r.response === 0) {
-        const ok = await win.webContents.executeJavaScript('App.save().then(() => !App.dirty)').catch(() => false);
+        const ok = await w.webContents.executeJavaScript('App.save().then(() => !App.dirty)').catch(() => false);
         if (!ok) return;
       }
     }
     allowClose = true;
-    win.close();
+    w.close();
   });
+  w.on('closed', () => { windows.delete(w); if (win === w) win = Array.from(windows).pop() || null; });
+  return w;
 }
+function newWindow(opts) { const w = createWindow(opts); w.focus(); return w; }
 
 /* ---------- Fichiers .lhe (dialogues natifs) ---------- */
-ipcMain.handle('lhe:open', async () => {
-  const r = await dialog.showOpenDialog(win, { title: 'Ouvrir un document', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe', 'json'] }], properties: ['openFile'] });
+ipcMain.handle('lhe:open', async e => {
+  const r = await dialog.showOpenDialog(winOf(e), { title: 'Ouvrir un document', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe', 'json'] }], properties: ['openFile'] });
   if (r.canceled || !r.filePaths[0]) return null;
   const p = r.filePaths[0];
   return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') };
 });
 ipcMain.handle('lhe:save', async (e, { path: p, name, data, saveAs }) => {
   if (!p || saveAs) {
-    const r = await dialog.showSaveDialog(win, { title: 'Enregistrer le document', defaultPath: name || 'document.lhe', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe'] }] });
+    const r = await dialog.showSaveDialog(winOf(e), { title: 'Enregistrer le document', defaultPath: name || 'document.lhe', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe'] }] });
     if (r.canceled || !r.filePath) return null;
     p = r.filePath;
   }
@@ -170,18 +220,26 @@ ipcMain.handle('lhe:save', async (e, { path: p, name, data, saveAs }) => {
   app.addRecentDocument(p);
   return { path: p, name: path.basename(p) };
 });
-ipcMain.handle('lhe:pending-link', () => { const l = pendingLink; pendingLink = null; return l; });
-ipcMain.handle('lhe:pending', () => {
-  const p = pendingFile; pendingFile = null;
+ipcMain.handle('lhe:pending-link', e => { const w = winOf(e); const l = w && w._pendingLink; if (w) w._pendingLink = null; return l || null; });
+ipcMain.handle('lhe:pending', e => {
+  const w = winOf(e);
+  const p = w && w._pendingFile; if (w) w._pendingFile = null;
   if (!p) return null;
   return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') };
 });
+ipcMain.handle('lhe:prefs-get', () => prefs);
+ipcMain.handle('lhe:prefs-set', (e, patch) => {
+  if (patch && typeof patch.multiInstance === 'boolean') prefs.multiInstance = patch.multiInstance;
+  savePrefs();
+  return prefs;
+});
+ipcMain.handle('lhe:new-window', () => { if (prefs.multiInstance) newWindow(); return prefs.multiInstance; });
 
 /* ---------- Export PDF natif (sans fenêtre d'impression) ---------- */
 ipcMain.handle('lhe:pdf', async (e, { name }) => {
-  const r = await dialog.showSaveDialog(win, { title: 'Exporter en PDF', defaultPath: (name || 'document') + '.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  const r = await dialog.showSaveDialog(winOf(e), { title: 'Exporter en PDF', defaultPath: (name || 'document') + '.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (r.canceled || !r.filePath) return null;
-  const pdf = await win.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { marginType: 'none' } });
+  const pdf = await e.sender.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { marginType: 'none' } });
   fs.writeFileSync(r.filePath, pdf);
   shell.openPath(r.filePath);
   return r.filePath;
@@ -190,7 +248,7 @@ ipcMain.handle('lhe:pdf', async (e, { name }) => {
 /* ---------- Fichiers exportés (.tex, .zip) ---------- */
 ipcMain.handle('lhe:export', async (e, { name, bytes }) => {
   const ext = path.extname(name).slice(1);
-  const r = await dialog.showSaveDialog(win, { title: 'Exporter', defaultPath: name, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
+  const r = await dialog.showSaveDialog(winOf(e), { title: 'Exporter', defaultPath: name, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
   if (r.canceled || !r.filePath) return null;
   fs.writeFileSync(r.filePath, Buffer.from(bytes));
   shell.showItemInFolder(r.filePath);
@@ -205,7 +263,8 @@ ipcMain.handle('lhe:check-updates', () => checkUpdates(true));
    de l'installer ; si l'utilisateur accepte, téléchargement (barre de progression),
    installation silencieuse puis relance automatique de l'application à jour. */
 let manualCheck = false, busy = false, declined = null;
-function send(ch, payload) { if (win && !win.isDestroyed()) win.webContents.send(ch, payload); }
+function send(ch, payload) { for (const w of windows) if (!w.isDestroyed()) w.webContents.send(ch, payload); }
+function sendTo(w, ch, payload) { if (w && !w.isDestroyed()) w.webContents.send(ch, payload); }
 const NL = String.fromCharCode(10);
 const errText = err => String((err && err.message) || err).split(NL)[0].slice(0, 200);
 const plainNotes = n => {
@@ -240,7 +299,7 @@ function checkUpdatesMac(manual) {
       if (!tag) { if (manual) send('lhe:update', { state: 'error', message: 'réponse inattendue de GitHub' }); return; }
       if (!plusRecente(tag, app.getVersion())) { if (manual) send('lhe:update', { state: 'none', version: app.getVersion() }); return; }
       if (!manual && declined === tag) return;
-      const r = await dialog.showMessageBox(win, {
+      const r = await dialog.showMessageBox(focusedWin(), {
         type: 'info', buttons: ['Télécharger', 'Plus tard'], defaultId: 0, cancelId: 1, noLink: true,
         title: 'Mise à jour disponible',
         message: 'La version ' + tag + ' de LaTeX Home Edition est disponible.',
@@ -275,7 +334,7 @@ autoUpdater.on('update-available', async info => {
   if (!manualCheck && declined === info.version) return;
   const notes = plainNotes(info.releaseNotes);
   // LHE_UPDATE_AUTO=1 : acceptation automatique (tests)
-  const r = process.env.LHE_UPDATE_AUTO === '1' ? { response: 0 } : await dialog.showMessageBox(win, {
+  const r = process.env.LHE_UPDATE_AUTO === '1' ? { response: 0 } : await dialog.showMessageBox(focusedWin(), {
     type: 'info', buttons: ['Mettre à jour maintenant', 'Plus tard'], defaultId: 0, cancelId: 1, noLink: true,
     title: 'Mise à jour disponible',
     message: 'Une nouvelle version de LaTeX Home Edition est disponible : ' + info.version,
@@ -291,9 +350,9 @@ autoUpdater.on('download-progress', p => send('lhe:update', { state: 'downloadin
 autoUpdater.on('error', err => { if (manualCheck || busy) send('lhe:update', { state: 'error', message: errText(err) }); busy = false; });
 autoUpdater.on('update-downloaded', async info => {
   send('lhe:update', { state: 'installing', version: info.version });
-  try { await win.webContents.executeJavaScript('App.autosaveNow && App.autosaveNow()'); } catch (_) {}
+  for (const w of windows) { try { await w.webContents.executeJavaScript('App.autosaveNow && App.autosaveNow()'); } catch (_) {} }
   setTimeout(() => {
-    allowClose = true;
+    quitting = true;
     // Installation silencieuse (/S) puis relance automatique de la nouvelle version
     autoUpdater.quitAndInstall(true, true);
   }, 1200);
@@ -303,44 +362,52 @@ autoUpdater.on('update-downloaded', async info => {
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  // Relance de l'application (raccourci, double-clic sur un .lhe, lien lhe://)
   app.on('second-instance', (e, argv) => {
     const f = fileFromArgs(argv), l = linkFromArgs(argv);
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-      if (f) send('lhe:open-file', { path: f, name: path.basename(f), text: fs.readFileSync(f, 'utf8') });
-      if (l) send('lhe:open-link', l);
-    }
+    if (prefs.multiInstance && !l) { newWindow({ file: f || null }); return; }
+    const w = focusedWin();
+    if (!w) { createWindow({ file: f, link: l }); return; }
+    if (w.isMinimized()) w.restore();
+    w.focus();
+    if (f) sendTo(w, 'lhe:open-file', { path: f, name: path.basename(f), text: fs.readFileSync(f, 'utf8') });
+    if (l) sendTo(w, 'lhe:open-link', l);
   });
-  // Liens de partage lhe://partage/… : l'application s'ouvre et propose d'importer une copie
+  // Liens lhe://… (partage, documents en direct) : l'application s'ouvre dessus
   // (Windows : clé de registre de l'utilisateur ; macOS : aussi déclaré dans Info.plist)
   if (app.isPackaged) app.setAsDefaultProtocolClient('lhe');
   app.on('open-url', (e, url) => {
     e.preventDefault();
     if (!/^lhe:\/\//i.test(url)) return;
-    if (!win || win.isDestroyed()) { pendingLink = url; return; }
-    if (win.isMinimized()) win.restore();
-    win.focus();
-    send('lhe:open-link', url);
+    const w = focusedWin();
+    if (!w || w.isDestroyed()) { pendingLink = url; return; }
+    if (w.isMinimized()) w.restore();
+    w.focus();
+    sendTo(w, 'lhe:open-link', url);
   });
   // macOS : double-clic sur un .lhe dans le Finder
   app.on('open-file', (e, p) => {
     e.preventDefault();
     if (!/\.lhe$/i.test(p) || !fs.existsSync(p)) return;
-    if (!win || win.isDestroyed()) { pendingFile = p; return; }
+    const w = focusedWin();
+    if (!w || w.isDestroyed()) { pendingFile = p; return; }
+    if (prefs.multiInstance) { newWindow({ file: p }); return; }
     try {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-      send('lhe:open-file', { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') });
+      if (w.isMinimized()) w.restore();
+      w.focus();
+      sendTo(w, 'lhe:open-file', { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') });
     } catch (_) { /* ignoré */ }
   });
   pendingFile = fileFromArgs(process.argv);
   pendingLink = pendingLink || linkFromArgs(process.argv);
   app.setAppUserModelId('com.slipers.latexhome');
   app.whenReady().then(() => {
-    createWindow();
+    loadPrefs();
+    createWindow({ file: pendingFile, link: pendingLink });
+    pendingFile = pendingLink = null;
     setTimeout(() => checkUpdates(false), 2500);
     setInterval(() => checkUpdates(false), 4 * 60 * 60 * 1000);
   });
   app.on('window-all-closed', () => app.quit());
+  app.on('activate', () => { if (!windows.size) createWindow(); });
 }

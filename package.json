@@ -17,14 +17,20 @@
     "dist": "electron-builder --win --publish never",
     "release": "node scripts/release.js",
     "version": "node scripts/sync-version.js && git add js/version.js",
-    "dist:mac": "electron-builder --mac --publish never"
+    "dist:mac": "electron-builder --mac --publish never",
+    "test:sql": "node scripts/test-sql.mjs",
+    "vendor": "node scripts/build-vendor.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.9"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@supabase/supabase-js": "^2.117.2",
     "electron": "^44.4.3",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "yjs": "^13.6.33"
   },
   "build": {
     "appId": "com.slipers.latexhome",

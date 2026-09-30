@@ -77,6 +77,7 @@ Object.assign(App, {
     L.$('#desk').scrollTop = 0;
     this.autosave();
     if (L.Live) L.Live.docLoaded();   // partage : envoi des modifications / nouvelles versions
+    if (L.Collab) L.Collab.docLoaded(); // Live Modification : (re)connexion au document en ligne
   },
   snapshot() { const d = this.doc; return JSON.stringify({ meta: d.meta, blocks: d.blocks, bib: d.bib }); },
   commit() {
@@ -87,6 +88,7 @@ Object.assign(App, {
     this.last = s; this.future = [];
     this.setDirty(true);
     this.autosave();
+    if (L.Collab) L.Collab.localChanged();
   },
   commitSoon: L.debounce(() => App.commit(), 450),
   restore(s) {
@@ -98,6 +100,8 @@ Object.assign(App, {
     this.autosave();
   },
   undo() {
+    // Live Modification : on n'annule que ses propres modifications, pas celles des autres
+    if (L.Collab && L.Collab.active()) return L.Collab.undo();
     this.commit();
     if (!this.history.length) return L.toast('Rien à annuler');
     this.future.push(this.last);
@@ -105,12 +109,20 @@ Object.assign(App, {
     this.restore(this.last);
   },
   redo() {
+    if (L.Collab && L.Collab.active()) return L.Collab.redo();
     if (!this.future.length) return L.toast('Rien à rétablir');
     this.history.push(this.last);
     this.last = this.future.pop();
     this.restore(this.last);
   },
-  setDirty(v) { this.dirty = v; L.$('#docName').classList.toggle('dirty', v); if (v && L.Live) L.Live.changed(); },
+  setDirty(v) {
+    // Document en Live Modification : tout est enregistré en ligne ; « non enregistré »
+    // veut seulement dire « modifications pas encore envoyées »
+    const live = L.Collab && L.Collab.active();
+    this.dirty = live ? L.Collab.hasPending() : v;
+    L.$('#docName').classList.toggle('dirty', this.dirty);
+    if (v && L.Live) L.Live.changed();
+  },
   updateName() {
     const t = L.plain(this.doc.meta.title);
     L.$('#docName').textContent = this.fileName || (t ? t : 'Sans titre');
@@ -141,6 +153,8 @@ Object.assign(App, {
       this.applyFocus(fa);
     }
     this.pagesSoon();
+    if (L.Collab) L.Collab.afterRender();
+    if (L.Comments) L.Comments.redraw();
   },
 
   /* ================= Pas de défilement parasite =================
@@ -324,6 +338,8 @@ Object.assign(App, {
     this.updatePageIndicator();
     // Si le texte a été poussé sur la page suivante, on garde le curseur visible (sans animation)
     if (document.activeElement && paper.contains(document.activeElement)) this.ensureCaretVisible();
+    // Les sauts de page déplacent le texte : curseurs des autres et passages commentés suivent
+    if (L.Collab && L.Collab.active()) { L.Collab.redraw(); if (L.Comments) L.Comments.redraw(); }
   },
   /* Où couper dans l'éditeur ? Début du bloc, ou début de la ligne correspondant à la coupure du PDF */
   breakPoint(paper, b) {
@@ -492,6 +508,7 @@ Object.assign(App, {
     if (f === 'code') { v = field.innerText.replace(/\n$/, ''); field.classList.toggle('is-empty', !v); }
     else { v = L.serializeRich(field); field.classList.toggle('is-empty', L.isEmptyHtml(v)); }
     this.setPath(t, f, v);
+    if (L.Collab) L.Collab.localChanged();
   },
 
   /* ================= Sélection & panneaux ================= */

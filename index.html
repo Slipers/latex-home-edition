@@ -17,13 +17,14 @@
     <div class="brand"><span class="logo">∑</span><span class="brand-name">LaTeX <b>Home</b></span></div>
     <div class="doc-name" id="docName" title="Nom du fichier">Sans titre</div>
     <button class="share-pill" id="shareStatus" data-act="share" hidden></button>
+    <div class="collab-bar" id="collabBar" hidden></div>
     <nav class="tb">
       <div class="tb-group g-file">
         <button data-act="new" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
         <button data-act="open" title="Ouvrir un fichier .lhe (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
         <button data-act="save" title="Enregistrer (Ctrl+S)"><i>💾</i><span>Enregistrer</span></button>
       </div>
-      <div class="tb-group">
+      <div class="tb-group g-edit">
         <button data-act="undo" title="Annuler (Ctrl+Z)"><i>↶</i></button>
         <button data-act="redo" title="Rétablir (Ctrl+Y)"><i>↷</i></button>
         <button data-act="find" title="Rechercher et remplacer (Ctrl+F)"><i>⌕</i></button>
@@ -85,7 +86,7 @@
           </div>
         </div>
       </div>
-      <div class="tb-group g-ins">
+      <div class="tb-group g-ins g-edit">
         <button data-act="imath" class="accent" title="Formule dans le texte (Ctrl+M ou tapez $)"><i class="serif">∑</i><span>Formule</span></button>
         <button data-act="ins-equation" title="Équation centrée numérotée (Ctrl+Maj+M)"><i class="serif">(1)</i><span>Équation</span></button>
         <button data-act="xref" title="Référence à une section, équation, figure…"><i>🔗</i><span>Référence</span></button>
@@ -108,6 +109,9 @@
         <div class="dropdown">
           <button data-act="share-menu" title="Partager une copie par lien, ou ouvrir un lien reçu"><i>🔗</i><span>Partager ▾</span></button>
           <div class="menu" id="shareMenu">
+            <button data-act="collab">⚡ Live Modification : modifier à plusieurs en direct…</button>
+            <button data-act="clouddocs">Documents en ligne (partagés avec moi)…</button>
+            <hr>
             <button data-act="share">Partager une copie par lien…</button>
             <button data-act="openshare">Ouvrir un lien de partage reçu…</button>
           </div>
@@ -130,6 +134,13 @@
           </div>
         </div>
         <button data-act="help" title="Aide et raccourcis"><i>?</i></button>
+      </div>
+      <div class="tb-group g-live">
+        <button data-act="collab" class="live-btn" title="Live Modification : inviter des personnes par e-mail et modifier à plusieurs en direct"><i>⚡</i><span>Live</span></button>
+        <div class="dropdown">
+          <button data-act="account-menu" id="accountBtn" class="account-btn" title="Se connecter ou créer un compte"><i>👤</i><span>Se connecter</span></button>
+          <div class="menu" id="accountMenu"></div>
+        </div>
       </div>
     </nav>
   </header>
@@ -245,6 +256,12 @@
 <script src="js/check.js"></script>
 <script src="js/share.js"></script>
 <script src="js/live.js"></script>
+<script src="vendor/yjs/yjs.js"></script>
+<script src="vendor/supabase/supabase.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/collab.js"></script>
+<script src="js/comments.js"></script>
+<script src="js/collab-ui.js"></script>
 <script src="js/find.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>

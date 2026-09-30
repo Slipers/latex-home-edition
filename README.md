@@ -68,6 +68,9 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Importer un fichier `.tex` | Même fenêtre que l'import PDF |
 | Vérifier références, citations et formules | Menu **LaTeX ▾** → « Vérifier le document » |
 | Partager une copie sans envoyer le fichier | **Partager ▾** → « Partager une copie par lien » |
+| Modifier à plusieurs en direct (invitation par e-mail) | Bouton **⚡ Live** |
+| Commenter un passage | Sélection → **💬 Commenter** (document en Live Modification) |
+| Ouvrir plusieurs fenêtres | Menu du compte → **Préférences** |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
@@ -107,6 +110,30 @@ Celui qui clique dessus voit le titre du document et un bouton **« Ouvrir dans 
 - Un document reçu (lien ou fichier) est nettoyé à l'ouverture : il ne peut contenir que ce que l'éditeur produit lui-même.
 
 Côté serveur : [supabase/partage.sql](supabase/partage.sql) (à exécuter une fois dans le SQL Editor du projet Supabase), page du lien dans [docs/p/index.html](docs/p/index.html) (GitHub Pages, branche `main`, dossier `/docs`).
+
+## Live Modification : modifier à plusieurs en direct
+
+Comme sur Google Docs : bouton **⚡ Live** (ou **Partager ▾ → Live Modification**), puis **« Activer la Live Modification pour ce document »**. Le document est mis en ligne et on invite des personnes **par leur adresse e-mail**, avec un rôle :
+
+| Rôle | Peut… |
+|---|---|
+| **Éditeur** | modifier le document en direct |
+| **Commentateur** | lire et ajouter des commentaires |
+| **Lecteur** | lire seulement |
+
+- Chaque modification apparaît **immédiatement** chez tous les participants, sans bouton « mettre à jour ». Les modifications simultanées (même dans la même phrase) se fusionnent sans rien perdre.
+- On voit **où écrivent les autres** : un trait de couleur avec leur pseudo, et leur sélection surlignée. Leurs avatars sont affichés en haut, à côté de la pastille **● Live**.
+- **Ctrl+Z** n'annule que ses propres modifications, jamais celles des autres.
+- **Commentaires** : sélectionner un passage → **💬 Commenter** (Ctrl+Alt+M). Fils de discussion avec réponses, « Résoudre », passage commenté surligné sur la feuille.
+- Tout est enregistré en ligne automatiquement ; hors connexion, les modifications sont gardées sur l'ordinateur et envoyées au retour du réseau.
+- Pour modifier, chacun a besoin d'un **compte** (bouton en haut à droite, ou page [Créer un compte](https://slipers.github.io/latex-home-edition/compte/)) : pseudo, adresse e-mail et mot de passe. L'adresse est **confirmée par e-mail** : une invitation ne donne accès qu'au compte qui possède vraiment cette adresse.
+- **Documents en ligne** (menu du compte) : les documents partagés avec vous et les vôtres.
+
+Sécurité : chaque règle (qui peut lire, écrire, commenter, inviter, diffuser en temps réel) est appliquée **par le serveur**, pas seulement par l'application — voir [supabase/collab.sql](supabase/collab.sql) et son banc d'essai (`npm run test:sql`). Installation côté serveur : [supabase/LISEZMOI.md](supabase/LISEZMOI.md).
+
+## Plusieurs fenêtres (instances)
+
+Menu du compte → **Préférences** → « Autoriser plusieurs instances ». Chaque nouvelle fenêtre (Ctrl+Maj+N, menu du compte, ou en relançant l'application) est une instance indépendante : son propre document, sa sauvegarde automatique et sa propre connexion — on peut par exemple s'y connecter avec un autre compte.
 
 ## Banque de sujets de mathématiques
 
@@ -152,6 +179,12 @@ js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus
 js/live.js          partage en direct : envoi des modifications, nouvelles versions proposées aux destinataires
+js/cloud.js         comptes et serveur de la Live Modification (Supabase)
+js/collab.js        co-édition en direct (Yjs) : fusion des modifications, curseurs des autres, rôles
+js/comments.js      commentaires (fils, résoudre, passages surlignés)
+js/collab-ui.js     fenêtres : compte, Live Modification (invitations, rôles), documents en ligne, préférences
+supabase/           schémas SQL, fonction d'e-mail d'invitation, modèles d'e-mails (voir supabase/LISEZMOI.md)
+docs/               pages web (GitHub Pages) : lien de partage, document en ligne, compte
 js/check.js         vérification du document (références, formules, statistiques)
 js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
