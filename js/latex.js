@@ -28,6 +28,7 @@ L.labelOf = function (b) {
 L.htmlToLatex = function (html, X) {
   const d = document.createElement('div');
   d.innerHTML = html || '';
+  const right = [];   // « Texte à droite » : rejeté en fin de texte, comme dans l'éditeur
   const walk = node => {
     let out = '';
     node.childNodes.forEach(n => {
@@ -55,6 +56,7 @@ L.htmlToLatex = function (html, X) {
       const sz = Array.from(c).find(k => L.TEXT_SIZES[k]);
       if (sz) { out += '{\\' + L.TEXT_SIZES[sz][1] + ' ' + inner + '}'; return; }
       if (c.contains('hfill')) { out += '\\hfill{}'; return; }
+      if (c.contains('rtag')) { if (n.dataset.text) right.push(L.texEsc(n.dataset.text)); return; }
       switch (n.tagName) {
         case 'B': case 'STRONG': out += '\\textbf{' + inner + '}'; break;
         case 'I': case 'EM': out += '\\emph{' + inner + '}'; break;
@@ -68,7 +70,8 @@ L.htmlToLatex = function (html, X) {
     });
     return out;
   };
-  return walk(d).replace(/\\\\\n$/, '').trim();
+  const body = walk(d).replace(/\\\\\n$/, '').trim();
+  return right.length ? body + '\\hfill\\mbox{' + right.join(' ') + '}' : body;
 };
 
 const LST_LANG = { python: 'Python', c: 'C', cpp: 'C++', java: 'Java', matlab: 'Matlab', r: 'R', html: 'HTML', sql: 'SQL', bash: 'bash', javascript: '', texte: '' };
@@ -104,7 +107,7 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       if (b.align === 'center') return '\\begin{center}\n' + t + '\n\\end{center}';
       if (b.align === 'right') return '\\begin{flushright}\n' + t + '\n\\end{flushright}';
       if (b.align === 'left') return '\\begin{flushleft}\n' + t + '\n\\end{flushleft}';
-      return (b.noindent || /\\hfill/.test(t) ? '\\noindent ' : '') + t;
+      return (b.noindent || /\\hfill\{\}/.test(t) ? '\\noindent ' : '') + t;
     }
     case 'heading': {
       const cmd = ['section', 'subsection', 'subsubsection', 'paragraph'][Math.min(b.level, 4) - 1];

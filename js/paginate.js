@@ -75,7 +75,7 @@ L.paginate = async function (doc, host) {
       if (top > prevTop + 3) starts.push(pos);
       prevTop = Math.max(prevTop, top);
     };
-    const atomic = n => n.nodeType === 1 && n.matches('.katex, .imath, .fn, .xref, .cite, .env-head-inline, .qed, sub, sup');
+    const atomic = n => n.nodeType === 1 && n.matches('.katex, .imath, .fn, .xref, .cite, .env-head-inline, .qed, .rtag, sub, sup');
     const visit = node => {
       for (const n of Array.from(node.childNodes)) {
         if (n.nodeType === 1 && atomic(n)) {

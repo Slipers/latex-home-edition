@@ -324,6 +324,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'corr-both': () => L.corrAction('corr-both'),
     find: () => L.FindBar.open(),
     hfill: () => { App.closeMenus(); App.insertHfill(); },
+    rtag: () => { App.closeMenus(); App.rightTextDialog(); },
     tex: () => App.exportTex(),
     zip: () => App.exportZip(),
     viewtex: () => L.dlgViewTex(),
@@ -348,7 +349,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   document.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-act], [data-fmt]');
-    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu', 'size-menu', 'align-menu', 'list-menu', 'hfill'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
+    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu', 'size-menu', 'align-menu', 'list-menu', 'hfill', 'rtag'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
     if (e.target.closest('[data-color], [data-size], [data-align], [data-list]')) e.preventDefault();
     if (!e.target.closest('.dropdown')) App.closeMenus();
   });

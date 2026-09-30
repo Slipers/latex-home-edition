@@ -14,7 +14,7 @@ L.listMark = function (style, level, n, lang) {
 };
 
 L.hydrate = function (root, ctx) {
-  root.querySelectorAll('.imath, .xref, .cite, .fn, .timg, .hfill').forEach(el => {
+  root.querySelectorAll('.imath, .xref, .cite, .fn, .timg, .hfill, .rtag').forEach(el => {
     if (ctx.mode === 'edit') el.setAttribute('contenteditable', 'false');
     if (el.classList.contains('timg')) {
       const doc = ctx.doc || (window.App && App.doc);
@@ -33,6 +33,9 @@ L.hydrate = function (root, ctx) {
     } else if (el.classList.contains('cite')) {
       const n = ctx.bib[el.dataset.ref];
       el.textContent = '[' + (n || '?') + ']';
+    } else if (el.classList.contains('rtag')) {
+      el.textContent = el.dataset.text || '';
+      if (ctx.mode === 'edit') el.title = 'Texte à droite — cliquer pour le modifier';
     } else if (el.classList.contains('hfill')) {
       el.textContent = '';
     } else if (el.classList.contains('fn')) {

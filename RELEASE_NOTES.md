@@ -1,15 +1,16 @@
-## Changement de page instantané pendant l'écriture
+## Nouveau : « Texte à droite » (barème, points…)
 
-Quand vous écriviez en bas d'une page, ou que vous appuyiez sur Entrée à la fin d'une page, le nouveau texte apparaissait d'abord **dans la marge du bas**. Il ne passait à la page suivante qu'après **plusieurs secondes**, et seulement une fois la frappe arrêtée.
+Vous pouvez maintenant caler un petit texte **à droite de la ligne**, sur le même paragraphe ou la même question. Idéal pour le barème d'un exercice :
 
-C'est corrigé : **le texte passe à la page suivante immédiatement**, au moment même où il dépasse, comme dans Word.
+    1. La somme de 25 et 38.                                    (/0.5)
+    2. La différence entre 135 et 47.                            (/1)
 
-Deux causes ont été corrigées :
+Trois façons de l'ajouter :
 
-- **La pagination était recalculée seulement après une pause de frappe.** Désormais, l'éditeur vérifie à chaque touche si du texte dépasse le bas d'une page et recoupe aussitôt, en quelques millisecondes. La mise en page complète, celle du PDF, suit en arrière-plan.
-- **L'éditeur n'affichait pas toujours exactement la même chose que le PDF**, par exemple la ligne « Titre du document » d'un titre encore vide, ou un emplacement d'image vide. Les coupures calculées pour le PDF pouvaient alors laisser du texte déborder dans la marge du bas, même après la pause. L'éditeur découpe maintenant ses pages d'après ce qu'il affiche réellement, en gardant les règles de la mise en page :
-  - jamais de titre seul en bas de page ;
-  - pas de ligne isolée d'un paragraphe ;
-  - sauts de page imposés toujours respectés.
+- **Panneau de droite** : cliquez dans une question ou un paragraphe, puis remplissez le champ **« Texte à droite »**. Pour une liste, c'est le « barème de la question » où se trouve le curseur.
+- **Menu d'alignement ☰** de la barre d'outils → **« ⇥ Texte à droite »**. Une fenêtre s'ouvre, avec des raccourcis tout prêts : (/0,5), (/1), (/2), (1 pt)…
+- **Menu « / »** : tapez `/droite` sur une ligne vide.
 
-Tant que l'éditeur affiche la même chose que le PDF, ses pages restent identiques à celles du PDF.
+Cliquez sur un texte à droite pour le modifier ou le retirer.
+
+Il fonctionne partout : paragraphes, questions numérotées, sous-questions, encadrés. Il se place sur la **dernière ligne** si la question en fait plusieurs, exactement comme `\hfill` en LaTeX. Le PDF et le code LaTeX exporté (`\hfill\mbox{(/0.5)}`) donnent donc le même résultat que l'éditeur ; c'est vérifié avec un vrai compilateur LaTeX.

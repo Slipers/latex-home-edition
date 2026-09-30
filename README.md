@@ -59,6 +59,7 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Coller du code LaTeX (texte + formules) | Ctrl+V dans le document : converti en paragraphes et équations |
 | Alignement d'un paragraphe | Menu ☰ de la barre, ou Ctrl+J / L / E / R |
 | Texte à gauche + texte à droite sur une ligne | Menu ☰ → Espace extensible |
+| Barème ou petit texte à droite d'une question | Panneau de droite → « Texte à droite », ou menu ☰ → Texte à droite |
 | Numéro d'une question, supprimer / déplacer une question | Panneau de droite (curseur dans la question) |
 | Renommer un encadré, une figure, un tableau | Panneau de droite → « Nom affiché » / « Nom devant le numéro » |
 | Rechercher / remplacer | Ctrl+F / Ctrl+H |

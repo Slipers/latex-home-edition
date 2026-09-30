@@ -507,6 +507,9 @@ p.rt.is-empty:not(:focus):not(.ph-last)::before { content: none; }
 .pp-sub { background: var(--bg); border-radius: 8px; padding: 8px; }
 .pp-sub .pp-row { margin-bottom: 8px; }
 .paper .hfill { position: relative; min-height: 1em; }
+.paper .rtag { cursor: pointer; border-radius: 3px; padding: 0 2px; margin-right: -2px; }
+.paper .rtag:hover { background: #e3ecfa; outline: 1px dashed #9cb8e6; }
+.rtag-quick { margin-top: 2px; }
 .paper .hfill::before { content: "⟷"; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 11px var(--ui); color: #b5c0d2; pointer-events: none; }
 .paper .hfill:hover::before { color: var(--acc2); }
 .vspace-lab { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; font: 10.5px var(--ui); color: #b5c0d2; border-top: 1px dotted #d3d9e4; line-height: 0; }

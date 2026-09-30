@@ -1,7 +1,7 @@
 /* Rechercher / remplacer (Ctrl+F, Ctrl+H) dans tout le texte du document */
 L.FindBar = (function () {
   let bar, qIn, rIn, info, caseChk, pos = { f: -1, o: -1 };
-  const SKIP = '.imath, .xref, .cite, .fn, .timg, .hfill, .katex, .pg-float, .num, .li-mark, .env-head-inline, .cap-lab';
+  const SKIP = '.imath, .xref, .cite, .fn, .timg, .hfill, .rtag, .katex, .pg-float, .num, .li-mark, .env-head-inline, .cap-lab';
 
   function textNodes(field) {
     const out = [];

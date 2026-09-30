@@ -200,7 +200,7 @@ L.refTargets = function (doc) {
 
 /* ---------- Texte enrichi : nettoyage / sérialisation ---------- */
 const INLINE_OK = { B: 'b', STRONG: 'b', I: 'i', EM: 'i', U: 'u', SUB: 'sub', SUP: 'sup', CODE: 'code' };
-const CHIPS = ['imath', 'xref', 'cite', 'fn', 'timg', 'hfill'];
+const CHIPS = ['imath', 'xref', 'cite', 'fn', 'timg', 'hfill', 'rtag'];
 
 L.sanitizeNode = function (node) {
   let out = '';
@@ -215,6 +215,7 @@ L.sanitizeNode = function (node) {
       else if (chip === 'cite') out += '<span class="cite" data-ref="' + L.escHtml(n.dataset.ref || '') + '"></span>';
       else if (chip === 'fn') out += '<span class="fn" data-text="' + L.escHtml(n.dataset.text || '') + '"' + (n.dataset.html ? ' data-html="' + L.escHtml(n.dataset.html) + '"' : '') + '></span>';
       else if (chip === 'hfill') out += '<span class="hfill"></span>';
+      else if (chip === 'rtag') { if (n.dataset.text) out += '<span class="rtag" data-text="' + L.escHtml(n.dataset.text) + '"></span>'; }
       else if (chip === 'timg') out += '<span class="timg" data-src="' + L.escHtml(n.dataset.src || '') + '" data-w="' + L.escHtml(n.dataset.w || '3') + '"></span>';
       return;
     }
@@ -239,6 +240,20 @@ L.sanitizeNode = function (node) {
     out += inner;
   });
   return out;
+};
+
+/* « Texte à droite » d'un champ (barème, points…) : un seul, placé en fin de texte */
+L.getRightText = function (html) {
+  const m = /<span class="rtag" data-text="([^"]*)"><\/span>/.exec(html || '');
+  if (!m) return '';
+  const d = document.createElement('textarea'); d.innerHTML = m[1];
+  return d.value;
+};
+L.setRightText = function (html, text) {
+  let s = String(html || '').replace(/<span class="rtag" data-text="[^"]*"><\/span>/g, '').replace(/(<br>)+$/, '');
+  text = String(text || '').trim().slice(0, 120);
+  if (text) s += '<span class="rtag" data-text="' + L.escHtml(text) + '"></span>';
+  return s;
 };
 
 L.serializeRich = function (el) {

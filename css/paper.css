@@ -222,6 +222,8 @@
 .para.left { text-align: left; text-indent: 0; }
 .para.has-hfill { display: flex; align-items: baseline; text-indent: 0; }
 .hfill { flex: 1 1 auto; display: inline-block; min-width: .5em; }
+/* Texte à droite (barème, points…) : calé à droite de la ligne, comme \hfill en LaTeX */
+.rtag { float: right; margin-left: 1.2em; text-indent: 0; white-space: nowrap; }
 .s-tiny { font-size: var(--fs-tiny); } .s-script { font-size: var(--fs-script); }
 .s-foot { font-size: var(--fs-fn); } .s-small { font-size: var(--fs-small); }
 .s-large { font-size: var(--fs-large); } .s-Large { font-size: var(--fs-Large); }

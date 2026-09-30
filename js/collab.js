@@ -19,7 +19,7 @@
   const LOCAL = 'local', REMOTE = 'remote', LOAD = 'load';
   const LOCAL_META = ['share', 'sharedFrom', 'live', '_hfMigrated'];
   const TEXT_KEYS = new Set(['html', 'latex', 'code', 'caption', 'title', 'subtitle', 'author', 'institution', 'extra', 'date', 'text']);
-  const CHIP = '.imath, .xref, .cite, .fn, .timg, .hfill, .katex';
+  const CHIP = '.imath, .xref, .cite, .fn, .timg, .hfill, .rtag, .katex';
   const COLORS = ['#e8590c', '#1c7ed6', '#2f9e44', '#ae3ec9', '#e67700', '#0c8599', '#d6336c', '#4263eb', '#66a80f', '#c2255c'];
   const ROLE_NAMES = { owner: 'Propriétaire', editor: 'Éditeur', commenter: 'Commentateur', viewer: 'Lecteur' };
   const BROADCAST_MAX = 120000;       // au-delà, la modification passe seulement par la base

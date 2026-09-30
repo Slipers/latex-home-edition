@@ -44,6 +44,7 @@ L.ITEMS = [
   { g: 'Mise en page', key: 'pnote', label: 'Texte en bas de page', icon: '↧', kw: 'bas de page pied note remarque texte page', make: () => L.newBlock('pnote') },
   { g: 'Mise en page', key: 'rule', label: 'Ligne de séparation', icon: '―', kw: 'ligne trait separation horizontale', make: () => L.newBlock('rule') },
   { g: 'Mise en page', key: 'vspace', label: 'Espace vertical', icon: '↕', kw: 'espace vertical blanc saut ligne', make: () => L.newBlock('vspace') },
+  { g: 'Mise en page', key: 'rtag', label: 'Texte à droite (barème…)', icon: '⇥', kw: 'texte droite bareme points note marge aligner', action: () => App.rightTextDialog() },
   { g: 'Mise en page', key: 'hfill', label: 'Espace extensible', icon: '⟷', kw: 'espace extensible droite aligner hfill tabulation', action: () => App.insertHfill() },
   { g: 'Mise en page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
   { g: 'Mise en page', key: 'bibliography', label: 'Bibliographie', icon: '[1]', kw: 'bibliographie references sources', make: () => L.newBlock('bibliography') },
@@ -460,7 +461,7 @@ Object.assign(App, {
         if (found) return;
         if (n.nodeType === 1) {
           if (n.matches(SKIP)) continue;
-          if (n.matches('.imath, .xref, .cite, .timg, .fn')) {
+          if (n.matches('.imath, .xref, .cite, .timg, .fn, .rtag')) {
             const r = n.getBoundingClientRect();
             if (r.height && !above(r) && movable(r) && n.closest('[data-f]')) { const rg = document.createRange(); rg.setStartBefore(n); rg.collapse(true); found = { kind: 'float', range: rg }; return; }
             continue;
@@ -1051,6 +1052,7 @@ Object.assign(App, {
       P.append(
         row('Alignement', seg([['justify', 'Justifié'], ['left', 'Gauche'], ['center', 'Centré'], ['right', 'Droite']], b.align || 'justify', v => upd(() => { b.align = v; }))),
         row('', chk('Sans alinéa (pas de retrait)', b.noindent, v => upd(() => { b.noindent = v; }))),
+        this.rightTextRow(b, 'html', row, upd),
         row('Transformer en', L.h('div', { class: 'btn-row' },
           btn('Section', () => this.convertParagraph(b.id, 'h1')), btn('Sous-section', () => this.convertParagraph(b.id, 'h2')),
           btn('Liste', () => this.convertParagraph(b.id, 'ul')), btn('Théorème', () => this.convertParagraph(b.id, 'theoreme')),
@@ -1557,6 +1559,8 @@ App.bindEditor = function () {
     }
     const pna = t.closest('.pnote-anchor');
     if (pna) { const f = L.find(this.doc, pna.closest('.blk').dataset.id); if (f) this.editNote({ pnote: f.block.id }); return; }
+    const rtag = t.closest('.rtag');
+    if (rtag && paper.contains(rtag)) { this.rightTextDialog(rtag.closest('[data-f]')); return; }
     const timg = t.closest('.timg');
     if (timg && paper.contains(timg)) { this.editInlineImage(timg); return; }
     const cadd = t.closest('.col-add');
@@ -1753,6 +1757,41 @@ Object.assign(App, {
     }
     this.insertBlock(L.newBlock('list', { style }));
   },
+  /* « Texte à droite » du champ où se trouve le curseur (barème d'une question…) */
+  rightTextDialog(field) {
+    if (!field) { const cr = this.currentRichRange(); field = cr && cr.field; }
+    if (!field || field.dataset.b === 'meta' || field.dataset.f === 'code') return L.toast('Placez le curseur dans le paragraphe ou la question où ajouter le texte à droite.');
+    this.syncField(field);
+    const b = field.dataset.b, f = field.dataset.f;
+    const t = this.target(field);
+    const cur = L.getRightText(L.find(this.doc, b) ? this.getPath(t, f) : '');
+    const inp = L.h('input', { type: 'text', value: cur, placeholder: 'ex. (/0.5), 2 pts, 5 min…', maxlength: '120' });
+    const set = (v, close) => {
+      const tt = this.target(fieldOf());
+      if (!tt) return close();
+      this.setPath(tt, f, L.setRightText(this.getPath(tt, f), v));
+      this.commit();
+      this.focusAfter = { id: b, f, where: 'end' };
+      this.render();
+      close();
+    };
+    const fieldOf = () => L.$('#paper [data-b="' + b + '"][data-f="' + f + '"]') || field;
+    const quick = L.h('div', { class: 'btn-row rtag-quick' }, ...['(/0,5)', '(/1)', '(/2)', '(/3)', '(1 pt)', '(2 pts)'].map(q => L.h('button', { class: 'btn small', text: q, onclick: () => { inp.value = q; inp.focus(); } })));
+    const dlg = L.modal({
+      title: 'Texte à droite',
+      body: L.h('div', null,
+        L.h('p', { class: 'pp-help', text: 'Un petit texte calé à droite de la ligne, sur la dernière ligne du paragraphe ou de la question : barème, points, durée… (comme \\hfill en LaTeX).' }),
+        L.h('div', { class: 'field' }, L.h('label', { text: 'Texte' }), inp), quick),
+      foot: [
+        cur ? { text: 'Retirer', cls: 'danger', onClick: c => set('', c) } : null,
+        { text: 'Annuler', onClick: c => c() },
+        { text: 'OK', cls: 'primary', onClick: c => set(inp.value, c) },
+      ].filter(Boolean),
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); set(inp.value, dlg.close); } });
+    setTimeout(() => { inp.focus(); inp.select(); }, 40);
+  },
+  getPath(obj, path) { let o = obj; for (const k of path.split('.')) { if (o == null) return undefined; o = o[k]; } return o; },
   insertHfill() {
     const cr = this.currentRichRange();
     if (!cr || !cr.field.matches('p')) return L.toast('Placez le curseur dans un paragraphe, là où la suite doit être poussée à droite.');
@@ -1765,6 +1804,18 @@ Object.assign(App, {
     this.render();
   },
   /* Question (élément de liste) où se trouve le curseur : numéro, déplacement, suppression */
+  /* Champ « Texte à droite » du panneau de droite */
+  rightTextRow(b, f, row, upd, label) {
+    const inp = L.h('input', { type: 'text', value: L.getRightText(this.getPath(b, f)), placeholder: 'ex. (/0,5) — vide = aucun', maxlength: '120' });
+    const apply = () => {
+      const v = inp.value;
+      if (v.trim() === L.getRightText(this.getPath(b, f))) return;
+      upd(() => { this.setPath(b, f, L.setRightText(this.getPath(b, f), v)); this.focusAfter = { id: b.id, f, where: 'end' }; });
+    };
+    inp.addEventListener('change', apply);
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
+    return row(label || 'Texte à droite (barème, points…)', inp);
+  },
   listItemRow(b, row, btn, upd) {
     const cr = this.currentRichRange();
     const fd = cr && cr.field.dataset.b === b.id ? cr.field.dataset.f : null;
@@ -1775,6 +1826,7 @@ Object.assign(App, {
     const numIn = L.h('input', { type: 'number', value: it.num ?? '', placeholder: 'auto', style: { width: '80px' } });
     numIn.onchange = () => upd(() => { if (numIn.value === '') delete it.num; else it.num = Math.trunc(+numIn.value); });
     const keep = n => { this.focusAfter = { id: b.id, f: 'items.' + n + '.html', where: 'end' }; };
+    box.appendChild(this.rightTextRow(b, 'items.' + i + '.html', row, upd, 'Texte à droite (barème de la question)'));
     if (b.style !== 'bullet') box.appendChild(row('Numéro de cette question', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, numIn, L.h('span', { class: 'pp-help', text: 'vide = automatique ; les suivantes continuent.' }))));
     box.appendChild(L.h('div', { class: 'btn-row' },
       btn('↑', () => { if (i > 0) upd(() => { b.items.splice(i - 1, 0, b.items.splice(i, 1)[0]); keep(i - 1); }); }),
