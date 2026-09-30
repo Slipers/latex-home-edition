@@ -58,6 +58,18 @@ const TYPE_INFO = {
 };
 
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/* Haut \u00e0 l'\u00e9cran d'une position de texte (null si introuvable). Une position repli\u00e9e n'a
+   parfois pas de rectangle : on mesure alors le caract\u00e8re qui suit (ou celui d'avant). */
+function rangeTop(rg) {
+  let rc = rg.getClientRects()[0];
+  if (!rc || (!rc.top && !rc.bottom)) {
+    const r = rg.cloneRange(), n = r.startContainer, o = r.startOffset;
+    if (n.nodeType === 3 && o < n.nodeValue.length) { r.setEnd(n, o + 1); rc = r.getClientRects()[0]; }
+    else if (n.nodeType === 3 && o > 0) { r.setStart(n, o - 1); r.setEnd(n, o); rc = r.getClientRects()[0]; }
+    else { const el = n.nodeType === 1 ? (n.childNodes[o] || n) : n.parentElement; if (el && el.getBoundingClientRect) rc = el.getBoundingClientRect(); }
+  }
+  return rc && (rc.top || rc.bottom) ? rc.top : null;
+}
 
 Object.assign(App, {
   /* ================= État & historique ================= */
@@ -191,6 +203,44 @@ Object.assign(App, {
       return;
     }
   },
+  /* Ce que l'on regarde, au caractère près : le curseur s'il est à l'écran, sinon le texte
+     en haut de l'écran. Sert à garder l'écran immobile quand la mise en page bouge
+     (changements de page, modifications d'un autre utilisateur en Live…). */
+  viewAnchor() {
+    const desk = L.$('#desk'), paper = L.$('#paper');
+    if (!paper.querySelector(':scope > .flow')) return null;
+    const d = desk.getBoundingClientRect();
+    const s = window.getSelection();
+    if (s.rangeCount && paper.contains(s.anchorNode)) {
+      const rg = s.getRangeAt(0).cloneRange();
+      const y = rangeTop(rg);
+      if (y !== null && y >= d.top - 60 && y <= d.bottom + 60) return { range: rg, y: y - d.top, caret: true };
+    }
+    // Le texte en haut de l'écran : on sonde quelques points sous le bord
+    const pr = paper.getBoundingClientRect();
+    if (document.caretRangeFromPoint) {
+      for (let y = Math.max(d.top, pr.top) + 12; y < d.top + d.height / 2; y += 20) {
+        for (const fx of [0.3, 0.5]) {
+          const rg = document.caretRangeFromPoint(pr.left + pr.width * fx, y);
+          const n = rg && rg.startContainer;
+          const el = n && (n.nodeType === 1 ? n : n.parentElement);
+          if (!n || n.nodeType !== 3 || !el.closest('#paper [data-f]') || el.closest('.pg-float, .sheets, .collab-layer, .cmt-layer')) continue;
+          const ty = rangeTop(rg);
+          if (ty !== null && ty >= d.top - 2) return { range: rg, y: ty - d.top };
+        }
+      }
+    }
+    const vis = L.$$('#paper .flow > .blk').find(el => el.getBoundingClientRect().bottom > d.top + 10);
+    return vis ? { el: vis, y: vis.getBoundingClientRect().top - d.top } : null;
+  },
+  restoreView(a) {
+    if (!a) return;
+    const desk = L.$('#desk');
+    let y = null;
+    if (a.range) { try { if (a.range.startContainer.isConnected) y = rangeTop(a.range); } catch (e) { /* position disparue */ } }
+    else if (a.el && a.el.isConnected) y = a.el.getBoundingClientRect().top;
+    if (y !== null) desk.scrollTop += (y - desk.getBoundingClientRect().top) - a.y;
+  },
   /* Fait défiler du strict minimum (sans animation) pour que le curseur soit visible */
   ensureCaretVisible(target) {
     const desk = L.$('#desk');
@@ -240,20 +290,9 @@ Object.assign(App, {
     const paper = L.$('#paper');
     const flow = paper.querySelector(':scope > .flow');
     if (!flow) return;
-    // Point d'ancrage : le curseur (ou le premier bloc visible), pour garder l'écran immobile
-    const desk = L.$('#desk'), dTop = desk.getBoundingClientRect().top;
-    let anc = null;
-    if (!noAnchor) {
-      const s0 = window.getSelection();
-      if (s0.rangeCount && paper.contains(s0.anchorNode)) {
-        const rg = s0.getRangeAt(0).cloneRange(), rc = rg.getBoundingClientRect();
-        if (rc.top || rc.bottom) anc = { range: rg, y: rc.top - dTop };
-      }
-      if (!anc) {
-        const vis = L.$$('#paper .flow > .blk').find(el => el.getBoundingClientRect().bottom > dTop + 10);
-        if (vis) anc = { el: vis, y: vis.getBoundingClientRect().top - dTop };
-      }
-    }
+    // Point d'ancrage : ce que l'on regarde (le curseur s'il est à l'écran, sinon le texte
+    // en haut de l'écran), pour garder l'écran immobile
+    const anc = noAnchor ? null : this.viewAnchor();
     // 1. On retire les espaces de la mise en page précédente
     paper.querySelectorAll('.pg-sp').forEach(x => x.remove());
     paper.querySelectorAll('.pg-float').forEach(x => { const p = x.parentNode; x.remove(); if (p) p.normalize(); });
@@ -376,15 +415,12 @@ Object.assign(App, {
     });
     this.sheets = sheets;
     // Remet le point d'ancrage au même endroit de l'écran
-    if (anc) {
-      let y = null;
-      if (anc.range) { try { const rc = anc.range.getBoundingClientRect(); if (rc.top || rc.bottom) y = rc.top; } catch (e) {} }
-      else if (anc.el && document.contains(anc.el)) y = anc.el.getBoundingClientRect().top;
-      if (y !== null) desk.scrollTop += (y - dTop) - anc.y;
-    }
+    this.restoreView(anc);
     this.updatePageIndicator();
-    // Si le texte a été poussé sur la page suivante, on garde le curseur visible (sans animation)
-    if (document.activeElement && paper.contains(document.activeElement)) this.ensureCaretVisible();
+    // Si le texte a été poussé sur la page suivante, on garde le curseur visible (sans animation) —
+    // seulement s'il était à l'écran : quand on lit ailleurs (pendant qu'un autre écrit en direct,
+    // par exemple), l'écran ne doit pas sauter vers le curseur.
+    if (anc && anc.caret && document.activeElement && paper.contains(document.activeElement)) this.ensureCaretVisible();
     // Les sauts de page déplacent le texte : curseurs des autres et passages commentés suivent
     if (L.Collab && L.Collab.active()) { L.Collab.redraw(); if (L.Comments) L.Comments.redraw(); }
   },

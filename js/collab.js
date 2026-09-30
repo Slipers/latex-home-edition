@@ -408,6 +408,9 @@
     pushLocal();                                    // d'abord ce que l'on vient de taper
     const list = s.inbox; s.inbox = [];
     s.ydoc.transact(() => list.forEach(u => { try { Y.applyUpdate(s.ydoc, typeof u === 'string' ? unb64(u) : u, REMOTE); } catch (e) { console.warn('maj illisible', e); } }), REMOTE);
+    // L'éditeur est mis à jour dans la foulée, sans rendre la main : une lettre tapée entre
+    // les deux ne serait pas encore dans les données partagées, et la mise à jour l'effacerait
+    if (S === s && s.tPull) { clearTimeout(s.tPull); s.tPull = null; pull(); }
   }
   function schedulePull() { if (!S.tPull) S.tPull = setTimeout(() => { if (S) { S.tPull = null; pull(); } }, 0); }
   async function catchUp() {
@@ -466,12 +469,19 @@
         targets.push({ el, val, code: loc.f === 'code' });
       }
     }
+    // Ce que l'on regarde (curseur à l'écran, ou texte en haut de l'écran) reste immobile,
+    // quoi que l'autre écrive au-dessus
+    const view = captureView();
     Object.assign(App.doc, nd);
     s.assetsSig = assetsSig(App.doc.assets);
     if (fieldOnly) {
       const info = L.computeNumbers(App.doc);
       const ctx = { doc: App.doc, mode: 'edit', nums: info.nums, toc: info.toc, bib: info.bib, lang: App.doc.meta.lang, meta: App.doc.meta };
+      // Un changement de page au milieu d'un texte modifié disparaît avec lui : on remet
+      // les pages tout de suite (sinon tout ce qui suit remonte jusqu'à la mise en page suivante)
+      const hadBreak = targets.some(t => t.el.querySelector('.pg-float'));
       targets.forEach(t => patchField(t.el, t.val, t.code, ctx));
+      if (hadBreak || App.pagesStale()) App.layoutSheets(true);
       App.pagesSoon();
       App.refreshAux();
       if (!canEdit()) lockFields();
@@ -480,6 +490,7 @@
       App.render();
       restoreSel(keep);
     }
+    restoreView(view);
     if (App.sel && !L.find(App.doc, App.sel)) App.select(null);
     App.updateName();
     redraw();
@@ -498,6 +509,30 @@
       const newT = textOf(el);
       setSel(el, mapOffset(sel.a, oldT, newT), mapOffset(sel.h, oldT, newT));
     }
+  }
+  /* Point de vue de l'utilisateur, noté en (champ, position dans le texte) : le texte d'un
+     champ modifié par un autre est entièrement recréé, une simple position DOM serait perdue */
+  function captureView() {
+    const a = App.viewAnchor();
+    if (!a) return null;
+    if (a.range) {
+      const n = a.range.startContainer, el = n.nodeType === 1 ? n : n.parentElement;
+      const field = el && el.closest('#paper [data-b][data-f]');
+      const off = field && offsetOf(field, n, a.range.startOffset);
+      if (field && off !== null) return { b: field.dataset.b, f: field.dataset.f, off, t: textOf(field), y: a.y, caret: a.caret };
+      return null;
+    }
+    return { id: a.el.dataset.id, y: a.y };
+  }
+  function restoreView(v) {
+    if (!v) return;
+    if (v.id) { const el = App.blockEl(v.id); if (el) App.restoreView({ el, y: v.y }); return; }
+    const field = fieldEl(v.b, v.f);
+    if (!field) return;
+    // Le curseur : la sélection, déjà remise à sa place ; sinon la même position de texte
+    const s = window.getSelection();
+    const range = v.caret && s.rangeCount && field.contains(s.anchorNode) ? s.getRangeAt(0).cloneRange() : rangeAt(field, mapOffset(v.off, v.t, textOf(field)));
+    App.restoreView({ range, y: v.y });
   }
   function captureSel() {
     const s = window.getSelection();
