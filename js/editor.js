@@ -84,6 +84,10 @@ Object.assign(App, {
     this.last = this.snapshot();
     this.dirty = false;
     if (fileName !== undefined) this.fileName = fileName;
+    // Un document chargé n'est relié à aucun fichier du PC : seule l'ouverture d'un
+    // fichier (openText) en pose un, APRÈS ce chargement. Sinon « Nouveau » puis
+    // « Enregistrer » écrasait sans prévenir le fichier ouvert juste avant.
+    this.filePath = null; this.fileHandle = null;
     L.MathDock.cancel();
     this.render();
     this.updateName();

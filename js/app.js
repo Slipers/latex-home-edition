@@ -71,10 +71,10 @@ Object.assign(App, {
     try {
       const d = JSON.parse(text);
       if (!d.blocks || !d.meta) throw new Error('format');
-      this.fileHandle = handle;
-      this.filePath = filePath;
       // Un fichier reçu peut avoir été fabriqué à la main : on n'en garde que ce que l'éditeur produit
       this.load(L.sanitizeDoc({ meta: d.meta, blocks: d.blocks, bib: d.bib, assets: d.assets }), name);
+      this.fileHandle = handle;
+      this.filePath = filePath;
       L.toast('Document ouvert : ' + name);
     } catch (e) { L.toast('Ce fichier n\'est pas un document LaTeX Home Edition valide.', 'err'); }
   },
