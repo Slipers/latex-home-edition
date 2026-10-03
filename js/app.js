@@ -11,6 +11,8 @@ Object.assign(App, {
   },
   baseName() { return (this.fileName || L.slug(L.plain(this.doc.meta.title))).replace(/\.lhe$/i, ''); },
   async save(saveAs = false) {
+    // Document venu de « Mes fichiers en ligne » : il s'enregistre en ligne (Ctrl+Maj+S : sur le PC)
+    if (!saveAs && L.Drive && L.Drive.linked()) return L.Drive.saveNow(false);
     this.commit();
     const data = this.serialize();
     if (window.lheDesktop) {
@@ -335,6 +337,7 @@ window.addEventListener('DOMContentLoaded', () => {
     openshare: () => L.dlgOpenShare(),
     collab: () => L.dlgCollab(),
     clouddocs: () => L.dlgCloudDocs(),
+    drive: () => { App.closeMenus(); L.Drive.dialog(); },
     'account-menu': () => L.CollabUI.accountMenu(),
     account: () => L.dlgAccount(),
     login: () => L.dlgAuth('login'),
@@ -401,6 +404,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (k === 'z' && !e.shiftKey) { if (document.activeElement && document.activeElement.tagName === 'MATH-FIELD') return; e.preventDefault(); App.undo(); }
     else if (k === 'y' || (k === 'z' && e.shiftKey)) { if (document.activeElement && document.activeElement.tagName === 'MATH-FIELD') return; e.preventDefault(); App.redo(); }
     else if (k === 's') { e.preventDefault(); App.save(e.shiftKey); }
+    else if (k === 'o' && e.shiftKey) { e.preventDefault(); L.Drive.dialog(); }
     else if (k === 'o') { e.preventDefault(); App.open(); }
     else if (k === 'p') { e.preventDefault(); App.print(); }
     else if (k === 'm' && e.shiftKey) { e.preventDefault(); App.insertBlock(L.newBlock('equation')); }
@@ -470,7 +474,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (saved) {
     try {
       const d = JSON.parse(saved);
-      if (d && d.blocks) { App.load(d, null); restored = true; }
+      if (d && d.blocks) { if (L.Drive) L.Drive.restoreLink(); App.load(d, null); restored = true; }
     } catch (e) {}
   }
   if (!restored) {

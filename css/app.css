@@ -611,6 +611,22 @@ p.rt.is-empty:not(:focus):not(.ph-last)::before { content: none; }
 .share-pill.err { color: #a33; border-color: #e6b8b8; background: #fdf0f0; }
 .share-pill.wait { color: #8a6412; border-color: #ecd9a8; background: #fdf8ec; }
 .share-pill:hover { filter: brightness(.97); }
+.drive-pill { margin-left: 4px; cursor: pointer; }
+
+/* « Mes fichiers en ligne » */
+.drive .drive-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.drive .drive-cur { font-size: 12.5px; color: var(--txt2); flex: 1 1 auto; min-width: 0; }
+.drive .drive-search { width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid var(--line2); border-radius: 8px; background: var(--panel); color: var(--txt); font: inherit; margin-bottom: 8px; }
+.drive .drive-row { cursor: default; flex-wrap: wrap; }
+.drive .drive-row .cdoc-t { flex: 1 1 200px; min-width: 0; }
+.drive .drive-row .cdoc-t b { overflow-wrap: anywhere; }
+.drive .drive-row.cur { border-color: var(--acc); }
+.drive .drive-empty { padding: 14px 4px; }
+.drive .drive-trash-btn { margin: 12px 0 6px; font-size: 12.5px; }
+.drive .drive-usage { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.drive .drive-bar { flex: 0 0 140px; height: 6px; border-radius: 3px; background: var(--soft2); overflow: hidden; }
+.drive .drive-bar i { display: block; height: 100%; background: var(--acc); }
+.drive .cdoc-list { max-height: min(52vh, 460px); overflow: auto; }
 
 #updCard { position: absolute; left: 264px; bottom: 50px; z-index: 7; width: 300px; max-width: calc(100vw - 32px); background: var(--panel); border: 1px solid var(--line2); border-left: 4px solid var(--acc2); border-radius: 10px; padding: 11px 14px 12px; box-shadow: 0 8px 26px rgba(20, 30, 50, .16); font-size: 12.5px; animation: uc-in .25s ease-out; }
 @keyframes uc-in { from { transform: translateY(10px); opacity: 0; } }

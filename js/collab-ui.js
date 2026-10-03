@@ -371,7 +371,7 @@
     const item = (t, act, sub) => L.h('button', { 'data-act': act }, t, sub ? L.h('small', { text: sub }) : null);
     m.replaceChildren(...[...(u ? [
       L.h('div', { class: 'menu-head' }, L.h('b', { text: C().pseudo() }), L.h('small', { text: C().email() })),
-      item('Mon compte…', 'account'), item('Documents en ligne…', 'clouddocs'), item('⚡ Live Modification…', 'collab'), L.h('hr'),
+      item('☁ Mes fichiers en ligne…', 'drive', 'Ctrl+Maj+O'), item('Documents Live partagés…', 'clouddocs'), item('⚡ Live Modification…', 'collab'), item('Mon compte…', 'account'), L.h('hr'),
     ] : [item('Se connecter…', 'login'), item('Créer un compte…', 'signup'), L.h('hr')]),
     item('Préférences…', 'prefs'),
     multi ? item('Nouvelle fenêtre', 'newwindow', 'Ctrl+Maj+N') : null,

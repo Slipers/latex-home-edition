@@ -25,13 +25,15 @@
   <header id="topbar">
     <div class="brand"><span class="logo">∑</span><span class="brand-name">LaTeX <b>Home</b></span></div>
     <div class="doc-name" id="docName" title="Nom du fichier">Sans titre</div>
+    <button class="share-pill drive-pill" id="driveStatus" hidden></button>
     <button class="share-pill" id="shareStatus" data-act="share" hidden></button>
     <div class="collab-bar" id="collabBar" hidden></div>
     <nav class="tb">
       <div class="tb-group g-file">
         <button data-act="new" data-lv="2" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
         <button data-act="open" data-lv="2" title="Ouvrir un fichier .lhe (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
-        <button data-act="save" data-lv="2" title="Enregistrer (Ctrl+S)"><i>💾</i><span>Enregistrer</span></button>
+        <button data-act="save" data-lv="2" title="Enregistrer (Ctrl+S) — Ctrl+Maj+S : enregistrer sur le PC sous un autre nom"><i>💾</i><span>Enregistrer</span></button>
+        <button data-act="drive" data-lv="3" title="Mes fichiers en ligne : vos documents rangés avec votre compte, retrouvables depuis n'importe quel ordinateur (Ctrl+Maj+O)"><i>☁</i><span>Mes fichiers</span></button>
       </div>
       <div class="tb-group g-edit">
         <button data-act="undo" title="Annuler (Ctrl+Z)"><i>↶</i></button>
@@ -273,6 +275,7 @@
 <script src="js/collab.js"></script>
 <script src="js/comments.js"></script>
 <script src="js/collab-ui.js"></script>
+<script src="js/fichiers.js"></script>
 <script src="js/find.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>

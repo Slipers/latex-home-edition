@@ -10,6 +10,7 @@ const db = new PGlite({ extensions: { pgcrypto } });
 const root = new URL('..', import.meta.url);
 const SQL = fs.readFileSync(new URL('supabase/collab.sql', root), 'utf8');
 const SHARE_SQL = fs.readFileSync(new URL('supabase/partage.sql', root), 'utf8');
+const FILES_SQL = fs.readFileSync(new URL('supabase/fichiers.sql', root), 'utf8');
 
 await db.exec(`
   create role anon nologin; create role authenticated nologin;
@@ -30,6 +31,8 @@ await db.exec(`
 await db.exec(SQL);
 await db.exec(SQL);            // le script doit pouvoir être relancé
 if (SHARE_SQL) { await db.exec(SHARE_SQL); }
+await db.exec(FILES_SQL);
+await db.exec(FILES_SQL);      // relançable
 
 const U = {
   alice: '11111111-1111-1111-1111-111111111111',
@@ -204,6 +207,84 @@ if (SHARE_SQL) {
   const s = (await as(null, () => q(`select public.create_share('Payload_de_test_abc', 'Titre', true) j`)))[0].j;
   check('partage.sql toujours fonctionnel', s && s.id && s.token, s);
 }
+
+// ---------------------------------------------------------------- Mes fichiers en ligne (fichiers.sql)
+const fsave = (who, id, name, data, version, force) => as(who, async () => (await q('select public.lhe_file_save($1, $2, $3, $4, $5) j', [id, name, data, version, !!force]))[0].j);
+const f1 = await fsave('bob', null, 'Cours de maths', 'DATA-1', null);
+check('fichier : créé (version 1)', f1.id && f1.version === 1 && f1.name === 'Cours de maths', f1);
+const f2 = await fsave('bob', null, 'cours de MATHS', 'DATA-X', null);
+check('fichier : même nom → renommé, rien d\'écrasé', f2.name === 'cours de MATHS (2)' && f2.id !== f1.id, f2);
+check('fichier : le premier est intact', (await as('bob', () => q('select data from public.lhe_files where id=$1', [f1.id])))[0].data === 'DATA-1');
+check('fichier : carol ne voit rien', (await as('carol', () => q('select * from public.lhe_files'))).length === 0);
+check('fichier : carol ne liste rien', (await as('carol', () => q('select * from public.lhe_my_files()'))).length === 0);
+check('fichier : anon refusé (lecture)', await as(null, () => fails(() => q('select * from public.lhe_files'))));
+check('fichier : anon refusé (liste)', await as(null, () => fails(() => q('select * from public.lhe_my_files()'))));
+check('fichier : anon refusé (écriture)', await as(null, () => fails(() => q(`select public.lhe_file_save(null, 'x', 'y', null, false)`))));
+check('fichier : carol ne peut pas écrire celui de bob', await as('carol', () => fails(() => q('select public.lhe_file_save($1, null, $2, 1, true)', [f1.id, 'PIRATE']), /LHE_GONE/)));
+check('fichier : carol ne peut pas le renommer', await as('carol', () => fails(() => q(`select public.lhe_file_rename($1, 'x')`, [f1.id]), /LHE_GONE/)));
+check('fichier : carol ne peut pas le jeter', await as('carol', () => fails(() => q('select public.lhe_file_trash($1, true)', [f1.id]), /LHE_GONE/)));
+check('fichier : carol ne peut pas le supprimer', await as('carol', () => fails(() => q('select public.lhe_file_purge($1)', [f1.id]))));
+check('fichier : carol ne peut pas le rétablir', await as('carol', () => fails(() => q('select public.lhe_file_revert($1)', [f1.id]), /LHE_GONE/)));
+check('fichier : carol ne lit pas son espace', (await as('carol', () => q('select public.lhe_files_usage() j')))[0].j.count === 0);
+check('fichier : écriture directe interdite', await as('bob', () => fails(() => q(`update public.lhe_files set data='Z' where id=$1`, [f1.id]))));
+check('fichier : insertion directe interdite', await as('bob', () => fails(() => q(`insert into public.lhe_files (name, data) values ('a','b')`))));
+check('fichier : suppression directe interdite', await as('bob', () => fails(() => q('delete from public.lhe_files where id=$1', [f1.id]))));
+check('fichier : fonctions internes interdites', await as('bob', () => fails(() => q(`select public.lhe_files_free_name('x', null)`))));
+check('fichier : intact après les tentatives', (await q('select data, version from public.lhe_files where id=$1', [f1.id]))[0].data === 'DATA-1');
+
+// Versions : enregistrement normal, puis conflit (autre ordinateur resté sur une vieille version)
+const v2 = await fsave('bob', f1.id, null, 'DATA-2', 1);
+check('fichier : version 2', v2.version === 2 && v2.name === 'Cours de maths', v2);
+check('fichier : version précédente gardée', (await q('select prev_data from public.lhe_files where id=$1', [f1.id]))[0].prev_data === 'DATA-1');
+check('fichier : conflit détecté', await as('bob', () => fails(() => q('select public.lhe_file_save($1, null, $2, 1, false)', [f1.id, 'VIEUX']), /LHE_CONFLICT/)));
+check('fichier : rien écrasé par le conflit', (await q('select data from public.lhe_files where id=$1', [f1.id]))[0].data === 'DATA-2');
+const v3 = await fsave('bob', f1.id, null, 'DATA-3', 2);
+check('fichier : enregistrement rapproché → précédente conservée', (await q('select prev_data from public.lhe_files where id=$1', [f1.id]))[0].prev_data === 'DATA-1' && v3.version === 3);
+const v4 = await fsave('bob', f1.id, null, 'FORCE', 1, true);
+check('fichier : forcer garde l\'écrasé comme précédente', v4.version === 4 && (await q('select prev_data from public.lhe_files where id=$1', [f1.id]))[0].prev_data === 'DATA-3');
+const rv = (await as('bob', () => q('select public.lhe_file_revert($1) j', [f1.id])))[0].j;
+const afterRv = (await q('select data, prev_data from public.lhe_files where id=$1', [f1.id]))[0];
+check('fichier : rétablir la précédente (sans rien perdre)', rv.version === 5 && afterRv.data === 'DATA-3' && afterRv.prev_data === 'FORCE', afterRv);
+check('fichier : contenu vide refusé', await as('bob', () => fails(() => q(`select public.lhe_file_save(null, 'x', '', null, false)`), /LHE_SIZE/)));
+
+// Renommer, corbeille, restaurer, supprimer définitivement
+check('fichier : renommer vers un nom pris → suffixe', (await as('bob', () => q(`select public.lhe_file_rename($1, 'Cours de maths') j`, [f2.id])))[0].j.name === 'Cours de maths (2)');
+await as('bob', () => q('select public.lhe_file_trash($1, true)', [f1.id]));
+check('fichier : à la corbeille, pas effacé', (await q('select deleted_at is not null t from public.lhe_files where id=$1', [f1.id]))[0].t === true);
+check('fichier : on n\'enregistre pas dans la corbeille', await as('bob', () => fails(() => q('select public.lhe_file_save($1, null, $2, 5, false)', [f1.id, 'X']), /LHE_TRASHED/)));
+const f3 = await fsave('bob', null, 'Cours de maths', 'NOUVEAU', null);
+check('fichier : nom libéré par la corbeille', f3.name === 'Cours de maths', f3);
+const rs = (await as('bob', () => q('select public.lhe_file_trash($1, false) j', [f1.id])))[0].j;
+check('fichier : restauré sous un nom libre', rs.deleted_at === null && rs.name === 'Cours de maths (3)', rs);
+check('fichier : suppression définitive hors corbeille refusée', await as('bob', () => fails(() => q('select public.lhe_file_purge($1)', [f1.id]), /LHE_NOT_TRASHED/)));
+await as('bob', () => q('select public.lhe_file_trash($1, true)', [f3.id]));
+check('fichier : suppression définitive depuis la corbeille', (await as('bob', () => q('select public.lhe_file_purge($1) r', [f3.id])))[0].r === true);
+check('fichier : bien supprimé', (await q('select count(*)::int n from public.lhe_files where id=$1', [f3.id]))[0].n === 0);
+await q(`update public.lhe_files set deleted_at = now() - interval '31 days' where id=$1`, [f2.id]);
+const lst = await as('bob', () => q('select * from public.lhe_my_files()'));
+check('fichier : corbeille de plus de 30 jours vidée', lst.length === 1 && lst[0].id === f1.id && lst[0].data === undefined, lst.map(r => r.name));
+const use = (await as('bob', () => q('select public.lhe_files_usage() j')))[0].j;
+check('fichier : espace utilisé', use.count === 1 && use.used === 'DATA-3'.length + 'FORCE'.length && use.max === 60000000, use);
+
+// Limite d'espace (60 millions de caractères par compte)
+let quotaHit = false;
+try { for (let k = 0; k < 5; k++) await as('bob', () => q(`select public.lhe_file_save(null, 'gros', repeat('x', 14000000), null, false)`)); }
+catch (e) { quotaHit = /LHE_QUOTA/.test(e.message); }
+check('fichier : limite d\'espace', quotaHit);
+await q(`delete from public.lhe_files where name like 'gros%'`);
+
+// Relancer les scripts ne touche à rien
+const before = (await q('select count(*)::int n, sum(version)::int v from public.lhe_files'))[0];
+await db.exec(FILES_SQL);
+await db.exec(SQL);
+const after = (await q('select count(*)::int n, sum(version)::int v from public.lhe_files'))[0];
+check('fichier : relancer les scripts ne perd rien', before.n === after.n && before.v === after.v, [before, after]);
+
+// Compte supprimé : ses fichiers partent avec lui, pas ceux des autres
+await fsave('carol', null, 'À carol', 'C', null);
+await as('bob', () => q('select public.lhe_delete_account()'));
+check('fichier : supprimés avec le compte', (await q('select count(*)::int n from public.lhe_files where owner=$1', [U.bob]))[0].n === 0);
+check('fichier : ceux de carol intacts', (await q('select count(*)::int n from public.lhe_files where owner=$1', [U.carol]))[0].n === 1);
 
 console.log(ok + ' vérifications réussies, ' + ko + ' échec(s)');
 process.exit(ko ? 1 : 0);

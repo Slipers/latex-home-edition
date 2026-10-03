@@ -1,8 +1,20 @@
-## Live Modification : on peut enfin écrire à plusieurs en même temps
+## Nouveau : « Mes fichiers en ligne »
 
-Quand quelqu'un d'autre écrivait dans le document, l'écran pouvait sauter : on remontait d'un coup sur la page, ou on se retrouvait renvoyé plus bas, sur une autre page. C'est corrigé.
+Vos documents peuvent maintenant être rangés **en ligne, avec votre compte**, au lieu de rester seulement sur l'ordinateur. Connectez-vous sur n'importe quel ordinateur et retrouvez-les tous.
 
-- **L'écran ne bouge plus quand les autres écrivent.** Ce que vous regardez reste exactement à sa place, à la ligne près, même si l'autre ajoute ou supprime du texte, des paragraphes ou des pages au-dessus.
-- **Si vous lisez un autre endroit du document** que celui où se trouve votre curseur, vous n'êtes plus ramené de force vers votre curseur à chaque modification des autres.
-- **Plus aucune lettre perdue** quand deux personnes tapent au même moment, y compris dans le même paragraphe.
-- Les changements de page provoqués par le texte des autres s'appliquent tout de suite, sans décaler votre écran.
+- **Bouton ☁ « Mes fichiers »** dans la barre d'outils, entrée « Mes fichiers en ligne » du menu du compte, ou **Ctrl+Maj+O**.
+- **Privé** : vos fichiers ne sont visibles qu'avec votre compte. Personne d'autre ne peut les voir, les modifier ou les supprimer.
+- **Enregistrement automatique** : un document ouvert depuis « Mes fichiers » s'enregistre tout seul en ligne quelques secondes après chaque modification. Le badge ☁ à côté du nom indique où il en est (En ligne, Modifié, Enregistrement…, Hors ligne).
+- **Hors connexion**, rien n'est perdu : le travail reste sur l'ordinateur et part en ligne dès le retour de la connexion, même après avoir fermé l'application.
+- **Copier des fichiers du PC** : envoyez vos fichiers .lhe existants en ligne, plusieurs à la fois. Les fichiers du PC ne sont ni modifiés ni supprimés.
+
+### Rien n'est détruit par erreur
+
+- Un fichier envoyé en ligne ne remplace jamais un fichier du même nom : il devient « nom (2) ».
+- Si le même fichier a été modifié depuis un autre ordinateur, l'application ne l'écrase pas : elle vous propose d'enregistrer une copie, ou de remplacer en gardant l'ancienne version.
+- **Version précédente** : chaque fichier garde sa version d'avant, que vous pouvez rétablir à tout moment, sans perdre l'actuelle.
+- **Corbeille** : « Supprimer » met le fichier à la corbeille, d'où il peut être restauré pendant 30 jours.
+
+Dans « Mes fichiers » : ouvrir, renommer, télécharger sur le PC (⬇ PC), version précédente, corbeille, recherche, et l'espace utilisé.
+
+Ctrl+S enregistre en ligne les documents venus de « Mes fichiers ». Ctrl+Maj+S enregistre toujours une copie sur le PC.

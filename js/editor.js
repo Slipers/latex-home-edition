@@ -88,6 +88,7 @@ Object.assign(App, {
     this.render();
     this.updateName();
     L.$('#desk').scrollTop = 0;
+    if (L.Drive) L.Drive.docLoaded();   // fichier en ligne : lié seulement s'il vient de « Mes fichiers »
     this.autosave();
     if (L.Live) L.Live.docLoaded();   // partage : envoi des modifications / nouvelles versions
     if (L.Collab) L.Collab.docLoaded(); // Live Modification : (re)connexion au document en ligne
@@ -135,6 +136,7 @@ Object.assign(App, {
     this.dirty = live ? L.Collab.hasPending() : v;
     L.$('#docName').classList.toggle('dirty', this.dirty);
     if (v && L.Live) L.Live.changed();
+    if (v && L.Drive) L.Drive.changed();   // fichier en ligne : enregistrement automatique
   },
   updateName() {
     const t = L.plain(this.doc.meta.title);
