@@ -242,20 +242,100 @@
     inp.click();
   }
 
+  /* ---------- Saisie d'un texte ----------
+     (window.prompt n'existe pas dans l'application installée : il ne s'affiche jamais) */
+  L.askText = ({ title, label, value, ok, help }) => new Promise(resolve => {
+    const inp = L.h('input', { type: 'text', value: value || '', maxlength: '190' });
+    let done = false;
+    const end = (v, close) => { if (done) return; done = true; close(); resolve(v); };
+    const dlg = L.modal({
+      title,
+      body: L.h('div', null, help ? L.h('p', { class: 'pp-help', text: help }) : null, L.h('div', { class: 'field' }, L.h('label', { text: label || 'Nom' }), inp)),
+      foot: [{ text: 'Annuler', onClick: c => end(null, c) }, { text: ok || 'OK', cls: 'primary', onClick: c => end(inp.value.trim() || null, c) }],
+      onClose: () => { if (!done) { done = true; resolve(null); } },
+    });
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); end(inp.value.trim() || null, dlg.close); } });
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  });
+
+  /* Renommer sur place (comme dans Google Docs) : le texte devient un champ ;
+     Entrée ou clic ailleurs valide, Échap annule */
+  function inlineEdit(el, value, commit) {
+    const inp = L.h('input', { type: 'text', class: 'inline-name', value, maxlength: '190', spellcheck: 'false' });
+    inp.style.width = Math.max(160, Math.min(420, el.offsetWidth + 60)) + 'px';
+    el.replaceWith(inp);
+    inp.focus(); inp.select();
+    let done = false;
+    const finish = async ok => {
+      if (done) return; done = true;
+      const v = inp.value.trim();
+      inp.replaceWith(el);
+      if (ok && v && v !== value) { try { await commit(v); } catch (e) { L.toast(typeof e === 'string' ? e : frErr(e), 'err'); } }
+    };
+    inp.addEventListener('keydown', e => {
+      e.stopPropagation();   // pas de raccourcis de l'éditeur (Ctrl+Z, Suppr…) pendant la saisie du nom
+      if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    inp.addEventListener('blur', () => finish(true));
+    inp.addEventListener('mousedown', e => e.stopPropagation());
+    inp.addEventListener('click', e => e.stopPropagation());
+    inp.addEventListener('dblclick', e => e.stopPropagation());
+  }
+
+  /* Nom du document ouvert : renommer le fichier là où il est rangé */
+  const shownName = () => (App.fileName || L.plain(App.doc.meta.title) || 'Sans titre').replace(/\.(lhe|json)$/i, '');
+  async function renameCurrent(name) {
+    name = String(name || '').trim().slice(0, 190);
+    if (!name || name === shownName()) return;
+    const s = L.Collab && L.Collab.active() && L.Collab.session();
+    if (s) {
+      // Document Live : le nom est celui que voient tous les participants
+      if (s.role !== 'owner' && s.role !== 'editor') throw 'Seuls le propriétaire et les éditeurs peuvent renommer ce document partagé.';
+      await C().renameDoc(s.id, name);
+      App.fileName = name;
+      L.toast('Document renommé : « ' + name + ' »');
+    } else if (linked()) {
+      const r = await rpc('lhe_file_rename', { p_id: link.id, p_name: name });
+      link = Object.assign({}, link, { name: r.name }); saveLink();
+      App.fileName = r.name;
+      L.toast(r.name === name ? 'Fichier renommé : « ' + r.name + ' »' : 'Ce nom est déjà pris dans vos fichiers : renommé « ' + r.name + ' »');
+    } else if (App.filePath && window.lheDesktop && lheDesktop.rename) {
+      // Fichier du PC : renommé dans son dossier, jamais par-dessus un autre fichier
+      if (App.dirty) await App.save();
+      const r = await lheDesktop.rename(App.filePath, name);
+      if (!r || r.error) throw (r && r.error) || 'Renommage impossible.';
+      App.filePath = r.path; App.fileName = r.name;
+      L.toast('Fichier renommé : « ' + r.name + ' »');
+    } else {
+      // Pas encore de fichier : ce nom sera proposé au premier enregistrement
+      if (App.fileHandle) App.fileHandle = null;   // (version web : le fichier d'origine n'est pas touché)
+      App.fileName = name;
+    }
+    App.updateName();
+    paint();
+  }
+  function startRenameCurrent() {
+    const el = L.$('#docName');
+    if (!el || !App.doc) return;
+    inlineEdit(el, shownName(), renameCurrent);
+  }
+
   /* ---------- Fenêtre « Mes fichiers en ligne » ---------- */
   const fmtSize = n => n < 1000 ? n + ' o' : n < 1e6 ? Math.round(n / 1000) + ' Ko' : (n / 1e6).toFixed(1).replace('.', ',') + ' Mo';
   async function dialog() {
     if (!C() || !C().available()) return L.toast('Le stockage en ligne n\'est pas disponible (module de connexion non chargé).', 'err');
     if (!C().user()) return L.dlgAuth('login', () => dialog());
     const body = L.h('div', { class: 'drive' }, L.h('div', { class: 'fhint', text: 'Chargement…' }));
-    const dlg = L.modal({ title: 'Mes fichiers en ligne', body, wide: true });
+    const dlg = L.modal({ title: 'Mes fichiers', body, wide: true });
     let showTrash = false, filter = '';
     const search = L.h('input', { type: 'search', class: 'drive-search', placeholder: 'Rechercher un fichier…' });
     search.oninput = () => { filter = search.value.trim().toLowerCase(); paintList(); };
-    let files = [], use = null;
+    let files = [], docs = [], use = null;
     const listBox = L.h('div');
     const reload = async () => {
-      try { [files, use] = await Promise.all([list(), usage()]); }
+      // Fichiers en ligne + documents Live (les miens et ceux partagés avec moi), dans une seule liste
+      try { [files, use, docs] = await Promise.all([list(), usage(), C().myDocs().catch(() => [])]); }
       catch (e) { body.replaceChildren(L.h('div', { class: 'note', text: frErr(e) })); return false; }
       paintAll(); return true;
     };
@@ -274,13 +354,12 @@
           }, 'danger-soft'),
         ] : [
           act('Ouvrir', async () => { if (await openFile(f.id) !== false) dlg.close(); }, 'primary'),
-          act('Renommer', async () => {
-            const n = prompt('Nouveau nom :', f.name);
-            if (!n || !n.trim() || n.trim() === f.name) return;
-            const r2 = await rpc('lhe_file_rename', { p_id: f.id, p_name: n.trim() });
-            if (isCur) { link.name = r2.name; saveLink(); App.fileName = r2.name; App.updateName(); }
+          act('Renommer', async () => inlineEdit(name, f.name, async n => {
+            const r2 = await rpc('lhe_file_rename', { p_id: f.id, p_name: n });
+            if (link && link.id === f.id) { link = Object.assign({}, link, { name: r2.name }); saveLink(); App.fileName = r2.name; App.updateName(); }
+            if (r2.name !== n) L.toast('Ce nom est déjà pris : renommé « ' + r2.name + ' »');
             await reload();
-          }),
+          })),
           act('⬇ PC', async () => { const x = await fetchFile(f.id); const d = await unpackDoc(x.data); L.download(f.name + '.lhe', JSON.stringify({ app: 'LaTeX Home Edition', version: 1, meta: d.meta, blocks: d.blocks, bib: d.bib, assets: d.assets }), 'application/json'); }),
           f.prev_at ? act('Version précédente', async () => {
             if (!confirm('Revenir à la version de « ' + f.name + ' » du ' + new Date(f.prev_at).toLocaleString('fr-FR') + ' ?\n\nLa version actuelle n\'est pas perdue : elle devient à son tour la « version précédente ».')) return;
@@ -299,11 +378,49 @@
       if (!f.deleted_at) r.addEventListener('dblclick', async () => { if (await openFile(f.id) !== false) dlg.close(); });
       return r;
     };
+    /* Document Live (modifié à plusieurs) : même liste, marqué « Fichier partagé » */
+    const ROLE = { owner: 'Propriétaire', editor: 'Éditeur', commenter: 'Commentateur', viewer: 'Lecteur' };
+    const liveRow = d => {
+      const s = L.Collab && L.Collab.session();
+      const isCur = !!(s && s.id === d.id);
+      const title = d.title || 'Sans titre';
+      const open = async () => { dlg.close(); if (!isCur) await L.openLiveDoc(d.id); };
+      const nameEl = L.h('b', { text: title });
+      const canRename = d.role === 'owner' || d.role === 'editor';
+      const r = L.h('div', { class: 'cdoc drive-row' + (isCur ? ' cur' : ''), title: 'Ouvrir' },
+        L.h('div', { class: 'cdoc-t' },
+          L.h('div', { class: 'drive-name' }, nameEl,
+            L.h('span', { class: 'shared-tag', text: 'Fichier partagé', title: d.is_owner ? 'Vous modifiez ce document à plusieurs en direct (Live Modification)' : 'Partagé avec vous par ' + (d.owner_pseudo || '?') + ' — votre rôle : ' + (ROLE[d.role] || d.role) })),
+          L.h('span', { class: 'fhint', text: (d.is_owner ? '' : 'de ' + (d.owner_pseudo || '?') + ' · ' + (ROLE[d.role] || d.role) + ' · ') + 'modifié ' + L.Share.ago(d.updated_at) + (isCur ? ' · ouvert' : '') })),
+        act('Ouvrir', open, 'primary'),
+        canRename ? act('Renommer', async () => inlineEdit(nameEl, title, async n => {
+          await C().renameDoc(d.id, n);
+          if (isCur) { App.fileName = n; App.updateName(); }
+          await reload();
+        })) : null,
+        d.is_owner
+          ? act('Supprimer', async () => {
+            if (!confirm('Supprimer « ' + title + ' » ? Ce document partagé disparaîtra pour toutes les personnes invitées, sans passer par la corbeille. (Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.)')) return;
+            if (isCur) L.Collab.leave();
+            await C().deleteDoc(d.id); await reload();
+          }, 'danger-soft')
+          : act('Quitter', async () => {
+            if (!confirm('Quitter « ' + title + ' » ? Vous n\'y aurez plus accès, sauf nouvelle invitation.')) return;
+            if (isCur) L.Collab.leave();
+            await C().removeMember(d.id, C().email()); await reload();
+          }));
+      r.addEventListener('dblclick', open);
+      return r;
+    };
     const paintList = () => {
-      const live = files.filter(f => !f.deleted_at && (!filter || f.name.toLowerCase().includes(filter)));
+      const match = n => !filter || n.toLowerCase().includes(filter);
+      const items = [
+        ...files.filter(f => !f.deleted_at && match(f.name)).map(f => ({ t: f.updated_at, el: () => row(f) })),
+        ...docs.filter(d => match(d.title || 'Sans titre')).map(d => ({ t: d.updated_at, el: () => liveRow(d) })),
+      ].sort((a, b) => String(b.t).localeCompare(String(a.t)));
       const trash = files.filter(f => f.deleted_at);
       listBox.replaceChildren(...[
-        live.length ? L.h('div', { class: 'cdoc-list' }, ...live.map(row))
+        items.length ? L.h('div', { class: 'cdoc-list' }, ...items.map(i => i.el()))
           : L.h('div', { class: 'fhint drive-empty', text: filter ? 'Aucun fichier ne correspond à « ' + search.value + ' ».' : 'Aucun fichier en ligne pour le moment. Enregistrez le document actuel, ou copiez des fichiers de votre PC.' }),
         trash.length ? L.h('button', { class: 'linkish drive-trash-btn', text: (showTrash ? '▾ ' : '▸ ') + 'Corbeille (' + trash.length + ')', onclick: () => { showTrash = !showTrash; paintList(); } }) : null,
         showTrash && trash.length ? L.h('div', null, L.h('div', { class: 'fhint', text: 'Les fichiers de la corbeille sont supprimés automatiquement au bout de 30 jours.' }), L.h('div', { class: 'cdoc-list' }, ...trash.map(row))) : null].filter(Boolean));
@@ -318,7 +435,7 @@
             : isLinked ? L.h('span', { class: 'drive-cur', text: '☁ Le document ouvert est « ' + link.name + ' » : il s\'enregistre tout seul.' })
               : L.h('button', { class: 'btn primary', text: '☁ Enregistrer le document actuel en ligne', onclick: async () => { const r = await saveAsNew(); if (r) reload(); } }),
           L.h('button', { class: 'btn', text: '⬆ Copier des fichiers du PC…', onclick: () => uploadFromPc(reload) }),
-          isLinked ? L.h('button', { class: 'btn', text: '＋ Enregistrer une copie', onclick: async () => { const n = prompt('Nom de la copie :', link.name + ' (copie)'); if (n && n.trim()) { await saveNow(true); const r = await saveAsNew(n.trim()); if (r) reload(); } } }) : null),
+          isLinked ? L.h('button', { class: 'btn', text: '＋ Enregistrer une copie', onclick: async () => { const n = await L.askText({ title: 'Enregistrer une copie', label: 'Nom de la copie', value: link.name + ' (copie)', ok: 'Enregistrer' }); if (n) { await saveNow(true); await saveAsNew(n); } dialog(); } }) : null),
         search, listBox,
         use ? L.h('div', { class: 'drive-usage' },
           L.h('div', { class: 'drive-bar' }, L.h('i', { style: { width: Math.min(100, Math.round(use.used / use.max * 100)) + '%' } })),
@@ -359,6 +476,9 @@
   document.addEventListener('DOMContentLoaded', () => {
     const el = L.$('#driveStatus');
     if (el) el.addEventListener('click', pillClick);
+    // Comme dans Google Docs : cliquer sur le nom du document pour le renommer
+    const dn = L.$('#docName');
+    if (dn) { dn.title = 'Cliquer pour renommer'; dn.classList.add('renamable'); dn.addEventListener('click', startRenameCurrent); }
     if (C()) C().onChange(st => { if (st.session && linked() && status === 'login') saveNow(true); paint(); });
   });
   // Fermeture : ce qui n'est pas encore en ligne est marqué, et sera envoyé à la réouverture
@@ -370,7 +490,22 @@
   });
 
   L.Drive = {
-    dialog, saveNow, saveAsNew, openFile, changed, docLoaded, restoreLink,
+    dialog, saveNow, saveAsNew, openFile, changed, docLoaded, restoreLink, renameCurrent, startRenameCurrent,
+    // pour l'écran d'accueil
+    inlineEdit, frErr, list,
+    available: () => !!(C() && C().available() && C().user()),
+    // Avant d'ouvrir autre chose : ce qui attend d'être envoyé en ligne part d'abord
+    flush: async () => (linked() && status !== 'ok' ? saveNow(true) : true),
+    fetchDoc: async id => unpackDoc((await fetchFile(id)).data),
+    renameFile: async (id, name) => {
+      const r = await rpc('lhe_file_rename', { p_id: id, p_name: name });
+      if (link && link.id === id) { link = Object.assign({}, link, { name: r.name }); saveLink(); App.fileName = r.name; App.updateName(); }
+      return r;
+    },
+    trashFile: async id => {
+      await rpc('lhe_file_trash', { p_id: id, p_trash: true });
+      if (link && link.id === id) { link = null; saveLink(); paint(); }
+    },
     linked, link: () => link, status: () => status,
   };
 })();

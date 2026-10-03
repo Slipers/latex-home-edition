@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="css/fonts.css">
 <link rel="stylesheet" href="css/paper.css">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/accueil.css">
 <script>
   /* Thème de l'interface (clair / sombre / automatique), appliqué avant l'affichage */
   try {
@@ -23,14 +24,14 @@
 <div id="app">
   <!-- ============ Barre du haut ============ -->
   <header id="topbar">
-    <div class="brand"><span class="logo">∑</span><span class="brand-name">LaTeX <b>Home</b></span></div>
+    <button class="brand" data-act="home" title="Accueil : nouveaux documents et documents récents"><span class="logo">∑</span><span class="brand-name">LaTeX <b>Home</b></span></button>
     <div class="doc-name" id="docName" title="Nom du fichier">Sans titre</div>
     <button class="share-pill drive-pill" id="driveStatus" hidden></button>
     <button class="share-pill" id="shareStatus" data-act="share" hidden></button>
     <div class="collab-bar" id="collabBar" hidden></div>
     <nav class="tb">
       <div class="tb-group g-file">
-        <button data-act="new" data-lv="2" title="Nouveau document (modèles)"><i>＋</i><span>Nouveau</span></button>
+        <button data-act="new" data-lv="2" title="Nouveau document : accueil avec les modèles et vos documents récents"><i>＋</i><span>Nouveau</span></button>
         <button data-act="open" data-lv="2" title="Ouvrir un fichier .lhe (Ctrl+O)"><i>📂</i><span>Ouvrir</span></button>
         <button data-act="save" data-lv="2" title="Enregistrer (Ctrl+S) — Ctrl+Maj+S : enregistrer sur le PC sous un autre nom"><i>💾</i><span>Enregistrer</span></button>
         <button data-act="drive" data-lv="3" title="Mes fichiers en ligne : vos documents rangés avec votre compte, retrouvables depuis n'importe quel ordinateur (Ctrl+Maj+O)"><i>☁</i><span>Mes fichiers</span></button>
@@ -142,7 +143,7 @@
           <button data-act="share-menu" data-lv="5" title="Partager une copie par lien, ou ouvrir un lien reçu"><i>🔗</i><span>Partager ▾</span></button>
           <div class="menu" id="shareMenu">
             <button data-act="collab">⚡ Live Modification : modifier à plusieurs en direct…</button>
-            <button data-act="clouddocs">Documents en ligne (partagés avec moi)…</button>
+            <button data-act="drive">☁ Mes fichiers (dont les fichiers partagés)…</button>
             <hr>
             <button data-act="share">Partager une copie par lien…</button>
             <button data-act="openshare">Ouvrir un lien de partage reçu…</button>
@@ -276,6 +277,7 @@
 <script src="js/comments.js"></script>
 <script src="js/collab-ui.js"></script>
 <script src="js/fichiers.js"></script>
+<script src="js/accueil.js"></script>
 <script src="js/find.js"></script>
 <script src="js/mathdock.js"></script>
 <script src="js/dialogs.js"></script>

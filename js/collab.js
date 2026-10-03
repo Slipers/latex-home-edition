@@ -251,7 +251,8 @@
     const json = s.root.toJSON();
     const keep = opts.keepFile ? { fileName: App.fileName, filePath: App.filePath, fileHandle: App.fileHandle } : null;
     const doc = { meta: Object.assign({}, json.meta || {}, { live: { id } }), blocks: json.blocks || [], bib: json.bib || [], assets: json.assets || {} };
-    App.load(doc, keep ? keep.fileName : (info.title || null));
+    App._keepHome = !!keep;   // reconnexion du même document : l'accueil reste affiché
+    try { App.load(doc, keep ? keep.fileName : (info.title || null)); } finally { App._keepHome = false; }
     if (keep) { App.filePath = keep.filePath; App.fileHandle = keep.fileHandle; }
     s.assetsSig = assetsSig(App.doc.assets);
     s.loading = false;

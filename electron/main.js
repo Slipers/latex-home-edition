@@ -34,7 +34,7 @@ function macMenu() {
     {
       label: 'Fichier',
       submenu: [
-        { label: 'Nouveau document…', accelerator: 'Cmd+N', click: () => inPage('L.dlgTemplates(false)') },
+        { label: 'Nouveau document…', accelerator: 'Cmd+N', click: () => inPage('L.Home.show()') },
         { label: 'Nouvelle fenêtre (instance)', accelerator: 'Shift+Cmd+N', registerAccelerator: false, click: () => { if (prefs.multiInstance) newWindow(); else inPage('L.dlgPrefs()'); } },
         { label: 'Ouvrir…', accelerator: 'Cmd+O', click: () => inPage('App.open()') },
         { label: 'Enregistrer', accelerator: 'Cmd+S', click: () => inPage('App.save()') },
@@ -47,7 +47,7 @@ function macMenu() {
         { label: 'Partager une copie par lien…', click: () => inPage('L.dlgShare()') },
         { label: 'Ouvrir un lien de partage reçu…', click: () => inPage('L.dlgOpenShare()') },
         { label: 'Live Modification…', click: () => inPage('L.dlgCollab()') },
-        { label: 'Documents en ligne…', click: () => inPage('L.dlgCloudDocs()') },
+        { label: 'Mes fichiers…', click: () => inPage('L.Drive.dialog()') },
         { type: 'separator' },
         { role: 'close', label: 'Fermer la fenêtre' },
       ],
@@ -206,12 +206,57 @@ function createWindow(opts = {}) {
 }
 function newWindow(opts) { const w = createWindow(opts); w.focus(); return w; }
 
+/* ---------- Fichiers récents du PC (écran d'accueil) ----------
+   Seuls les fichiers ouverts ou enregistrés par l'application y figurent, et la page
+   ne peut relire QUE ceux-là : elle n'a pas accès au reste du disque. */
+const RECENTS_FILE = () => path.join(app.getPath('userData'), 'recents.json');
+let recents = null;
+const samePath = (a, b) => process.platform === 'linux' ? a === b : a.toLowerCase() === b.toLowerCase();
+function loadRecents() {
+  if (recents) return recents;
+  try { recents = JSON.parse(fs.readFileSync(RECENTS_FILE(), 'utf8')); } catch (_) { recents = []; }
+  if (!Array.isArray(recents)) recents = [];
+  recents = recents.filter(r => r && typeof r.path === 'string');
+  return recents;
+}
+function saveRecents() { try { fs.writeFileSync(RECENTS_FILE(), JSON.stringify(recents.slice(0, 40))); } catch (_) { /* ignoré */ } }
+function addRecent(p, oldPath) {
+  if (!p) return;
+  loadRecents();
+  recents = recents.filter(r => !samePath(r.path, p) && !(oldPath && samePath(r.path, oldPath)));
+  recents.unshift({ path: p, at: Date.now() });
+  recents = recents.slice(0, 40);
+  saveRecents();
+}
+const isRecent = p => typeof p === 'string' && loadRecents().some(r => r.path === p);
+function readDoc(p) { const text = fs.readFileSync(p, 'utf8'); addRecent(p); return { path: p, name: path.basename(p), text }; }
+ipcMain.handle('lhe:recents', () => loadRecents().filter(r => fs.existsSync(r.path)).map(r => {
+  let mtime = r.at; try { mtime = fs.statSync(r.path).mtimeMs; } catch (_) { /* ignoré */ }
+  return { path: r.path, name: path.basename(r.path), at: r.at, mtime };
+}));
+ipcMain.handle('lhe:open-recent', (e, p) => (isRecent(p) && fs.existsSync(p) ? readDoc(p) : null));
+ipcMain.handle('lhe:peek-recent', (e, p) => { try { return isRecent(p) && fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; } catch (_) { return null; } });
+ipcMain.handle('lhe:forget-recent', (e, p) => { loadRecents(); recents = recents.filter(r => r.path !== p); saveRecents(); return true; });
+
 /* ---------- Fichiers .lhe (dialogues natifs) ---------- */
 ipcMain.handle('lhe:open', async e => {
   const r = await dialog.showOpenDialog(winOf(e), { title: 'Ouvrir un document', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe', 'json'] }], properties: ['openFile'] });
   if (r.canceled || !r.filePaths[0]) return null;
-  const p = r.filePaths[0];
-  return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') };
+  return readDoc(r.filePaths[0]);
+});
+// Renommer le fichier .lhe ouvert, dans son dossier — jamais par-dessus un autre fichier
+ipcMain.handle('lhe:rename', async (e, { path: p, name }) => {
+  if (typeof p !== 'string' || !/\.(lhe|json)$/i.test(p) || !fs.existsSync(p)) return { error: 'Le fichier d\'origine est introuvable.' };
+  const base = String(name || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\.(lhe|json)$/i, '').trim().replace(/[. ]+$/, '');
+  if (!base) return { error: 'Nom de fichier invalide.' };
+  const dest = path.join(path.dirname(p), base + '.lhe');
+  if (dest.toLowerCase() === p.toLowerCase() && dest !== p) { fs.renameSync(p, dest); addRecent(dest, p); return { path: dest, name: path.basename(dest) }; }   // casse seulement
+  if (dest === p) return { path: p, name: path.basename(p) };
+  if (fs.existsSync(dest)) return { error: 'Un fichier « ' + path.basename(dest) + ' » existe déjà dans ce dossier : choisissez un autre nom.' };
+  fs.renameSync(p, dest);
+  app.addRecentDocument(dest);
+  addRecent(dest, p);
+  return { path: dest, name: path.basename(dest) };
 });
 ipcMain.handle('lhe:save', async (e, { path: p, name, data, saveAs }) => {
   if (!p || saveAs) {
@@ -221,6 +266,7 @@ ipcMain.handle('lhe:save', async (e, { path: p, name, data, saveAs }) => {
   }
   fs.writeFileSync(p, data, 'utf8');
   app.addRecentDocument(p);
+  addRecent(p);
   return { path: p, name: path.basename(p) };
 });
 ipcMain.handle('lhe:pending-link', e => { const w = winOf(e); const l = w && w._pendingLink; if (w) w._pendingLink = null; return l || null; });
@@ -228,7 +274,7 @@ ipcMain.handle('lhe:pending', e => {
   const w = winOf(e);
   const p = w && w._pendingFile; if (w) w._pendingFile = null;
   if (!p) return null;
-  return { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') };
+  return readDoc(p);
 });
 ipcMain.handle('lhe:prefs-get', () => prefs);
 ipcMain.handle('lhe:prefs-set', (e, patch) => {
@@ -375,7 +421,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!w) { createWindow({ file: f, link: l }); return; }
     if (w.isMinimized()) w.restore();
     w.focus();
-    if (f) sendTo(w, 'lhe:open-file', { path: f, name: path.basename(f), text: fs.readFileSync(f, 'utf8') });
+    if (f) sendTo(w, 'lhe:open-file', readDoc(f));
     if (l) sendTo(w, 'lhe:open-link', l);
   });
   // Liens lhe://… (partage, documents en direct) : l'application s'ouvre dessus
@@ -400,7 +446,7 @@ if (!app.requestSingleInstanceLock()) {
     try {
       if (w.isMinimized()) w.restore();
       w.focus();
-      sendTo(w, 'lhe:open-file', { path: p, name: path.basename(p), text: fs.readFileSync(p, 'utf8') });
+      sendTo(w, 'lhe:open-file', readDoc(p));
     } catch (_) { /* ignoré */ }
   });
   pendingFile = fileFromArgs(process.argv);

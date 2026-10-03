@@ -12,6 +12,7 @@ L.modal = function ({ title, body, foot, wide, onClose }) {
   const onKey = e => {
     if (e.key !== 'Escape') return;
     if ((L.MathDock && L.MathDock.isOpen()) || (L.SymbolPicker && L.SymbolPicker.isOpen())) return;
+    if (e.target && e.target.classList && e.target.classList.contains('inline-name')) return;   // Échap annule seulement le renommage
     e.stopPropagation(); close();
   };
   document.addEventListener('keydown', onKey, true);

@@ -93,6 +93,7 @@ Object.assign(App, {
     this.updateName();
     L.$('#desk').scrollTop = 0;
     if (L.Drive) L.Drive.docLoaded();   // fichier en ligne : lié seulement s'il vient de « Mes fichiers »
+    if (L.Home && !this._keepHome) L.Home.hide();   // un document s'ouvre : on quitte l'écran d'accueil
     this.autosave();
     if (L.Live) L.Live.docLoaded();   // partage : envoi des modifications / nouvelles versions
     if (L.Collab) L.Collab.docLoaded(); // Live Modification : (re)connexion au document en ligne

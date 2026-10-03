@@ -613,6 +613,16 @@ p.rt.is-empty:not(:focus):not(.ph-last)::before { content: none; }
 .share-pill:hover { filter: brightness(.97); }
 .drive-pill { margin-left: 4px; cursor: pointer; }
 
+/* Logo : retour à l'écran d'accueil */
+button.brand { border: 0; background: none; padding: 2px 4px; margin: 0; border-radius: 8px; cursor: pointer; font: inherit; color: inherit; }
+button.brand:hover { background: var(--soft2); }
+/* Renommer en cliquant sur le nom (comme dans Google Docs) */
+.doc-name.renamable { cursor: text; border: 1px solid transparent; }
+.doc-name.renamable:hover { border-color: var(--line2); color: var(--txt); }
+input.inline-name { flex: none; font: inherit; font-size: 13px; padding: 3px 8px; border: 1px solid var(--acc); border-radius: 6px; background: var(--panel); color: var(--txt); outline: none; box-shadow: 0 0 0 3px var(--acc-line); min-width: 0; }
+.drive .drive-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.drive .drive-name input.inline-name { font-weight: 600; }
+
 /* « Mes fichiers en ligne » */
 .drive .drive-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 10px; }
 .drive .drive-cur { font-size: 12.5px; color: var(--txt2); flex: 1 1 auto; min-width: 0; }
@@ -770,7 +780,7 @@ body.cmt-open .edit-zoom { right: 316px; }
 /* Tout ce qui est posé sur la feuille garde les couleurs claires : la feuille
    reste blanche, fidèle au PDF (sauf option « feuille sombre » ci-dessous). */
 :root[data-theme="dark"] #paper, :root[data-theme="dark"] #pages, :root[data-theme="dark"] #printRoot, :root[data-theme="dark"] .shr-prev,
-:root[data-theme="dark"] .rg-paper, :root[data-theme="dark"] .style-card .mini {
+:root[data-theme="dark"] .rg-paper, :root[data-theme="dark"] .style-card .mini, :root[data-theme="dark"] .home-thumb {
   --bg: #f5f6f8; --panel: #ffffff; --line: #e1e4ea; --line2: #cfd4dc; --txt: #1f2430; --txt2: #3b4456; --mut: #6b7385;
   --acc: #2b4c7e; --acc2: #3f6bb0; --acc-bg: #e9f0fb; --acc-line: #bcd0ef; --warn: #b3261e; --sel: #3f6bb0;
   --soft: #f7f8fa; --soft2: #eef0f4; --glass: rgba(255, 255, 255, .93);

@@ -300,7 +300,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Barre d'outils
   const acts = {
-    new: () => L.dlgTemplates(false),
+    new: () => L.Home.show(),
+    home: () => L.Home.show(),
     open: () => App.open(),
     save: () => App.save(),
     undo: () => App.undo(),
@@ -336,7 +337,7 @@ window.addEventListener('DOMContentLoaded', () => {
     share: () => L.dlgShare(),
     openshare: () => L.dlgOpenShare(),
     collab: () => L.dlgCollab(),
-    clouddocs: () => L.dlgCloudDocs(),
+    clouddocs: () => { App.closeMenus(); L.Drive.dialog(); },
     drive: () => { App.closeMenus(); L.Drive.dialog(); },
     'account-menu': () => L.CollabUI.accountMenu(),
     account: () => L.dlgAccount(),
@@ -477,10 +478,10 @@ window.addEventListener('DOMContentLoaded', () => {
       if (d && d.blocks) { if (L.Drive) L.Drive.restoreLink(); App.load(d, null); restored = true; }
     } catch (e) {}
   }
-  if (!restored) {
-    App.load(L.TEMPLATES[0].make(), null);
-    L.dlgTemplates(true);
-  }
+  if (!restored) App.load(L.TEMPLATES[0].make(), null);
+  // Écran d'accueil (comme Google Docs) : modèles et documents récents ; le document
+  // repris de la sauvegarde automatique attend derrière (« Retour au document »)
+  L.Home.show();
   // Fichier .lhe ouvert par double-clic dans l'explorateur
   if (window.lheDesktop) lheDesktop.pendingFile().then(f => {
     if (!f) return;

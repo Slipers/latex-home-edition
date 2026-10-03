@@ -126,50 +126,22 @@
       L.h('details', { class: 'shr-more' }, L.h('summary', { text: 'Changer de mot de passe' }), field('Nouveau mot de passe', p1), field('Confirmer', p2), savePw),
       err,
       L.h('div', { class: 'auth-acts' },
-        L.h('button', { class: 'btn', text: 'Documents en ligne…', onclick: () => { dlg.close(); L.dlgCloudDocs(); } }),
+        L.h('button', { class: 'btn', text: '☁ Mes fichiers…', onclick: () => { dlg.close(); L.Drive.dialog(); } }),
         L.h('button', { class: 'btn', text: 'Se déconnecter', onclick: async () => { await C().signOut(); dlg.close(); L.toast('Déconnecté'); } })),
       L.h('details', { class: 'shr-more danger' }, L.h('summary', { text: 'Supprimer mon compte' }),
         L.h('p', { class: 'auth-small', text: 'Supprime définitivement votre compte, les documents en ligne dont vous êtes propriétaire (pour tous leurs participants) et vos commentaires. Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.' }),
         L.h('button', { class: 'btn danger-soft', text: 'Supprimer définitivement mon compte…', onclick: async () => {
-          const v = prompt('Pour confirmer, tapez SUPPRIMER :');
+          const v = await L.askText({ title: 'Supprimer mon compte', label: 'Pour confirmer, tapez SUPPRIMER', value: '', ok: 'Supprimer définitivement' });
           if (v !== 'SUPPRIMER') return;
           try { K().leave(true); await C().deleteAccount(); dlg.close(); L.toast('Compte supprimé'); } catch (e) { showErr(err, e); }
         } })));
     dlg = L.modal({ title: 'Mon compte', body });
   };
 
-  /* ================= Documents en ligne ================= */
-  L.dlgCloudDocs = async function () {
-    if (!C().available()) return unavailable();
-    if (!C().user()) return L.dlgAuth('login', () => L.dlgCloudDocs());
-    const body = L.h('div', { class: 'cdocs' }, L.h('div', { class: 'shr-size', text: 'Chargement…' }));
-    const dlg = L.modal({ title: 'Documents en ligne', body, wide: true });
-    let docs;
-    try { docs = await C().myDocs(); } catch (e) { body.replaceChildren(L.h('div', { class: 'note', text: C().fr(e) })); return; }
-    const cur = K().session() && K().session().id;
-    const row = d => L.h('div', { class: 'cdoc' + (d.id === cur ? ' cur' : '') },
-      L.h('div', { class: 'cdoc-t' },
-        L.h('b', { text: d.title || 'Sans titre' }),
-        L.h('span', { class: 'fhint', text: (d.is_owner ? '' : 'de ' + (d.owner_pseudo || '?') + ' · ') + 'modifié ' + L.Share.ago(d.updated_at) + (d.id === cur ? ' · ouvert' : '') })),
-      L.h('span', { class: 'role-badge ' + d.role, text: roleName(d.role) }),
-      L.h('button', { class: 'btn small primary', text: 'Ouvrir', disabled: d.id === cur, onclick: () => { dlg.close(); openDocUI(d.id); } }),
-      d.is_owner
-        ? L.h('button', { class: 'btn small danger-soft', text: 'Supprimer', onclick: async () => {
-          if (!confirm('Supprimer « ' + (d.title || 'Sans titre') + ' » en ligne ? Il disparaîtra pour toutes les personnes invitées. (Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.)')) return;
-          try { if (d.id === cur) K().leave(); await C().deleteDoc(d.id); dlg.close(); L.dlgCloudDocs(); } catch (e) { L.toast(C().fr(e), 'err'); }
-        } })
-        : L.h('button', { class: 'btn small', text: 'Quitter', onclick: async () => {
-          if (!confirm('Quitter « ' + (d.title || 'Sans titre') + ' » ? Vous n\'y aurez plus accès, sauf nouvelle invitation.')) return;
-          try { if (d.id === cur) K().leave(); await C().removeMember(d.id, C().email()); dlg.close(); L.dlgCloudDocs(); } catch (e) { L.toast(C().fr(e), 'err'); }
-        } }));
-    const own = docs.filter(d => d.is_owner), shared = docs.filter(d => !d.is_owner);
-    body.replaceChildren(
-      L.h('div', { class: 'set-h', text: 'Partagés avec moi' }),
-      shared.length ? L.h('div', { class: 'cdoc-list' }, ...shared.map(row)) : L.h('div', { class: 'fhint', text: 'Aucun document partagé avec ' + C().email() + ' pour le moment.' }),
-      L.h('div', { class: 'set-h', text: 'Mes documents' }),
-      own.length ? L.h('div', { class: 'cdoc-list' }, ...own.map(row)) : L.h('div', { class: 'fhint', text: 'Aucun. Ouvrez un document puis « Live Modification » pour le mettre en ligne.' }),
-      L.h('div', { class: 'auth-acts', hidden: !!cur }, L.h('button', { class: 'btn', text: '⚡ Mettre le document actuel en ligne…', onclick: () => { dlg.close(); L.dlgCollab(); } })));
-  };
+  /* ================= Documents en ligne =================
+     Une seule fenêtre pour tout : « Mes fichiers » (js/fichiers.js) liste les fichiers
+     en ligne ET les documents Live, ceux-ci marqués « Fichier partagé ». */
+  L.dlgCloudDocs = () => L.Drive.dialog();
 
   /* Ouvre un document en ligne (lien reçu, liste…) */
   async function openDocUI(id) {
@@ -371,7 +343,7 @@
     const item = (t, act, sub) => L.h('button', { 'data-act': act }, t, sub ? L.h('small', { text: sub }) : null);
     m.replaceChildren(...[...(u ? [
       L.h('div', { class: 'menu-head' }, L.h('b', { text: C().pseudo() }), L.h('small', { text: C().email() })),
-      item('☁ Mes fichiers en ligne…', 'drive', 'Ctrl+Maj+O'), item('Documents Live partagés…', 'clouddocs'), item('⚡ Live Modification…', 'collab'), item('Mon compte…', 'account'), L.h('hr'),
+      item('☁ Mes fichiers…', 'drive', 'Ctrl+Maj+O'), item('⚡ Live Modification…', 'collab'), item('Mon compte…', 'account'), L.h('hr'),
     ] : [item('Se connecter…', 'login'), item('Créer un compte…', 'signup'), L.h('hr')]),
     item('Préférences…', 'prefs'),
     multi ? item('Nouvelle fenêtre', 'newwindow', 'Ctrl+Maj+N') : null,
