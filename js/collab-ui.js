@@ -11,6 +11,37 @@
   const input = (type, ph, auto) => L.h('input', { type, placeholder: ph || '', autocomplete: auto || 'off', spellcheck: 'false' });
   const pwOk = p => p.length >= 8 && /[a-zA-Z]/.test(p) && /\d/.test(p);
   const busy = (btn, on, txt) => { btn.disabled = on; if (txt) btn.textContent = txt; };
+  /* Anti-spam des boutons qui envoient un e-mail : un seul envoi à la fois, puis un délai
+     (affiché sur le bouton) avant de pouvoir recommencer. Le délai est gardé même si l'on
+     ferme la fenêtre ou relance l'application. Le serveur a ses propres limites en plus. */
+  const DELAY_KEY = 'lhe-delai-';
+  const waitLeft = key => { try { return Math.max(0, Math.ceil(((+localStorage.getItem(DELAY_KEY + key) || 0) - Date.now()) / 1000)); } catch (e) { return 0; } };
+  const startWait = (key, s) => { try { localStorage.setItem(DELAY_KEY + key, String(Date.now() + s * 1000)); } catch (e) { /* stockage indisponible */ } };
+  function mailButton(btn, key, seconds, send) {
+    const label = btn.textContent;
+    let running = false, timer = null;
+    const k = () => (typeof key === 'function' ? key() : key);
+    const paint = () => {
+      clearTimeout(timer);
+      if (!btn.isConnected && timer !== null) return;
+      const s = waitLeft(k());
+      if (running) return;
+      btn.disabled = s > 0;
+      btn.textContent = s > 0 ? label + ' (' + s + ' s)' : label;
+      if (s > 0) timer = setTimeout(paint, 1000);
+    };
+    const run = async () => {
+      if (running || btn.disabled || waitLeft(k()) > 0) return;
+      running = true; btn.disabled = true; btn.textContent = 'Envoi…';
+      const key0 = k();
+      try { if (await send() !== false) startWait(key0, seconds); }
+      finally { running = false; paint(); }
+    };
+    btn.onclick = run;
+    btn.refreshWait = paint;
+    setTimeout(paint, 0);
+    return run;
+  }
   const unavailable = () => { L.toast('La Live Modification a besoin du module de connexion, qui n\'a pas pu être chargé.', 'err'); };
 
   /* ================= Connexion / inscription ================= */
@@ -30,9 +61,10 @@
         const em = input('email', 'vous@exemple.fr', 'username'), pw = input('password', 'Mot de passe', 'current-password');
         em.value = L.Collab && body.dataset.email || '';
         const go = L.h('button', { class: 'btn primary', text: 'Se connecter' });
-        const resend = L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail de confirmation', hidden: true, onclick: async () => {
-          try { await C().resend(em.value); L.toast('E-mail de confirmation renvoyé à ' + em.value.trim()); } catch (e) { showErr(err, e); }
-        } });
+        const resend = L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail de confirmation', hidden: true });
+        mailButton(resend, () => 'confirm:' + em.value.trim().toLowerCase(), 60, async () => {
+          try { await C().resend(em.value); L.toast('E-mail de confirmation renvoyé à ' + em.value.trim()); } catch (e) { showErr(err, e); return false; }
+        });
         const submit = async () => {
           err.hidden = true; resend.hidden = true;
           if (!em.value.trim() || !pw.value) return showErr(err, 'Indiquez votre adresse e-mail et votre mot de passe.');
@@ -42,7 +74,7 @@
             dlg.close();
             L.toast('Connecté : ' + C().pseudo());
             if (onDone) onDone();
-          } catch (e) { showErr(err, e); if (/confirm/i.test(e.message)) resend.hidden = false; busy(go, false, 'Se connecter'); }
+          } catch (e) { showErr(err, e); if (/confirm/i.test(e.message)) { resend.hidden = false; resend.refreshWait(); } busy(go, false, 'Se connecter'); }
         };
         pw.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
         go.onclick = submit;
@@ -53,29 +85,37 @@
       } else if (mode === 'reset') {
         const em = input('email', 'vous@exemple.fr', 'username'); em.value = body.dataset.email || '';
         const go = L.h('button', { class: 'btn primary', text: 'Recevoir un lien pour choisir un nouveau mot de passe' });
-        go.onclick = async () => {
+        mailButton(go, () => 'reset:' + em.value.trim().toLowerCase(), 60, async () => {
           err.hidden = true;
-          busy(go, true, 'Envoi…');
+          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim())) { showErr(err, 'Cette adresse e-mail n\'est pas valide.'); return false; }
           try { await C().resetPassword(em.value); form.replaceChildren(L.h('div', { class: 'auth-ok' }, L.h('b', { text: '✉ E-mail envoyé' }), L.h('p', { text: 'Si un compte existe pour ' + em.value.trim() + ', un lien vient d\'y être envoyé. Ouvrez-le pour choisir un nouveau mot de passe (pensez aux courriers indésirables).' }))); }
-          catch (e) { showErr(err, e); busy(go, false, 'Réessayer'); }
-        };
+          catch (e) { showErr(err, e); }
+        });
+        em.addEventListener('input', () => go.refreshWait());
         form = L.h('div', { class: 'auth-form' }, L.h('p', { class: 'auth-p', text: 'Indiquez l\'adresse de votre compte : vous recevrez un lien pour choisir un nouveau mot de passe.' }), field('Adresse e-mail', em), err, L.h('div', { class: 'auth-acts' }, go, L.h('button', { class: 'linkish', text: 'Retour', onclick: () => setMode('login') })));
       } else if (mode === 'signup') {
         const nk = input('text', 'Ex. : Marie D.', 'nickname'), em = input('email', 'vous@exemple.fr', 'email'), pw = input('password', 'Au moins 8 caractères, lettres et chiffres', 'new-password'), pw2 = input('password', 'Retapez le mot de passe', 'new-password');
         nk.maxLength = 40;
         const go = L.h('button', { class: 'btn primary', text: 'Créer mon compte' });
+        let signing = false;
         go.onclick = async () => {
+          if (signing) return;
           err.hidden = true;
+          const wait = waitLeft('signup:' + em.value.trim().toLowerCase());
+          if (wait) return showErr(err, 'Un e-mail vient d\'être envoyé à cette adresse : patientez ' + wait + ' s avant de recommencer.');
           if (!nk.value.trim()) return showErr(err, 'Choisissez un pseudo : c\'est le nom affiché à côté de votre curseur.');
           if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim())) return showErr(err, 'Cette adresse e-mail n\'est pas valide.');
           if (!pwOk(pw.value)) return showErr(err, 'Mot de passe trop faible : au moins 8 caractères, avec des lettres et des chiffres.');
           if (pw.value !== pw2.value) return showErr(err, 'Les deux mots de passe ne correspondent pas.');
-          busy(go, true, 'Création…');
+          busy(go, true, 'Création…'); signing = true;
           try {
             await C().signUp(em.value, pw.value, nk.value);
+            startWait('signup:' + em.value.trim().toLowerCase(), 60);
+            startWait('confirm:' + em.value.trim().toLowerCase(), 60);
             body.dataset.email = em.value.trim();
             setMode('sent');
           } catch (e) { showErr(err, e); busy(go, false, 'Créer mon compte'); }
+          signing = false;
         };
         form = L.h('div', { class: 'auth-form' },
           field('Pseudo', nk, 'Affiché à côté de votre curseur et de vos commentaires.'),
@@ -93,7 +133,7 @@
           err,
           L.h('div', { class: 'auth-acts' },
             L.h('button', { class: 'btn primary', text: 'J\'ai confirmé : me connecter', onclick: () => setMode('login') }),
-            L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail', onclick: async () => { try { await C().resend(mail); L.toast('E-mail renvoyé'); } catch (e) { showErr(err, e); } } })));
+            (b => { mailButton(b, 'confirm:' + mail.toLowerCase(), 60, async () => { try { await C().resend(mail); L.toast('E-mail renvoyé'); } catch (e) { showErr(err, e); return false; } }); return b; })(L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail' }))));
       }
       body.replaceChildren(
         L.h('p', { class: 'auth-intro', text: 'Un compte permet de modifier des documents à plusieurs en direct (Live Modification) et de recevoir des invitations.' }),
@@ -242,27 +282,29 @@
     const after = L.h('div', { class: 'invite-after', hidden: true });
     const go = L.h('button', { class: 'btn primary', text: 'Inviter' });
     const legend = L.h('div', { class: 'fhint roles-legend' }, ...ROLES.map(([, t, d]) => L.h('span', null, L.h('b', { text: t }), ' : ' + d + '. ')));
-    const submit = async () => {
+    const submit = mailButton(go, 'invite', 3, async () => {
       err.hidden = true; after.hidden = true;
       const mail = em.value.trim().toLowerCase();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) return showErr(err, 'Cette adresse e-mail n\'est pas valide.');
-      busy(go, true, 'Invitation…');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { showErr(err, 'Cette adresse e-mail n\'est pas valide.'); return false; }
       try {
         await C().invite(s.id, mail, role.value);
         em.value = '';
         done();
-        if (notify.checked) {
+        if (notify.checked && waitLeft('invite-mail:' + s.id + ':' + mail)) L.toast(mail + ' a déjà été prévenu(e) il y a moins de 10 minutes : pas de nouvel e-mail.');
+        else if (notify.checked) {
+          startWait('invite-mail:' + s.id + ':' + mail, 600);
           try { await C().notifyInvite(s.id, mail); L.toast('Invitation envoyée par e-mail à ' + mail); }
           catch (x) {
-            if (/LHE_RATE/.test(x.message)) L.toast(mail + ' a déjà été prévenu(e) il y a moins de 10 minutes.');
+            if (/LHE_RATE/.test(x.message)) L.toast(mail + ' a bien accès au document, mais aucun e-mail n\'est parti : cette personne a déjà été prévenue il y a moins de 10 minutes, ou vous avez envoyé beaucoup d\'invitations en une heure.');
             else offerMail(after, s, mail, role.value);
           }
         } else L.toast(mail + ' a maintenant accès au document');
-      } catch (e) { showErr(err, e); }
-      busy(go, false, 'Inviter');
-    };
-    em.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
-    go.onclick = submit;
+      } catch (e) {
+        showErr(err, /LHE_RATE|Trop d/.test(String(e.message)) ? 'Trop d\'invitations en peu de temps : patientez quelques minutes avant de recommencer.' : e);
+        return false;
+      }
+    });
+    em.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
     return L.h('div', { class: 'invite' },
       L.h('div', { class: 'set-h', text: 'Inviter quelqu\'un' }),
       L.h('div', { class: 'invite-row' }, em, role, go),

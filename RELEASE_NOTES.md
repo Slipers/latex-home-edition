@@ -1,20 +1,30 @@
-## Nouveau : un écran d'accueil, comme Google Docs
+## Nouveau : dessins TikZ
 
-À l'ouverture de LaTeX Home Edition, un écran d'accueil rassemble tout :
+Un nouvel élément **« Dessin TikZ »** (colonne de gauche, rubrique Objets, ou `/tikz`) permet de dessiner avec le langage **TikZ** de LaTeX : repères, courbes de fonctions, figures de géométrie, schémas avec des boîtes et des flèches…
 
-- **Créer un document** : tous les modèles, avec un aperçu de leur première page. Le **document vierge** est en tête, avec son grand « + ».
-- **Documents récents** : vos fichiers en ligne, les documents partagés avec vous, les fichiers récemment ouverts ou enregistrés sur ce PC, et le document en cours, chacun avec l'aperçu de sa première page.
-- **Recherche** en haut, filtres **Tous / En ligne / Partagés / Sur ce PC**, tri **par date** ou **de A à Z**, et vue **grille** ou **liste** (la liste est classée par « Aujourd'hui », « 7 derniers jours »…).
-- Menu **⋮** (ou clic droit) sur chaque document : ouvrir, renommer, mettre à la corbeille, quitter un document partagé, retirer de la liste…
-- **Reprendre** (ou Échap) ramène au document ouvert. Le logo **∑ LaTeX Home** et le bouton **Nouveau** rouvrent l'accueil.
-- Thème clair et sombre, et adapté aux petits écrans.
+- **Le dessin s'affiche directement sur la feuille et suit la frappe :** le code TikZ se modifie juste en dessous quand l'élément est sélectionné, avec la coloration LaTeX.
+- **Huit exemples prêts à l'emploi** dans le panneau de droite, inspirés du tutoriel « TikZ – Basic Drawing » d'Overleaf : repère et cercle, formes de base, courbe de fonction, cercle trigonométrique, triangle, schéma avec nœuds, rosace…
+- **Pris en charge :**
+  - les commandes `\draw`, `\fill`, `\filldraw`, `\node`, `\coordinate`, `\foreach`, `\clip`, `\shade`, et les `scope` ;
+  - les formes : traits, rectangles, cercles, ellipses, arcs, grilles, courbes de Bézier, `to[out=…, in=…]`, tracés de fonctions (`plot`) avec marques ;
+  - les options : couleurs (`red!30!blue`…), épaisseurs, pointillés, flèches, coins arrondis, transparence, transformations ;
+  - les nœuds avec texte et formules ($…$), et les styles.
+- En cas d'erreur, un message clair s'affiche sous le code (par exemple « il manque un ; »), et le reste du dessin reste visible.
+- **Légende facultative**, numérotée comme une figure, et **échelle** réglable.
+- **Export LaTeX :** votre code TikZ est repris tel quel, donc LaTeX (ou Overleaf) donne le même dessin. Vérifié avec un vrai compilateur.
 
-## Une seule liste pour vos documents
+## Code informatique en couleur
 
-Les documents Live et les fichiers en ligne sont maintenant réunis dans **« Mes fichiers »** : plus deux menus différents. Un document partagé porte simplement une petite étiquette **« Fichier partagé »**.
+Le code est maintenant **coloré selon le langage**, comme dans un éditeur de code : mots-clés, chaînes, commentaires, nombres, fonctions…
 
-## Renommer, comme dans Google Docs
+- La couleur apparaît **pendant la frappe**, dans l'aperçu, dans le PDF et dans l'export LaTeX (mêmes couleurs).
+- **20 langages :** Python, OCaml, C, C++, Java, JavaScript, TypeScript, PHP, C#, Rust, Go, Matlab, R, SQL, HTML, CSS, JSON, LaTeX, Bash, et texte brut.
+- Corrections :
+  - les numéros de ligne continuent correctement quand un code passe sur la page suivante ;
+  - l'export LaTeX d'un code en R ne bloque plus la compilation.
 
-- **Cliquez sur le nom du document** en haut de la fenêtre pour le renommer sur place. Ça marche pour un fichier en ligne, un document partagé, un fichier du PC (renommé dans son dossier, sans jamais écraser un autre fichier) ou un nouveau document.
-- « Renommer » dans « Mes fichiers » et dans l'accueil fonctionne de la même façon, directement dans la liste.
-- Correction : « Renommer », « Enregistrer une copie » et la confirmation de suppression du compte ne faisaient rien dans l'application installée. C'est réglé.
+## Envoi d'e-mails : fini le « spam » du bouton
+
+- Les boutons qui envoient un e-mail (Inviter, renvoyer l'e-mail de confirmation, mot de passe oublié, créer un compte) ne peuvent plus être cliqués plusieurs fois de suite : **un seul envoi**, puis un court délai affiché sur le bouton.
+- Une même personne n'est prévenue par e-mail qu'une fois toutes les 10 minutes.
+- **Côté serveur aussi :** au plus 20 invitations par tranche de 10 minutes et 15 e-mails d'invitation par heure et par compte, même en contournant l'application. Pour l'activer, le script `supabase/collab.sql` est à relancer une fois dans Supabase (sans risque : il n'efface rien).

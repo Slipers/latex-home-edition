@@ -84,6 +84,31 @@ create table if not exists public.collab_comments (
 );
 create index if not exists collab_comments_doc_idx on public.collab_comments (doc_id, created_at);
 
+-- ---------------------------------------------------------------- Anti-spam
+-- Chaque action coûteuse (invitation, e-mail) est comptée par compte ; au-delà d'un
+-- nombre d'actions par période, le serveur refuse (LHE_RATE) — même si l'on
+-- contourne l'application. Le journal ne garde que les dernières 24 heures.
+create table if not exists public.lhe_rate_log (
+  id       bigserial primary key,
+  user_id  uuid not null references auth.users (id) on delete cascade,
+  action   text not null check (char_length(action) <= 40),
+  at       timestamptz not null default now()
+);
+create index if not exists lhe_rate_log_idx on public.lhe_rate_log (user_id, action, at);
+alter table public.lhe_rate_log enable row level security;
+revoke all on public.lhe_rate_log from public, anon, authenticated;
+
+create or replace function public.lhe_rate_hit(p_action text, p_max int, p_window interval) returns void
+language plpgsql volatile security definer set search_path = '' as $$
+declare v_n int;
+begin
+  if auth.uid() is null then raise exception 'LHE_AUTH'; end if;
+  delete from public.lhe_rate_log l where l.user_id = auth.uid() and l.at < now() - interval '1 day';
+  select count(*) into v_n from public.lhe_rate_log l where l.user_id = auth.uid() and l.action = p_action and l.at > now() - p_window;
+  if v_n >= p_max then raise exception 'LHE_RATE'; end if;
+  insert into public.lhe_rate_log (user_id, action) values (auth.uid(), p_action);
+end $$;
+
 -- ---------------------------------------------------------------- Rôles
 -- Adresse e-mail CONFIRMÉE de l'utilisateur connecté (sinon null)
 create or replace function public.lhe_my_email() returns text
@@ -228,6 +253,7 @@ begin
   if v_email = public.lhe_my_email() then raise exception 'LHE_SELF'; end if;
   select count(*) into v_n from public.collab_members where invited_by = auth.uid() and created_at > now() - interval '1 hour';
   if v_n >= 60 then raise exception 'LHE_RATE'; end if;
+  perform public.lhe_rate_hit('invite', 20, interval '10 minutes');   -- clics répétés, même sur une adresse déjà invitée
   select u.id into v_uid from auth.users u where lower(u.email) = v_email and u.email_confirmed_at is not null;
   v_new := not exists (select 1 from public.collab_members where doc_id = p_doc and email = v_email);
   insert into public.collab_members (doc_id, email, role, invited_by, user_id)
@@ -247,6 +273,7 @@ begin
   select * into m from public.collab_members where doc_id = p_doc and email = v_email;
   if not found then raise exception 'LHE_FORBIDDEN'; end if;
   if m.notified_at is not null and m.notified_at > now() - interval '10 minutes' then raise exception 'LHE_RATE'; end if;
+  perform public.lhe_rate_hit('invite_mail', 15, interval '1 hour');
   update public.collab_members set notified_at = now() where doc_id = p_doc and email = v_email;
   select d.title into v_title from public.collab_docs d where d.id = p_doc;
   select p.pseudo into v_from from public.profiles p where p.id = auth.uid();
@@ -339,6 +366,7 @@ end $$;
 
 -- Droits d'exécution : comptes connectés seulement
 revoke all on function public.lhe_new_user() from public, anon, authenticated;
+revoke all on function public.lhe_rate_hit(text, int, interval) from public, anon, authenticated;
 revoke all on function public.lhe_touch_doc() from public, anon, authenticated;
 revoke all on function public.lhe_my_email() from public, anon;
 revoke all on function public.lhe_doc_role(uuid) from public, anon;

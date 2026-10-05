@@ -180,6 +180,31 @@ check('compaction 2 : anciennes maj effacées', (await q('select count(*)::int n
 const open = (await as('bob', () => q('select public.lhe_open_doc($1) j', [D])))[0].j;
 check('ouverture : snapshot + rôle', open.snapshot === 'SNAP3' && open.role === 'editor' && open.snapshot_upto === max2, open);
 
+// Anti-spam : clics répétés sur « Inviter » (même adresse) et e-mails
+await q('delete from public.lhe_rate_log');
+let spam = 0, blocked = false;
+for (let k = 0; k < 25; k++) {
+  try { await as('alice', () => q(`select public.lhe_invite($1, 'spam@exemple.fr', 'viewer')`, [D])); spam++; }
+  catch (e) { blocked = /LHE_RATE/.test(e.message); break; }
+}
+check('anti-spam : invitations répétées bloquées après 20', spam === 20 && blocked, { spam, blocked });
+check('anti-spam : rien de plus écrit', (await q(`select count(*)::int n from public.collab_members where doc_id=$1 and email='spam@exemple.fr'`, [D]))[0].n === 1);
+check('anti-spam : journal invisible aux comptes', await as('alice', () => fails(() => q('select * from public.lhe_rate_log'))));
+check('anti-spam : compteur non appelable directement', await as('alice', () => fails(() => q(`select public.lhe_rate_hit('invite', 1000000, interval '1 second')`))));
+check('anti-spam : bob a son propre compteur', await as('bob', () => fails(() => q(`select public.lhe_invite($1, 'x@exemple.fr', 'viewer')`, [D]), /LHE_FORBIDDEN/)));
+await q('delete from public.lhe_rate_log');
+await q(`update public.collab_members set notified_at = null`);
+let mails = 0, mailBlocked = false;
+for (let k = 0; k < 18; k++) {
+  const who = 'm' + k + '@exemple.fr';
+  await as('alice', () => q(`select public.lhe_invite($1, $2, 'viewer')`, [D, who]));
+  try { await as('alice', () => q('select public.lhe_invite_info($1, $2)', [D, who])); mails++; }
+  catch (e) { mailBlocked = /LHE_RATE/.test(e.message); break; }
+}
+check('anti-spam : 15 e-mails par heure au plus', mails === 15 && mailBlocked, { mails, mailBlocked });
+await q('delete from public.lhe_rate_log');
+await q(`delete from public.collab_members where doc_id=$1 and (email like 'm%@exemple.fr' or email = 'spam@exemple.fr')`, [D]);
+
 // Retirer un membre / quitter
 check('bob ne peut pas retirer carol', await as('bob', () => fails(() => q(`select public.lhe_remove_member($1, 'carol@exemple.fr')`, [D]), /LHE_FORBIDDEN/)));
 check('carol quitte le document', (await as('carol', () => q(`select public.lhe_remove_member($1, 'carol@exemple.fr') r`, [D])))[0].r === true);

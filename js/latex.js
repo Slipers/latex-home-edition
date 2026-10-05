@@ -74,7 +74,14 @@ L.htmlToLatex = function (html, X) {
   return right.length ? body + '\\hfill\\mbox{' + right.join(' ') + '}' : body;
 };
 
-const LST_LANG = { python: 'Python', c: 'C', cpp: 'C++', java: 'Java', matlab: 'Matlab', r: 'R', html: 'HTML', sql: 'SQL', bash: 'bash', javascript: '', texte: '' };
+/* Langages que le paquet listings ne connaît pas : définis dans le préambule */
+const LST_CUSTOM = {
+  JavaScript: 'morekeywords={async,await,break,case,catch,class,const,continue,debugger,default,delete,do,else,enum,export,extends,false,finally,for,from,function,if,implements,import,in,instanceof,interface,let,new,null,of,private,protected,public,readonly,return,static,super,switch,this,throw,true,try,type,typeof,undefined,var,void,while,with,yield}, morecomment=[l]{//}, morecomment=[s]{/*}{*/}, morestring=[b]", morestring=[b]\', morestring=[b]`, sensitive=true',
+  Rust: 'morekeywords={as,async,await,break,const,continue,crate,dyn,else,enum,extern,false,fn,for,if,impl,in,let,loop,match,mod,move,mut,pub,ref,return,self,Self,static,struct,super,trait,true,type,unsafe,use,where,while}, morecomment=[l]{//}, morecomment=[s]{/*}{*/}, morestring=[b]", sensitive=true',
+  Go: 'morekeywords={break,case,chan,const,continue,default,defer,else,fallthrough,false,for,func,go,goto,if,import,interface,map,nil,package,range,return,select,struct,switch,true,type,var}, morecomment=[l]{//}, morecomment=[s]{/*}{*/}, morestring=[b]", morestring=[b]`, sensitive=true',
+  JSON: 'morekeywords={true,false,null}, morestring=[b]", sensitive=true',
+  CSS: 'morekeywords={important}, morecomment=[s]{/*}{*/}, morestring=[b]", morestring=[b]\', sensitive=false',
+};
 
 /* Numéro forcé : \setcounter avant le bloc, pour que LaTeX suive la même numérotation */
 L.forceCounter = function (b, X) {
@@ -83,7 +90,7 @@ L.forceCounter = function (b, X) {
   if (b.type === 'heading' && b.numbered && b.level <= 3) c = ['section', 'subsection', 'subsubsection'][b.level - 1];
   else if (b.type === 'equation' && b.numbered) c = 'equation';
   else if (b.type === 'table' && (b.capMode || 'num') === 'num') c = 'table';
-  else if (b.type === 'figure' && (b.capMode || 'num') === 'num') c = 'figure';
+  else if ((b.type === 'figure' || b.type === 'tikz') && (b.capMode || 'num') === 'num') c = 'figure';
   else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) {
     const cn = (b.customName || '').trim(), st = (L.KINDS[b.kind] || {}).style;
     const cu = cn && X && X.custom ? X.custom.find(x => x.name === cn && x.style === st) : null;
@@ -205,10 +212,27 @@ L.blockToLatexRaw = function (b, X, indent = '') {
     case 'code': {
       X.pk.add('listings');
       const opts = [];
-      const lang = LST_LANG[b.lang];
-      if (lang) opts.push('language=' + lang);
+      const lang = L.codeLang(b.lang)[3];
+      // (entre accolades : « [Objective]Caml » contient des crochets)
+      if (lang) { opts.push('language={' + lang + '}'); X.pk.add((LST_CUSTOM[lang] ? 'lst:' : 'lstb:') + lang); }
       if (b.numbers) opts.push('numbers=left');
       return '\\begin{lstlisting}' + (opts.length ? '[' + opts.join(', ') + ']' : '') + '\n' + (b.code || '') + '\n\\end{lstlisting}';
+    }
+    case 'tikz': {
+      // Le code TikZ tel quel (le vrai LaTeX donne le même dessin) ; « Échelle » = scale=
+      X.pk.add('tikz');
+      let code = (b.code || '').replace(/\\usetikzlibrary\{([^}]*)\}/g, (m, l) => { l.split(',').forEach(x => x.trim() && X.pk.add('tikzlib:' + x.trim())); return ''; }).trim();
+      const s = b.scale && b.scale !== 1 ? 'scale=' + b.scale : '';
+      if (/\\begin\{tikzpicture\}/.test(code)) {
+        if (s) code = code.replace(/\\begin\{tikzpicture\}(\[([^\]]*)\])?/, (m, o, inner) => '\\begin{tikzpicture}[' + (inner ? inner + ', ' : '') + s + ']');
+      } else if (/^\\tikz\b/.test(code)) {
+        if (s) code = code.replace(/^\\tikz\s*(\[([^\]]*)\])?/, (m, o, inner) => '\\tikz[' + (inner ? inner + ', ' : '') + s + ']');
+      } else code = '\\begin{tikzpicture}' + (s ? '[' + s + ']' : '') + '\n' + code + '\n\\end{tikzpicture}';
+      if (!code) return '';
+      const cap = L.captionToLatex(b, X, 'figure');
+      if (X.inCols) return '{\\centering\n' + code + '\\par\n' + (cap ? '  ' + cap + '\n' : '') + '\\par}';   // dans une colonne : comme une image
+      if (cap) return '\\begin{figure}[H]\n  \\centering\n' + code + '\n' + '  ' + cap + '\n\\end{figure}';
+      return '\\begin{center}\n' + code + '\n\\end{center}';
     }
     case 'tabvar': return L.tabvarToLatex(b, X);
     case 'pnote': { const h = L.pnoteHtml(b); return L.isEmptyHtml(h) ? '' : '{\\renewcommand{\\thefootnote}{}\\footnotetext{' + L.htmlToLatex(h, X) + '}}'; }
@@ -374,6 +398,12 @@ L.docToLatex = function (doc) {
   if (/\\ce\{/.test(body)) P.push('\\usepackage[version=4]{mhchem}');
   if (X.pk.has('booktabs')) P.push('\\usepackage{booktabs}');
   if (X.pk.has('tkz-tab')) P.push('\\usepackage{tkz-tab}');
+  if (X.pk.has('tikz')) {
+    P.push('\\usepackage{tikz}');
+    const libs = new Set(['arrows', 'arrows.meta', 'positioning', 'calc', 'plotmarks']);
+    [...X.pk].filter(k => k.startsWith('tikzlib:')).forEach(k => libs.add(k.slice(8)));
+    P.push('\\usetikzlibrary{' + [...libs].join(',') + '}');
+  }
   if (/\\coloneqq/.test(body)) P.push('\\usepackage{mathtools}');
   if (/\\cancel\{/.test(body)) P.push('\\usepackage{cancel}');
   // footskip : pied de page à ~12 mm du bord (mêmes valeurs que l'éditeur)
@@ -383,7 +413,16 @@ L.docToLatex = function (doc) {
   if (m.boxedThm && X.envs.size) P.push('\\usepackage{mdframed}');
   if (X.pk.has('listings')) {
     P.push('\\usepackage{listings}');
-    P.push('\\lstset{basicstyle=\\ttfamily\\small, frame=single, breaklines=true, columns=fullflexible, keepspaces=true,\n' +
+    // Même coloration que dans l'éditeur et le PDF
+    P.push('\\usepackage{xcolor}');
+    P.push('\\definecolor{lstkw}{HTML}{1F4FBF}\\definecolor{lststr}{HTML}{A31515}\\definecolor{lstcom}{HTML}{2E7D32}\\definecolor{lstnum}{HTML}{7A7F88}');
+    Object.keys(LST_CUSTOM).forEach(k => { if (X.pk.has('lst:' + k)) P.push('\\lstdefinelanguage{' + k + '}{' + LST_CUSTOM[k] + '}'); });
+    // Langages de listings chargés dès le préambule : avec babel-french, les caractères
+    // « actifs » du document (! ? ; :) cassent sinon certaines définitions (R…)
+    const builtin = [...X.pk].filter(k => k.startsWith('lstb:')).map(k => k.slice(5));
+    if (builtin.length) P.push('\\lstloadlanguages{' + builtin.join(',') + '}');
+    P.push('\\lstset{basicstyle=\\ttfamily\\small, keywordstyle=\\color{lstkw}, stringstyle=\\color{lststr}, commentstyle=\\color{lstcom}\\itshape,\n' +
+      '  numberstyle=\\tiny\\color{lstnum}, showstringspaces=false, upquote=true, frame=single, breaklines=true, columns=fullflexible, keepspaces=true,\n' +
       '  literate={é}{{\\\'e}}1 {è}{{\\`e}}1 {ê}{{\\^e}}1 {à}{{\\`a}}1 {ç}{{\\c{c}}}1 {ù}{{\\`u}}1 {ô}{{\\^o}}1 {î}{{\\^i}}1 {É}{{\\\'E}}1}');
   }
   P.push('\\usepackage[hidelinks]{hyperref}');

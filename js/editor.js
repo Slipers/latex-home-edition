@@ -35,6 +35,7 @@ L.ITEMS = [
   { g: 'Exercices', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
   { g: 'Objets', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
   { g: 'Objets', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
+  { g: 'Objets', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
   { g: 'Objets', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
   { g: 'Objets', key: 'figures2', label: 'Images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
   { g: 'Objets', key: 'cols2', label: 'Deux colonnes', icon: '▯▯', kw: 'deux colonnes cote a cote texte', make: () => L.newCols('paragraph') },
@@ -53,7 +54,7 @@ L.ITEMS = [
 
 const TYPE_INFO = {
   paragraph: ['¶', 'Paragraphe'], heading: ['§', 'Titre'], equation: ['(1)', 'Équation'], list: ['1.', 'Liste'],
-  box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'],
+  box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'], tikz: ['✎', 'Dessin TikZ'],
   tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], rule: ['―', 'Ligne de séparation'], pnote: ['↧', 'Texte en bas de page'], vspace: ['↕', 'Espace vertical'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
 };
 
@@ -485,7 +486,7 @@ Object.assign(App, {
      tableau, titre…), ou au début de la ligne qui dépasse. `topS` : haut de la zone de
      texte de la page (on ne coupe jamais avant ce qui est déjà en haut de page). */
   overflowPoint(flow, limitS, topS) {
-    const NOSPLIT = '.eq, .tvwrap, .tbl, .fig, .code, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk, .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="code"], .blk[data-type="vspace"], .blk[data-type="rule"]';
+    const NOSPLIT = '.eq, .tvwrap, .tbl, .fig, .code, .tikz, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk, .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="code"], .blk[data-type="vspace"], .blk[data-type="rule"]';
     const SKIP = '.gutter, .pg-sp, .pg-float, .num, .li-mark, .env-head-inline, .collab-layer, .cmt-layer, .vspace-lab, .tv-hint';
     const BLOCKLIKE = '.blk, .li, [data-f], ' + NOSPLIT;
     const above = r => r.bottom <= limitS + 0.5;
@@ -1202,8 +1203,27 @@ Object.assign(App, {
         (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'figure') : '',
         row('', L.h('div', { class: 'pp-help', text: 'Le texte de la légende se modifie directement sous l\'image, sur la feuille.' })),
         (b.capMode || 'num') === 'num' ? forceRow() : '');
+    } else if (b.type === 'tikz') {
+      const rng = L.h('input', { type: 'range', min: 0.3, max: 2.5, step: 0.1, value: b.scale || 1 });
+      const lab = L.h('span', { text: '× ' + String(b.scale || 1).replace('.', ',') });
+      rng.oninput = () => { lab.textContent = '× ' + rng.value.replace('.', ','); };
+      rng.onchange = () => upd(() => { b.scale = +rng.value; });
+      const ex = L.h('select', null, L.h('option', { value: '', text: 'Choisir un exemple…' }), ...L.TikZ.EXAMPLES.map(([t], k) => L.h('option', { value: String(k), text: t })));
+      ex.onchange = () => {
+        const e = L.TikZ.EXAMPLES[+ex.value];
+        if (!e) return;
+        if ((b.code || '').trim() && !confirm('Remplacer le code du dessin par l\'exemple « ' + e[0] + ' » ? (Ctrl+Z pour revenir en arrière)')) { ex.value = ''; return; }
+        upd(() => { b.code = e[1]; });
+      };
+      P.append(
+        row('Échelle', rng, lab),
+        row('Exemples', ex),
+        capRow(),
+        (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'figure') : '',
+        (b.capMode || 'num') === 'num' ? forceRow() : '',
+        L.h('div', { class: 'pp-help', html: '<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>' }));
     } else if (b.type === 'code') {
-      const s = L.h('select', null, ...[['python', 'Python'], ['c', 'C'], ['cpp', 'C++'], ['java', 'Java'], ['javascript', 'JavaScript'], ['matlab', 'Matlab / Octave'], ['r', 'R'], ['sql', 'SQL'], ['bash', 'Terminal (bash)'], ['html', 'HTML'], ['texte', 'Texte brut']]
+      const s = L.h('select', null, ...L.CODE_LANGS
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));

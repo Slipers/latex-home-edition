@@ -301,13 +301,56 @@ L.R = {
       const pre = L.h('pre', { class: 'code-edit', contenteditable: 'plaintext-only', spellcheck: 'false', 'data-b': b.id, 'data-f': 'code', 'data-ph': 'Collez ou tapez votre code ici' });
       pre.textContent = b.code;
       if (!b.code) pre.classList.add('is-empty');
-      el.appendChild(pre);
+      el.appendChild(L.codeOverlay(pre, b.lang));   // coloration selon le langage, pendant la frappe
     } else {
-      const pre = L.h('pre', { class: b.numbers ? 'code-lines' : '' });
-      if (b.numbers) (b.code || '').split('\n').forEach(line => pre.appendChild(L.h('span', { class: 'ln', text: line || ' ' })));
-      else pre.textContent = b.code;
+      // Une ligne = un morceau coloré autonome, avec son numéro (data-n) : la coupure
+      // entre deux pages garde les couleurs et la numérotation continue
+      const pre = L.h('pre', { class: 'code-lines' });
+      L.highlightLines(b.code || '', b.lang).forEach((line, i) => pre.appendChild(L.h('span', { class: 'ln', 'data-n': String(i + 1), html: line || ' ' })));
       el.appendChild(pre);
     }
+    return el;
+  },
+
+  /* Dessin TikZ : dessiné par js/tikz.js ; dans l'éditeur, le code se modifie sous le
+     dessin (visible quand le bloc est sélectionné) et le dessin suit la frappe */
+  tikz(b, ctx) {
+    const el = L.h('div', { class: 'tikz' + (b.code && b.code.trim() ? '' : ' empty') });
+    const fig = L.h('div', { class: 'tikz-fig' });
+    el.appendChild(fig);
+    const draw = code => {
+      const r = L.TikZ ? L.TikZ.render(code, { fontSize: ctx.meta.fontSize, scale: b.scale || 1 }) : { error: 'module TikZ absent', warnings: [] };
+      fig.replaceChildren();
+      if (r.svg && !r.empty) fig.appendChild(r.svg);
+      else if (r.error && ctx.mode !== 'edit') fig.appendChild(L.h('div', { class: 'tikz-error', text: 'Dessin TikZ : ' + r.error }));
+      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode === 'edit' ? (r.error ? 'Le dessin contient une erreur (voir sous le code)' : 'Dessin vide : écrivez du code TikZ ci-dessous') : '' }));
+      return r;
+    };
+    if (ctx.mode === 'edit') {
+      const pre = L.h('pre', { class: 'code-edit', contenteditable: 'plaintext-only', spellcheck: 'false', 'data-b': b.id, 'data-f': 'code', 'data-ph': '\\draw (0,0) -- (2,1);' });
+      pre.textContent = b.code || '';
+      if (!b.code) pre.classList.add('is-empty');
+      const msg = L.h('div', { class: 'tikz-msg' });
+      const show = r => {
+        msg.className = 'tikz-msg' + (r.error ? ' err' : r.warnings && r.warnings.length ? ' warn' : '');
+        msg.textContent = r.error ? '⚠ ' + r.error : r.warnings && r.warnings.length ? 'ℹ ' + r.warnings.join(' · ') : '';
+      };
+      show(draw(b.code));
+      let t = 0;
+      new MutationObserver(() => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          const code = (pre.isConnected ? pre.innerText : pre.textContent).replace(/\n$/, '');
+          show(draw(code));
+          el.classList.toggle('empty', !code.trim());
+        }, 160);
+      }).observe(pre, { characterData: true, childList: true, subtree: true });
+      el.appendChild(L.h('div', { class: 'tikz-src', contenteditable: 'false' },
+        L.h('div', { class: 'tikz-src-h' }, L.h('b', { text: 'Code TikZ' }), L.h('span', { text: 'le dessin suit la frappe · exemples dans le panneau de droite' })),
+        L.h('div', { class: 'code' }, L.codeOverlay(pre, 'latex')), msg));
+    } else draw(b.code);
+    const cap = L.caption(b, ctx, 'figure', 'Légende du dessin');
+    if (cap) el.appendChild(cap);
     return el;
   },
 

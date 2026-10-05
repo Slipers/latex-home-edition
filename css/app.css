@@ -158,6 +158,27 @@ td.rt:focus { background: #f2f6fd; }
 .pbreak { border-top: 1px dashed #aab3c2; margin: 18px 0; text-align: center; height: 0; user-select: none; }
 .pbreak span { position: relative; top: -9px; background: #fff; padding: 0 8px; font: 11px var(--ui); color: var(--mut); }
 .code-edit { outline: none; min-height: 1.4em; }
+/* Bloc TikZ dans l'éditeur : le code s'affiche sous le dessin quand le bloc est sélectionné */
+.tikz-empty { padding: 18px 20px; border: 1px dashed #b9c3d3; border-radius: 6px; color: #8a93a5; font: 12.5px var(--ui); }
+.tikz-src { display: none; margin: 10px 0 2px; text-align: left; background: #f5f7fb; border: 1px solid #ccd6e6; border-radius: 8px; padding: 8px 10px 9px; }
+.blk.sel .tikz-src, .tikz.empty .tikz-src, .tikz-src:focus-within { display: block; }
+.tikz-src-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; font: 12px var(--ui); color: #5d6678; }
+.tikz-src-h b { color: #2b4c7e; font-weight: 600; }
+.tikz-src .code { margin: 0; }
+.tikz-src .code-wrap { background: #fff; }
+.tikz-src .code pre { border-color: #cdd5e2; }
+.tikz-msg { font: 12px var(--ui); margin-top: 6px; white-space: pre-wrap; }
+.tikz-msg:empty { display: none; }
+.tikz-msg.err { color: #b3261e; }
+.tikz-msg.warn { color: #8a6412; }
+/* Code coloré : le champ modifiable est transparent, la copie colorée est dessinée dessous */
+.code-wrap { position: relative; }
+.code-wrap > .code-hl { position: absolute; inset: 0; margin: 0; pointer-events: none; user-select: none; overflow: hidden; }
+.code-wrap:not(.colored) > .code-hl { visibility: hidden; }
+.code-wrap > .code-edit { position: relative; z-index: 1; background: transparent; }
+.code-wrap.colored > .code-edit { color: transparent; caret-color: #1f2430; }
+.code-wrap.colored > .code-edit::selection, .code-wrap.colored > .code-edit *::selection { background: rgba(63, 107, 176, .3); color: transparent; }
+.code-wrap.colored > .code-edit.is-empty::before { color: #a5acb9; }
 .code-edit.is-empty::before { content: attr(data-ph); color: #a5acb9; }
 .meta-blk { cursor: text; }
 .meta-blk .doc-toc { cursor: default; opacity: .95; }

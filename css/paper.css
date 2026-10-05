@@ -169,9 +169,33 @@
 /* --------- Code (listings) --------- */
 .code { margin: calc(var(--fs) * .8) 0; text-indent: 0; text-align: left; }
 .code pre { font-family: "CMU Typewriter", monospace; font-size: var(--fs-small); line-height: 1.2; border: 0.4pt solid #000; padding: 4pt 5pt; margin: 0; white-space: pre-wrap; word-break: break-word; tab-size: 4; }
-.code .code-lines { counter-reset: ln; }
 .code .code-lines .ln { display: block; position: relative; }
-.code .code-lines .ln::before { counter-increment: ln; content: counter(ln); position: absolute; left: -2.6em; width: 2em; text-align: right; font-size: .8em; color: #000; }
+/* Dessins TikZ */
+.tikz { margin: calc(var(--fs) * .8) 0; text-indent: 0; text-align: center; }
+.tikz-fig { display: flex; justify-content: center; }
+.tikz-svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+.tikz-text { font-family: inherit; }
+.tikz-text .katex { font-size: 1em; }
+.tikz-error { display: inline-block; padding: 6pt 10pt; border: 0.6pt dashed #b3261e; color: #b3261e; font-size: var(--fs-small); text-align: left; }
+.code.numbered .code-lines .ln::before { content: attr(data-n); position: absolute; left: -2.6em; width: 2em; text-align: right; font-size: .8em; color: #7a7f88; font-style: normal; }
+/* Coloration du code (mêmes couleurs que l'export LaTeX, lisibles à l'impression) */
+.code .hljs-keyword, .code .hljs-selector-tag, .code .hljs-literal, .code .hljs-doctag, .code .hljs-section, .code .hljs-variable.language_ { color: #1f4fbf; }
+.code .hljs-type, .code .hljs-built_in, .code .hljs-title.class_, .code .hljs-title.class_.inherited__ { color: #217a8f; }
+.code .hljs-title, .code .hljs-title.function_ { color: #7a5413; }
+.code .hljs-string, .code .hljs-regexp, .code .hljs-char, .code .hljs-selector-attr, .code .hljs-selector-pseudo, .code .hljs-template-tag { color: #a31515; }
+.code .hljs-comment, .code .hljs-quote { color: #2e7d32; font-style: italic; }
+.code .hljs-number { color: #0b7a5c; }
+.code .hljs-meta, .code .hljs-meta .hljs-keyword { color: #8e3c99; }
+.code .hljs-meta .hljs-string { color: #a31515; }
+.code .hljs-tag, .code .hljs-name, .code .hljs-selector-id, .code .hljs-selector-class { color: #8a1a1a; }
+.code .hljs-attr, .code .hljs-attribute, .code .hljs-property { color: #c0392b; }
+.code .hljs-variable, .code .hljs-template-variable, .code .hljs-params { color: #2c3e70; }
+.code .hljs-symbol, .code .hljs-bullet, .code .hljs-link { color: #811f3f; }
+.code .hljs-subst, .code .hljs-operator, .code .hljs-punctuation { color: inherit; }
+.code .hljs-emphasis { font-style: italic; }
+.code .hljs-strong { font-weight: bold; }
+.code .hljs-addition { color: #2e7d32; }
+.code .hljs-deletion { color: #a31515; }
 .code.numbered pre { margin-left: 2em; }
 
 /* --------- Bibliographie --------- */

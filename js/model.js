@@ -102,6 +102,7 @@ L.newBlock = function (type, opts = {}) {
     }),
     figure: () => ({ src: '', width: 60, caption: '' }),
     code: () => ({ lang: 'python', code: '', numbers: false }),
+    tikz: () => ({ code: L.TikZ ? L.TikZ.EXAMPLES[0][1] : '', scale: 1, caption: '', capMode: 'none' }),
     tabvar: () => ({ xlabel: 'x', xs: ['-inf', '+inf'], rows: [] }),
     rule: () => ({}),
     pnote: () => ({ text: '' }),
@@ -166,7 +167,7 @@ L.computeNumbers = function (doc) {
       if (lv <= 3) toc.push({ id: b.id, level: lv, num: nums[b.id] ? nums[b.id].num : '', html: b.html });
     } else if (b.type === 'equation' && b.numbered) {
       eq = fn !== null ? fn : eq + 1; nums[b.id] = { num: '(' + eq + ')', ref: '(' + eq + ')' };
-    } else if (b.type === 'figure' && (b.capMode || 'num') === 'num') {
+    } else if ((b.type === 'figure' || b.type === 'tikz') && (b.capMode || 'num') === 'num') {
       fig = fn !== null ? fn : fig + 1; nums[b.id] = { num: String(fig), ref: String(fig) };
     } else if (b.type === 'table' && (b.capMode || 'num') === 'num') {
       tab = fn !== null ? fn : tab + 1; nums[b.id] = { num: String(tab), ref: String(tab) };
@@ -190,7 +191,7 @@ L.refTargets = function (doc) {
     let label = '', text = '';
     if (b.type === 'heading') { label = ['Section', 'Sous-section', 'Sous-sous-section'][b.level - 1] || 'Section'; text = L.plain(b.html); }
     else if (b.type === 'equation') { label = 'Équation'; text = b.latex; }
-    else if (b.type === 'figure') { label = 'Figure'; text = L.plain(b.caption); }
+    else if (b.type === 'figure' || b.type === 'tikz') { label = 'Figure'; text = L.plain(b.caption); }
     else if (b.type === 'table') { label = 'Tableau'; text = L.plain(b.caption); }
     else if (b.type === 'box') { label = L.kindName(b.kind, doc.meta.lang); text = b.title || L.plain((b.children[0] || {}).html || ''); }
     out.push({ id: b.id, type: b.type, label, num: nums[b.id].ref, text: (text || '').slice(0, 80) });
