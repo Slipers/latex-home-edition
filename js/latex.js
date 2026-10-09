@@ -12,12 +12,14 @@ const TEXT_UNI = {
 
 L.texEsc = function (s) {
   return String(s ?? '')
-    .replace(/\u00a0/g, ' ').replace(/\u200b/g, '')
+    // plusieurs espaces insécables de suite = un blanc voulu (\quad) ; une seule = espace normale
+    .replace(/\u00a0{2,}/g, '\u0001').replace(/\u00a0/g, ' ').replace(/\u200b/g, '')
     .replace(/[\\{}$&#_%^~]/g, c => ({
       '\\': '\\textbackslash{}', '{': '\\{', '}': '\\}', '$': '\\$', '&': '\\&', '#': '\\#',
       '_': '\\_', '%': '\\%', '^': '\\textasciicircum{}', '~': '\\textasciitilde{}',
     }[c]))
-    .replace(/[→←⇒⇔↔≤≥≠≈×±∞·÷√∈∀∃∑°€…µ’‘−αβγδεθλπρστφωΔΩΣΦ]/g, c => TEXT_UNI[c]);
+    .replace(/[→←⇒⇔↔≤≥≠≈×±∞·÷√∈∀∃∑°€…µ’‘−αβγδεθλπρστφωΔΩΣΦ]/g, c => TEXT_UNI[c])
+    .replace(/\u0001/g, '\\quad{}');
 };
 
 L.labelOf = function (b) {
@@ -53,6 +55,7 @@ L.htmlToLatex = function (html, X) {
       const inner = walk(n);
       const col = Array.from(c).find(k => k.startsWith('c-') && L.TEXT_COLORS[k.slice(2)]);
       if (col) { X.colors = true; out += '\\textcolor{lhe' + col.slice(2) + '}{' + inner + '}'; return; }
+      if (c.contains('fbox')) { out += '\\fbox{' + inner + '}'; return; }
       const sz = Array.from(c).find(k => L.TEXT_SIZES[k]);
       if (sz) { out += '{\\' + L.TEXT_SIZES[sz][1] + ' ' + inner + '}'; return; }
       if (c.contains('hfill')) { out += '\\hfill{}'; return; }
@@ -324,16 +327,25 @@ L.listToLatex = function (b, X) {
     number: ['\\arabic*.', '(\\alph*)', '\\roman*.'],
     alpha: ['\\alph*)', '\\roman*.', '\\Alph*.'],
     roman: ['\\roman*)', '\\alph*.', '\\Alph*.'],
+    sujet: ['\\textbf{\\Roman*.}', '\\textbf{\\arabic*.}', '\\textbf{\\alph*.}'],
   }[b.style];
   const start = b.start !== undefined && b.start !== '' && !isNaN(+b.start) ? Math.trunc(+b.start) : 1;
-  const envOf = lv => lab ? '\\begin{enumerate}[label=' + lab[lv] + (lv === 0 && start !== 1 ? ', start=' + start : '') + ']' : '\\begin{itemize}';
+  const tight = b.style === 'sujet' || b.style === 'puce' ? ', itemsep=0pt, parsep=0pt, topsep=2pt' : '';   // questions serrées, comme dans l'éditeur
+  const envOf = lv => lab ? '\\begin{enumerate}[label=' + lab[lv] + (lv === 0 && start !== 1 ? ', start=' + start : '') + tight + ']' : (b.style === 'puce' ? '\\begin{itemize}[label=' + ['\\textbullet', '--', '$\\ast$'][lv] + tight + ']' : '\\begin{itemize}');
   const endOf = () => lab ? '\\end{enumerate}' : '\\end{itemize}';
   let out = [], cur = -1;
+  const hasItem = [false, false, false];
   b.items.forEach(it => {
     const lv = Math.min(it.level || 0, 2);
-    const target = Math.min(lv, cur + 1);
-    while (cur < target) { cur++; out.push('  '.repeat(cur) + envOf(cur)); }
+    // Une liste peut commencer par une sous-question (suite d'une question après une
+    // formule centrée) : les niveaux au-dessus sont ouverts avec un élément sans étiquette
+    const target = lv;
+    while (cur < target) {
+      if (cur >= 0 && !hasItem[cur]) { out.push('  '.repeat(cur + 1) + '\\item[]'); hasItem[cur] = true; }
+      cur++; hasItem[cur] = false; out.push('  '.repeat(cur) + envOf(cur));
+    }
     while (cur > target) { out.push('  '.repeat(cur) + endOf()); cur--; }
+    hasItem[cur] = true;
     // Numéro choisi pour cette question
     if (lab && it.num !== undefined && it.num !== '' && !isNaN(+it.num)) out.push('  '.repeat(cur + 1) + '\\setcounter{enum' + ['i', 'ii', 'iii'][cur] + '}{' + (Math.trunc(+it.num) - 1) + '}');
     out.push('  '.repeat(cur + 1) + '\\item ' + (L.htmlToLatex(it.html, X) || '\\mbox{}'));
@@ -380,6 +392,7 @@ L.docToLatex = function (doc) {
   P.push('\\usepackage[T1]{fontenc}');
   P.push('\\usepackage[' + (m.lang === 'en' ? 'english' : 'french') + ']{babel}');
   P.push('\\usepackage{lmodern}');
+  if (m.fontFamily === 'sans') P.push('\\renewcommand{\\familydefault}{\\sfdefault}');   // texte sans empattements, formules inchangées
   P.push('\\usepackage{microtype}');
   P.push('\\usepackage{amsmath,amssymb,amsthm}');
   P.push('\\usepackage{graphicx}');

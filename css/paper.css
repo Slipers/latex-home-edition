@@ -95,6 +95,10 @@
 .para.noindent, .para.center, .para.right { text-indent: 0; }
 .para.center { text-align: center; }
 .para.right { text-align: right; }
+/* Paragraphe centré, à droite ou à gauche = environnement center / flushright / flushleft
+   de LaTeX : un petit espace (\topsep ≈ 9 pt) avant et après, qui ne se cumule pas entre
+   deux paragraphes centrés qui se suivent (comme \addvspace) */
+.para.center, .para.right, .para.left { margin: calc(var(--fs) * .8) 0; }
 .para.split-cont { text-indent: 0; }
 .para.split-before { text-align-last: justify; }
 .para code, .rt code { font-family: "CMU Typewriter", monospace; font-size: 1em; }
@@ -107,13 +111,23 @@
 .eq .eq-empty { color: #999; font-style: italic; font-family: system-ui, sans-serif; font-size: 10pt; }
 
 /* --------- Listes --------- */
+/* Police sans empattements (Computer Modern Sans, comme \sfdefault) : les formules restent en Computer Modern */
+.paper.ff-sans, .page.ff-sans, .ff-sans .paper, .ff-sans .page { font-family: "CMU Sans", "Latin Modern Sans", "Computer Modern Sans", sans-serif; }
+/* Texte encadré (\fbox) */
+.paper .fbox, .page .fbox, .fbox { border: 0.4pt solid currentColor; padding: 0 2.5pt; margin: 0 1pt; }
 .lst { margin: calc(var(--fs) * .6) 0; padding: 0; list-style: none; text-indent: 0; }
-.lst .li { position: relative; padding-left: 2.5em; margin: calc(var(--fs) * .25) 0; }
+/* Sujet de DS : I. / 1. / a. en gras */
+.lst-sujet > .li > .li-mark { font-weight: bold; }
+/* Étiquette et texte alignés sur la même ligne de base (comme \item), même quand la
+   première ligne contient une grande formule (∑ en style « display »…) */
+.lst .li { position: relative; display: flex; align-items: baseline; padding-left: 2.5em; margin: calc(var(--fs) * .25) 0; }
 .lst .li.lv1 { padding-left: 4.7em; }
 .lst .li.lv2 { padding-left: 6.9em; }
-.lst .li .li-mark { position: absolute; left: 0; width: 2.1em; text-align: right; }
-.lst .li.lv1 .li-mark { left: 2.2em; }
-.lst .li.lv2 .li-mark { left: 4.4em; }
+.lst .li .li-mark { flex: none; width: 2.1em; margin-left: -2.5em; margin-right: .4em; text-align: right; }
+.lst .li .li-text { flex: 1 1 auto; min-width: 0; }
+/* Sujets (I. 1. a.) et puces rondes : questions serrées, sans espace entre elles */
+.lst-sujet, .lst-puce { margin: calc(var(--fs) * .3) 0; }
+.lst-sujet > .li, .lst-puce > .li { margin: 0; }
 
 /* --------- Théorèmes (amsthm) --------- */
 .env { margin: calc(var(--fs) * .75) 0; text-indent: 0; }

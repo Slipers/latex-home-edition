@@ -318,6 +318,7 @@ window.addEventListener('DOMContentLoaded', () => {
     print: () => App.print(),
     'latex-menu': () => App.toggleMenu('#latexMenu'),
     'color-menu': () => App.toggleMenu('#colorMenu'),
+    fbox: () => { App.closeMenus(); App.toggleFbox(); },
     'size-menu': () => App.toggleMenu('#sizeMenu'),
     'align-menu': () => App.toggleMenu('#alignMenu'),
     'list-menu': () => App.toggleMenu('#listMenu'),
@@ -353,7 +354,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   document.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-act], [data-fmt]');
-    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu', 'size-menu', 'align-menu', 'list-menu', 'hfill', 'rtag'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
+    if (b && (b.dataset.fmt || ['imath', 'xref', 'cite', 'footnote', 'symbols', 'color-menu', 'size-menu', 'align-menu', 'list-menu', 'hfill', 'rtag', 'fbox'].includes(b.dataset.act))) e.preventDefault();  // garde le curseur dans le texte
     if (e.target.closest('[data-color], [data-size], [data-align], [data-list]')) e.preventDefault();
     if (!e.target.closest('.dropdown')) App.closeMenus();
   });

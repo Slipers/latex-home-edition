@@ -110,6 +110,7 @@ L.dlgSettings = function (section) {
         s.onchange = () => { m.fontSize = +s.value; apply(); };
         return L.h('div', { class: 'field' }, L.h('label', { text: 'Taille du texte' }), s);
       })(),
+      seg('fontFamily', [['serif', 'Classique'], ['sans', 'Sans empattements']], 'Police'),
       seg('margins', [['latex', 'LaTeX standard'], ['normales', '2,5 cm'], ['etroites', '1,5 cm']], 'Marges'),
       seg('spacing', [[1, 'Simple'], [1.5, '1,5']], 'Interligne'),
       seg('lang', [['fr', 'Français'], ['en', 'English']], 'Langue (noms automatiques)')),

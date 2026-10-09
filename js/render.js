@@ -5,12 +5,15 @@ const LIST_LABELS = {
   number: ['1.', '(a)', 'i.'],
   alpha: ['a)', 'i.', 'A.'],
   roman: ['i)', 'a.', 'A.'],
+  sujet: ['I.', '1.', 'a.'],          // sujet de DS : parties, questions, sous-questions
+  puce: ['•', '–', '∗'],
 };
 
 L.listMark = function (style, level, n, lang) {
   if (style === 'bullet') return (LIST_LABELS.bullet[lang] || LIST_LABELS.bullet.fr)[level];
+  if (style === 'puce') return LIST_LABELS.puce[level];
   const fmt = (LIST_LABELS[style] || LIST_LABELS.number)[level];
-  return fmt.replace(/1|a|i|A/, c => c === '1' ? n : c === 'a' ? L.alpha(n) : c === 'A' ? L.alpha(n).toUpperCase() : L.roman(n));
+  return fmt.replace(/1|a|i|A|I/, c => c === '1' ? n : c === 'a' ? L.alpha(n) : c === 'A' ? L.alpha(n).toUpperCase() : c === 'I' ? L.roman(n).toUpperCase() : L.roman(n));
 };
 
 L.hydrate = function (root, ctx) {

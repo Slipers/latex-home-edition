@@ -41,7 +41,7 @@ L.kindName = (kind, lang) => (L.NAMES[lang] || L.NAMES.fr)[kind] || kind;
 L.defaultMeta = () => ({
   title: '', subtitle: '', author: '', institution: '', extra: '', date: L.todayFr(),
   titleStyle: 'article',     // article | fiche | pagegarde | aucun
-  fontSize: 11, margins: 'normales', spacing: 1, lang: 'fr',
+  fontSize: 11, margins: 'normales', spacing: 1, lang: 'fr', fontFamily: 'serif',
   toc: false, thmBySection: false, boxedThm: false, pageNumbers: true,
   tableName: '', figureName: '',            // vide = nom par défaut (« Table », « Figure »)
   numFormat: 'arabic', numPos: 'foot-c', pageStart: 1,   // numérotation des pages
@@ -223,6 +223,7 @@ L.sanitizeNode = function (node) {
     if (cls && (cls.contains('li-mark') || cls.contains('env-head-inline') || cls.contains('num') || cls.contains('pg-float'))) return;
     const col = cls && Array.from(cls).find(c => c.startsWith('c-') && L.TEXT_COLORS[c.slice(2)]);
     if (col && n.tagName === 'SPAN') { const inner = L.sanitizeNode(n); if (inner) out += '<span class="' + col + '">' + inner + '</span>'; return; }
+    if (cls && cls.contains('fbox') && n.tagName === 'SPAN') { const inner = L.sanitizeNode(n); if (inner) out += '<span class="fbox">' + inner + '</span>'; return; }
     const sz = cls && Array.from(cls).find(c => L.TEXT_SIZES[c]);
     if (sz && n.tagName === 'SPAN') { const inner = L.sanitizeNode(n); if (inner) out += '<span class="' + sz + '">' + inner + '</span>'; return; }
     if (n.tagName === 'BR') { out += '<br>'; return; }

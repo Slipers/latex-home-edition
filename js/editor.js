@@ -946,6 +946,26 @@ Object.assign(App, {
     });
   },
   /* Couleur du texte sélectionné */
+  /* Encadre le texte sélectionné (\fbox), ou retire le cadre s'il y en a déjà un */
+  toggleFbox() {
+    const cr = this.currentRichRange();
+    if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
+    const s = window.getSelection();
+    if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
+    const r = s.getRangeAt(0);
+    const a = r.startContainer, el = a.nodeType === 1 ? a : a.parentElement;
+    const box = el && el.closest('.fbox');
+    if (box && cr.field.contains(box)) { box.replaceWith(...box.childNodes); }
+    else {
+      if (r.collapsed) return L.toast('Sélectionnez d\'abord du texte.');
+      const frag = r.extractContents();
+      frag.querySelectorAll('span.fbox').forEach(x => x.replaceWith(...x.childNodes));
+      const sp = document.createElement('span'); sp.className = 'fbox'; sp.appendChild(frag);
+      r.insertNode(sp);
+    }
+    this.syncField(cr.field);
+    this.commit();
+  },
   setColor(col) {
     const cr = this.currentRichRange();
     if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
@@ -1117,7 +1137,7 @@ Object.assign(App, {
         L.h('div', { class: 'pp-help', html: '<p>Pour écrire plusieurs lignes alignées, utilisez « Calcul sur plusieurs lignes » dans l\'onglet <i>Matrices &amp; systèmes</i> de l\'éditeur.</p>' }));
     } else if (b.type === 'list') {
       P.append(
-        row('Style', seg([['bullet', '–  Puces'], ['number', '1.'], ['alpha', 'a)'], ['roman', 'i)']], b.style, v => upd(() => { b.style = v; }))),
+        row('Style', seg([['bullet', '–  Puces'], ['puce', '•  Puces'], ['number', '1.'], ['alpha', 'a)'], ['roman', 'i)'], ['sujet', 'I. 1. a.']], b.style, v => upd(() => { b.style = v; }))),
         b.style !== 'bullet' ? row('Commencer à', (() => { const i = L.h('input', { type: 'number', value: b.start ?? 1, style: { width: '90px' } }); i.onchange = () => upd(() => { if (i.value === '' || +i.value === 1) delete b.start; else b.start = Math.trunc(+i.value); }); return i; })()) : '',
         this.listItemRow(b, row, btn, upd),
         row('', btn('+ Ajouter un élément', () => { b.items.push({ html: '', level: 0 }); this.focusAfter = { id: b.id, f: 'items.' + (b.items.length - 1) + '.html' }; upd(() => {}); })),

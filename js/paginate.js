@@ -2,12 +2,13 @@
    entre deux lignes, titres gardés avec la suite, notes en bas de page). */
 
 L.pageClasses = function (m) {
-  return 'fs-' + (m.fontSize || 11) + ' margins-' + (m.margins || 'normales') + (m.spacing === 1.5 ? ' spacing-15' : '');
+  return 'fs-' + (m.fontSize || 11) + ' margins-' + (m.margins || 'normales') + (m.spacing === 1.5 ? ' spacing-15' : '') + (m.fontFamily === 'sans' ? ' ff-sans' : '');
 };
 
 L.loadFonts = function () {
   if (!document.fonts || !document.fonts.load) return Promise.resolve();
   const f = ['400 12pt "CMU Serif"', 'italic 400 12pt "CMU Serif"', '700 12pt "CMU Serif"', 'italic 700 12pt "CMU Serif"',
+    '400 12pt "CMU Sans"', 'italic 400 12pt "CMU Sans"', '700 12pt "CMU Sans"', 'italic 700 12pt "CMU Sans"',
     '400 12pt "CMU Typewriter"', '400 12pt KaTeX_Main', 'italic 400 12pt KaTeX_Math', '400 12pt KaTeX_Size1', '400 12pt KaTeX_Size2', '400 12pt KaTeX_AMS'];
   return Promise.all(f.map(x => document.fonts.load(x).catch(() => null))).then(() => document.fonts.ready);
 };
