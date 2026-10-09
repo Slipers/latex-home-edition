@@ -217,7 +217,7 @@ L.R = {
   box(b, ctx) {
     const k = L.KINDS[b.kind] || L.KINDS.theoreme;
     const lang = ctx.lang;
-    const el = L.h('div', { class: 'env st-' + k.style + (ctx.meta.boxedThm && k.style !== 'abstract' && k.style !== 'proof' ? ' boxed' : ''), 'data-kind': b.kind });
+    const el = L.h('div', { class: 'env st-' + k.style + (ctx.meta.boxedThm && k.style !== 'abstract' && k.style !== 'proof' && k.style !== 'correction' ? ' boxed' : ''), 'data-kind': b.kind, 'data-indent': b.indent ? String(b.indent) : null });
     const body = L.h('div', { class: 'env-body' });
     if (k.style === 'abstract') {
       el.appendChild(L.h('div', { class: 'abs-head', text: L.NAMES[lang].abstract }));

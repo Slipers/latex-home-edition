@@ -32,6 +32,7 @@ L.ITEMS = [
   { g: 'Maths & sciences', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: () => L.dlgAvancement(b => App.insertBlock(b)) },
   { g: 'Exercices', key: 'exercice', label: 'Exercice', icon: '✎', kw: 'exercice', make: () => L.newBlock('box', { kind: 'exercice' }) },
   { g: 'Exercices', key: 'question', label: 'Question', icon: 'Q', kw: 'question', make: () => L.newBlock('box', { kind: 'question' }) },
+  { g: 'Exercices', key: 'correction', label: 'Correction (bleue)', icon: '✔', kw: 'correction corrige solution reponse bleu', make: () => L.newBlock('box', { kind: 'correction', indent: 1 }) },
   { g: 'Exercices', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
   { g: 'Objets', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
   { g: 'Objets', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
@@ -1155,6 +1156,7 @@ Object.assign(App, {
       cname.oninput = () => { b.customName = cname.value; this.commitSoon(); this.renderSoon(); };
       if (b.kind !== 'resume') P.append(row('Nom affiché', cname, L.h('div', { class: 'pp-help', text: 'Ex. : « Attention », « Loi », « À retenir »… Il remplace « ' + L.kindName(b.kind, doc.meta.lang) + ' ».' })));
       if (b.kind !== 'resume') P.append(row('Titre (facultatif)', title));
+      if (b.kind === 'correction') P.append(row('Décalage', seg([[0, 'Aucun'], [1, 'Sous I.'], [2, 'Sous 1.'], [3, 'Sous a.']], b.indent || 0, v => upd(() => { b.indent = v; })), L.h('div', { class: 'pp-help', text: 'Aligne la correction sous le texte de la question (partie, question ou sous-question).' })));
       if (!(L.KINDS[b.kind] || {}).fixed) P.append(row('', chk('Numéroté', b.numbered, v => upd(() => { b.numbered = v; }))));
       if (b.numbered && !(L.KINDS[b.kind] || {}).fixed) P.append(forceRow());
       P.append(row('Ajouter dans l\'encadré', L.h('div', { class: 'btn-row' },

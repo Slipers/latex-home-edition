@@ -143,6 +143,15 @@
 .env .env-body > .para:first-child > .env-head-inline { display: inline; }
 .env .qed { float: right; margin-left: 1em; }
 .env.boxed { border: 0.6pt solid #000; padding: 6pt 8pt; }
+/* Correction d'un sujet : en bleu et en italique, décalée sous le texte de la question */
+.env.st-correction { color: #1F4FBF; margin: calc(var(--fs) * .3) 0 calc(var(--fs) * .55); }
+.env.st-correction .env-body { font-style: italic; }
+.env.st-correction .env-head { font-weight: 700; font-style: normal; }
+.env.st-correction .env-body .para { text-indent: 0; }
+.env.st-correction .env-body .eq, .env.st-correction .env-body .tikz, .env.st-correction .env-body .tvwrap { font-style: normal; }
+.env.st-correction[data-indent="1"] { margin-left: 2.5em; }
+.env.st-correction[data-indent="2"] { margin-left: 4.7em; }
+.env.st-correction[data-indent="3"] { margin-left: 6.9em; }
 .env.st-abstract { margin: 0 auto calc(var(--fs) * 1.2); width: calc(100% - 2 * 2.5em); font-size: var(--fs-small); line-height: 1.24; }
 .env.st-abstract .abs-head { text-align: center; font-weight: 700; margin-bottom: .4em; font-size: var(--fs-small); }
 .env.st-abstract .env-body > .blk:first-child > .para { text-indent: var(--parindent); }

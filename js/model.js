@@ -5,14 +5,14 @@ L.NAMES = {
     toc: 'Table des matières', refs: 'Références', abstract: 'Résumé', figure: 'Figure', table: 'Table',
     theoreme: 'Théorème', proposition: 'Proposition', lemme: 'Lemme', corollaire: 'Corollaire',
     definition: 'Définition', exemple: 'Exemple', exercice: 'Exercice', methode: 'Méthode',
-    remarque: 'Remarque', preuve: 'Démonstration', solution: 'Solution', resume: 'Résumé',
+    remarque: 'Remarque', preuve: 'Démonstration', solution: 'Solution', correction: 'Correction', resume: 'Résumé',
     propriete: 'Propriété', notation: 'Notation', question: 'Question',
   },
   en: {
     toc: 'Contents', refs: 'References', abstract: 'Abstract', figure: 'Figure', table: 'Table',
     theoreme: 'Theorem', proposition: 'Proposition', lemme: 'Lemma', corollaire: 'Corollary',
     definition: 'Definition', exemple: 'Example', exercice: 'Exercise', methode: 'Method',
-    remarque: 'Remark', preuve: 'Proof', solution: 'Solution', resume: 'Abstract',
+    remarque: 'Remark', preuve: 'Proof', solution: 'Solution', correction: 'Solution', resume: 'Abstract',
     propriete: 'Property', notation: 'Notation', question: 'Question',
   },
 };
@@ -33,6 +33,7 @@ L.KINDS = {
   remarque:    { style: 'remark', numbered: false },
   preuve:      { style: 'proof', numbered: false, fixed: true },
   solution:    { style: 'proof', numbered: false, fixed: true },
+  correction:  { style: 'correction', numbered: false, fixed: true },   // corrigé de sujet : bleu, italique
   resume:      { style: 'abstract', numbered: false, fixed: true },
 };
 

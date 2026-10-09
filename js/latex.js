@@ -143,6 +143,10 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       if (k.style === 'abstract') return '\\begin{abstract}\n' + inner + '\n\\end{abstract}';
       const cname = (b.customName || '').trim();
       if (b.kind === 'preuve') return '\\begin{proof}' + (cname || b.title ? '[' + L.texEsc(cname || b.title) + ']' : '') + '\n' + inner + '\n\\end{proof}';
+      if (b.kind === 'correction') {
+        X.pk.add('correction');
+        return '\\begin{correction}[' + ['0pt', '2.5em', '4.7em', '6.9em'][b.indent || 0] + ']\n' + inner + '\n\\end{correction}';
+      }
       if (b.kind === 'solution') return '\\begin{proof}[' + L.texEsc(cname || b.title || L.kindName('solution', X.lang)) + ']\n' + inner + '\n\\end{proof}';
       let env;
       if (cname) {
@@ -411,6 +415,12 @@ L.docToLatex = function (doc) {
   if (/\\ce\{/.test(body)) P.push('\\usepackage[version=4]{mhchem}');
   if (X.pk.has('booktabs')) P.push('\\usepackage{booktabs}');
   if (X.pk.has('tkz-tab')) P.push('\\usepackage{tkz-tab}');
+  if (X.pk.has('correction')) {
+    // Correction d'un sujet : liste sans étiquette (décalage = celui des questions), en bleu et en italique
+    P.push('\\usepackage{xcolor}');
+    P.push('\\definecolor{lhecorr}{HTML}{1F4FBF}');
+    P.push('\\newenvironment{correction}[1][0pt]{\\par\\begin{list}{}{\\setlength{\\leftmargin}{#1}\\setlength{\\rightmargin}{0pt}\\setlength{\\labelwidth}{0pt}\\setlength{\\labelsep}{0pt}\\setlength{\\itemindent}{0pt}\\setlength{\\listparindent}{0pt}\\setlength{\\itemsep}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{3pt}}\\item[]\\leavevmode{\\color{lhecorr}\\bfseries Correction.}\\ \\color{lhecorr}\\itshape\\ignorespaces}{\\end{list}}');
+  }
   if (X.pk.has('tikz')) {
     P.push('\\usepackage{tikz}');
     const libs = new Set(['arrows', 'arrows.meta', 'positioning', 'calc', 'plotmarks']);

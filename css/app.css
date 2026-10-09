@@ -134,7 +134,7 @@ td.rt:focus { background: #f2f6fd; }
 .env-body > .env-head-inline + .blk > .para { text-indent: 0; }
 .env-body > .env-head-inline.solo { float: none; display: block; }
 .env.st-remark .env-body > .env-head-inline, .env.st-proof .env-body > .env-head-inline { font-style: italic; }
-.env.st-plain .env-body > .env-head-inline { font-style: normal; }
+.env.st-plain .env-body > .env-head-inline, .env.st-correction .env-body > .env-head-inline { font-style: normal; }
 .paper .env { outline: 1px dashed transparent; outline-offset: 5px; }
 .paper .blk.sel > .env, .paper .blk:hover > .env { outline-color: #d0d8e6; }
 .qed-line { text-align: right; user-select: none; }
