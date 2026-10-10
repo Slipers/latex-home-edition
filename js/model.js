@@ -7,6 +7,7 @@ L.NAMES = {
     definition: 'Définition', exemple: 'Exemple', exercice: 'Exercice', methode: 'Méthode',
     remarque: 'Remarque', preuve: 'Démonstration', solution: 'Solution', correction: 'Correction', resume: 'Résumé',
     propriete: 'Propriété', notation: 'Notation', question: 'Question',
+    rappel: 'Rappel', aretenir: 'À retenir', cadre: 'Encadré gris',
   },
   en: {
     toc: 'Contents', refs: 'References', abstract: 'Abstract', figure: 'Figure', table: 'Table',
@@ -14,6 +15,7 @@ L.NAMES = {
     definition: 'Definition', exemple: 'Example', exercice: 'Exercise', methode: 'Method',
     remarque: 'Remark', preuve: 'Proof', solution: 'Solution', correction: 'Solution', resume: 'Abstract',
     propriete: 'Property', notation: 'Notation', question: 'Question',
+    rappel: 'Reminder', aretenir: 'Key point', cadre: 'Grey box',
   },
 };
 
@@ -35,6 +37,35 @@ L.KINDS = {
   solution:    { style: 'proof', numbered: false, fixed: true },
   correction:  { style: 'correction', numbered: false, fixed: true },   // corrigé de sujet : bleu, italique
   resume:      { style: 'abstract', numbered: false, fixed: true },
+  rappel:      { style: 'definition', numbered: true },
+  aretenir:    { style: 'remark', numbered: false },
+  cadre:       { style: 'cadre', numbered: false, fixed: true },        // texte sur fond gris, bordure noire, sans titre
+};
+
+/* Style « cours » des encadrés (Document → Style des encadrés) : couleur de chaque type.
+   [bordure, fond, fond de l'onglet du titre, texte de l'onglet] ; exo = plume et barre grise */
+L.BOX_COLORS = {
+  def:  ['FF0000', 'F2FFF2', 'CCFFCC', '000000'],
+  prop: ['FF8000', 'F2F2FF', 'CCCCFF', '000000'],
+  rap:  ['0000FF', 'FFF2F2', 'FFCCCC', '000000'],
+  exe:  ['1E8E3E', 'FFFFF2', 'FFF5BF', '000000'],
+  ret:  ['000000', 'F0F0F0', '4D4D4D', 'FFFFFF'],
+};
+L.boxGroup = function (kind) {
+  if (['definition', 'notation', 'methode'].includes(kind)) return 'def';
+  if (['theoreme', 'proposition', 'propriete', 'lemme', 'corollaire'].includes(kind)) return 'prop';
+  if (kind === 'rappel') return 'rap';
+  if (kind === 'exemple') return 'exe';
+  if (kind === 'aretenir') return 'ret';
+  if (kind === 'exercice' || kind === 'question') return 'exo';
+  return null;   // remarque, preuve, solution, correction, résumé, encadré gris : inchangés
+};
+
+/* Numéros des titres : 1 / 1.1 / 1.1.1 (décimal) ou I - / 1) / a. (cours) */
+L.secNum = function (m, sec, lv) {
+  if (m.secStyle !== 'cours') return sec.slice(0, lv).join('.');
+  const n = sec[lv - 1];
+  return lv === 1 ? L.roman(n).toUpperCase() + ' -' : lv === 2 ? n + ')' : L.alpha(n) + '.';
 };
 
 L.kindName = (kind, lang) => (L.NAMES[lang] || L.NAMES.fr)[kind] || kind;
@@ -44,6 +75,9 @@ L.defaultMeta = () => ({
   titleStyle: 'article',     // article | fiche | pagegarde | aucun
   fontSize: 11, margins: 'normales', spacing: 1, lang: 'fr', fontFamily: 'serif',
   toc: false, thmBySection: false, boxedThm: false, pageNumbers: true,
+  boxTheme: 'classique',     // classique | cours (encadrés colorés avec onglet de titre)
+  secStyle: 'decimal',       // decimal (1, 1.1) | cours (I -, 1), a., titres sans empattements)
+  tocPages: true,            // numéros de page dans la table des matières
   tableName: '', figureName: '',            // vide = nom par défaut (« Table », « Figure »)
   numFormat: 'arabic', numPos: 'foot-c', pageStart: 1,   // numérotation des pages
   header: { l: '', c: '', r: '' }, footer: { l: '', c: '', r: '' },
@@ -162,8 +196,8 @@ L.computeNumbers = function (doc) {
         sec[lv - 1] = fn !== null ? fn : sec[lv - 1] + 1;
         for (let k = lv; k < 3; k++) sec[k] = 0;
         if (lv === 1) Object.keys(kindCount).forEach(k => { if (m.thmBySection) kindCount[k] = 0; });
-        const n = sec.slice(0, lv).join('.');
-        nums[b.id] = { num: n, ref: n };
+        const n = L.secNum(m, sec, lv);
+        nums[b.id] = { num: n, ref: m.secStyle === 'cours' ? n.replace(/\s*-$|[).]$/, '') : n };
       }
       if (lv <= 3) toc.push({ id: b.id, level: lv, num: nums[b.id] ? nums[b.id].num : '', html: b.html });
     } else if (b.type === 'equation' && b.numbered) {

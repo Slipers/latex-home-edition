@@ -81,9 +81,10 @@ L.dlgSettings = function (section) {
     fiche: [[8, 8, 30, 2], [62, 8, 30, 2], [8, 14, 84, 1], [30, 20, 40, 4], [8, 32, 84, 2], [8, 38, 84, 2], [8, 44, 70, 2]],
     pagegarde: [[25, 8, 50, 2], [15, 24, 70, 1], [20, 28, 60, 5], [15, 37, 70, 1], [35, 44, 30, 2], [35, 55, 30, 2]],
     aucun: [[8, 8, 60, 3], [8, 16, 84, 2], [8, 22, 84, 2], [8, 28, 84, 2], [8, 34, 70, 2]],
+    cadre: [[32, 6, 36, 2], [10, 12, 80, 1], [10, 19, 80, 1], [10, 12, 1, 8], [89, 12, 1, 8], [22, 15, 56, 2], [8, 28, 50, 2], [8, 34, 84, 2], [8, 40, 84, 2]],
   };
   const styles = L.h('div', { class: 'style-cards' });
-  [['article', 'Article'], ['fiche', 'Fiche / devoir'], ['pagegarde', 'Page de garde'], ['aucun', 'Sans titre']].forEach(([v, t]) => {
+  [['article', 'Article'], ['fiche', 'Fiche / devoir'], ['pagegarde', 'Page de garde'], ['cadre', 'Titre encadré'], ['aucun', 'Sans titre']].forEach(([v, t]) => {
     const mini = L.h('div', { class: 'mini' });
     minis[v].forEach(([x, y, w, hh]) => mini.appendChild(L.h('i', { style: { left: x + '%', top: y + 'px', width: w + '%', height: hh + 'px' } })));
     const c = L.h('button', { class: 'style-card' + (m.titleStyle === v ? ' on' : '') }, mini, t);
@@ -111,13 +112,17 @@ L.dlgSettings = function (section) {
         return L.h('div', { class: 'field' }, L.h('label', { text: 'Taille du texte' }), s);
       })(),
       seg('fontFamily', [['serif', 'Classique'], ['sans', 'Sans empattements']], 'Police'),
-      seg('margins', [['latex', 'LaTeX standard'], ['normales', '2,5 cm'], ['etroites', '1,5 cm']], 'Marges'),
+      seg('margins', [['latex', 'LaTeX standard'], ['normales', '2,5 cm'], ['etroites', '1,5 cm'], ['fines', '1,25 cm']], 'Marges'),
       seg('spacing', [[1, 'Simple'], [1.5, '1,5']], 'Interligne'),
       seg('lang', [['fr', 'Français'], ['en', 'English']], 'Langue (noms automatiques)')),
     L.h('div', { class: 'set-h', text: 'Options' }),
     chk('toc', 'Table des matières automatique après le titre'),
     chk('thmBySection', 'Numéroter théorèmes, définitions, exercices… par section (2.1, 2.2…)'),
-    chk('boxedThm', 'Encadrer les théorèmes, définitions et exercices'));
+    chk('boxedThm', 'Encadrer les théorèmes, définitions et exercices'),
+    L.h('div', { class: 'grid2' },
+      seg('boxTheme', [['classique', 'Classique'], ['cours', 'Cours coloré']], 'Style des encadrés (définitions, propriétés, exercices…)'),
+      seg('secStyle', [['decimal', '1  /  1.1  /  1.1.1'], ['cours', 'I -  /  1)  /  a.']], 'Numéros des titres')),
+    chk('tocPages', 'Numéros de page dans la table des matières'));
 
   // ---- Légendes ----
   const nameField = (key, label, opts) => {
@@ -156,8 +161,16 @@ L.dlgSettings = function (section) {
       L.h('div', { class: 'field' }, L.h('label', { text: 'Style du numéro' }), sel('numStyle', [['normal', 'Normal'], ['gras', 'Gras'], ['cadre', 'Encadré']])),
       L.h('div', { class: 'field' }, L.h('label', { text: 'Notes de bas de page' }), sel('fnStyle', [['sup', 'Numéro en exposant ¹'], ['crochets', 'Entre crochets [1]'], ['symboles', 'Symboles * † ‡']]))),
     chk('headRule', 'Trait sous l\'en-tête'),
+    chk('headMirror', 'En-tête recto-verso (gauche et droite échangées sur les pages paires)'),
     chk('footRule', 'Trait au-dessus du pied de page'),
-    chk('hfFirst', 'Afficher l\'en-tête et le pied de page sur la première page'));
+    (() => {
+      // Première page : en-tête et pied de page, pied de page seulement, ou rien
+      const opts = [[true, 'En-tête et pied de page'], ['foot', 'Pied de page seulement'], [false, 'Ni en-tête ni pied de page']];
+      const cur = m.hfFirst === undefined ? true : m.hfFirst;
+      const s = L.h('select', null, ...opts.map(([v, t], k) => { const o = L.h('option', { value: String(k), text: t }); if (cur === v) o.selected = true; return o; }));
+      s.onchange = () => { m.hfFirst = opts[+s.value][0]; apply(); };
+      return L.h('div', { class: 'field' }, L.h('label', { text: 'Sur la première page' }), s);
+    })());
 
   // ---- Apparence de l'application (réglage de l'ordinateur, pas du document) ----
   const themeSec = L.Theme.settingsSection();

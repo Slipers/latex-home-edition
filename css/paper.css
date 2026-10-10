@@ -35,6 +35,7 @@
 .spacing-15.fs-8, .spacing-15.fs-9, .spacing-15.fs-14, .spacing-15.fs-17, .spacing-15.fs-20 { --stretch: 1.25; }
 .margins-normales { --m-top: 25mm; --m-bottom: 25mm; --m-side: 25mm; --footskip: 13mm; }
 .margins-etroites { --m-top: 15mm; --m-bottom: 22mm; --m-side: 15mm; --footskip: 10mm; }
+.margins-fines { --m-top: 24.8mm; --m-bottom: 21.2mm; --m-side: 12.5mm; --footskip: 9.5mm; }
 
 .paper .katex, .page .katex { font-size: 1em; line-height: normal; text-indent: 0; }
 .paper .katex-display, .page .katex-display { margin: 0; }
@@ -297,3 +298,78 @@
 .page .page-foot .fn .fn-lab { margin-right: .1em; }
 .page .page-foot .fn.pn, .sheet-notes .fn.pn { text-indent: 0; }
 .pnote-src { height: 0; overflow: hidden; }
+
+/* =====================================================================
+   Style « cours » (Document → Style des encadrés / Style des titres)
+   ===================================================================== */
+/* Titre encadré : une ligne en gras, puis le titre en petites capitales dans un cadre */
+.doc-title-cadre { text-align: center; text-indent: 0; margin-bottom: calc(var(--fs) * 2.2); }
+.doc-title-cadre .tc-top { font-family: "CMU Sans", "Latin Modern Sans", sans-serif; font-weight: 700; font-size: var(--fs-Large); line-height: 1.25; margin-bottom: calc(var(--fs) * 1.8); }
+.doc-title-cadre .tc-box { display: flex; align-items: center; justify-content: center; width: 93%; min-height: 37.5pt; margin: 0 auto; border: 1.4pt solid #000; box-sizing: border-box; padding: 0 6pt; }
+.doc-title-cadre .t-title { font-family: "CMU Sans", "Latin Modern Sans", sans-serif; font-size: calc(var(--fs) * 2.6); line-height: 1.15; font-variant: small-caps; }
+
+/* Table des matières sans numéros de page */
+.doc-toc.no-pages .toc-dots, .doc-toc.no-pages .toc-page { display: none; }
+
+/* Titres « I - », « 1) », « a. » en sans empattements */
+.secs-cours .sec { font-family: "CMU Sans", "Latin Modern Sans", sans-serif; }
+.secs-cours .sec .num { margin-right: .5em; }
+.secs-cours .sec.l1 { font-size: var(--fs-Large); margin: calc(var(--fs) * 1.75) 0 calc(var(--fs) * 1.1); }
+.secs-cours .sec.l2 { font-size: var(--fs-large); margin: calc(var(--fs) * .9) 0 calc(var(--fs) * .6); padding-left: 10.6pt; }
+.secs-cours .sec.l3 { font-size: var(--fs); margin: calc(var(--fs) * .9) 0 calc(var(--fs) * .55); padding-left: 10.6pt; }
+.secs-cours .doc-toc .toc-h { font-size: var(--fs-Large); margin: 0 0 .3em; }
+.secs-cours .toc-row.l1 { font-family: "CMU Sans", "Latin Modern Sans", sans-serif; margin-top: 9pt; }
+.secs-cours .toc-row .toc-num { min-width: 0; padding: 0; }
+.secs-cours .toc-row.l1 .toc-num { width: 24.5pt; }
+.secs-cours .toc-row.l2 { padding-left: 17.1pt; }
+.secs-cours .toc-row.l2 .toc-num { width: 17.5pt; }
+.secs-cours .toc-row.l3 { padding-left: 42pt; }
+.secs-cours .toc-row.l3 .toc-num { width: 17.6pt; }
+/* En-tête et pied de page d'un polycopié de cours */
+.secs-cours .page-head { font-family: "CMU Sans", "Latin Modern Sans", sans-serif; font-weight: 700; }
+.secs-cours .page-head > span { font-style: italic; }
+.secs-cours .page-head .pn { font-style: normal; }
+.secs-cours .page-hfoot .hf-l, .secs-cours .page-hfoot .hf-r { font-weight: 700; }
+.secs-cours .page-hfoot .hf-c { font-family: "CMU Typewriter", monospace; }
+.secs-cours .page-hfoot.ruled { border-top-width: 1pt; }
+
+/* Encadrés colorés avec onglet de titre (comme tcolorbox) */
+.env.cours:not(.cg-exo) { position: relative; margin: calc(var(--fs) * 1.85) 16pt calc(var(--fs) * 1.1); padding: 11.25pt 9pt 19.25pt 9.5pt; border: 1pt solid var(--bc); border-radius: 2.5pt; background: var(--bg); }
+.env.cours .env-tab { position: absolute; left: 9.5pt; top: 0; transform: translateY(-50%); background: var(--tb); color: var(--tt); border: .5pt solid #000; border-radius: 3pt; padding: .5pt 3pt; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+.env.cours .env-body { font-style: normal; }
+.env.cours .env-body .para { text-indent: 0; }
+.env.cours .env-body > .blk:first-child > *, .env.cours .env-body > :first-child { margin-top: 0; }
+.env.cours .env-body > .blk:last-child > *, .env.cours .env-body > :last-child { margin-bottom: 0; }
+/* Exercices : plume, titre en italique, contenu en italique avec une barre grise à gauche */
+.env.cours.cg-exo { margin: calc(var(--fs) * .75) 0 calc(var(--fs) * 2.9); }
+.env.cours.cg-exo .exo-head { display: flex; align-items: baseline; font-style: italic; margin-bottom: 2.5pt; }
+.env.cours.cg-exo .plume { flex: none; width: 22.4pt; line-height: 0; }
+.env.cours.cg-exo .plume-svg { width: 11pt; height: 11pt; transform: translateY(1.5pt); }
+.env.cours.cg-exo .env-body { position: relative; padding-left: 14.4pt; font-style: italic; }
+.env.cours.cg-exo .env-body::before { content: ""; position: absolute; left: 3.1pt; top: 0; bottom: 0; border-left: 1.5pt solid #808080; }
+.env.cours.cg-exo .env-body .eq, .env.cours.cg-exo .env-body .tikz, .env.cours.cg-exo .env-body .fig { font-style: normal; }
+/* Encadré gris sans titre */
+.env.st-cadre { margin: calc(var(--fs) * 1.1) 0; padding: 6pt 5pt 3pt; border: 1.5pt solid #000; background: #BFBFBF; }
+.env.st-cadre .env-body .para { text-indent: 0; }
+
+/* Puces : ⋆ ▶ ▷ ■ */
+.lst-etoile > .li > .li-mark, .lst-fleche > .li > .li-mark, .lst-triangle > .li > .li-mark, .lst-carre > .li > .li-mark { font-family: "CMU Serif", "Cambria Math", "Segoe UI Symbol", serif; font-style: normal; }
+.lst-fleche > .li.lv0 > .li-mark, .lst-triangle > .li.lv0 > .li-mark { font-size: .8em; }
+.lst-carre > .li.lv0 > .li-mark { font-size: .85em; }
+/* Notes d'un encadré coloré ou gris : en bas de l'encadré (a, b, c…), comme une minipage */
+.env .box-notes { font-size: var(--fs-fn); line-height: 1.2; margin-top: 8pt; text-indent: 0; }
+.env.cours:not(.cg-exo) .box-notes { margin-bottom: -10pt; }
+.env .box-notes .bn-rule { width: 40%; border-top: 0.4pt solid #000; margin-bottom: 3pt; }
+.env .box-notes .bfn { margin: 0 0 1pt; text-indent: 1em; }
+.env .box-notes .bfn-lab { font-style: italic; }
+.fn-box .fn-mark { font-style: italic; }
+/* Listes à puces du style cours : retrait de 24 pt, comme dans les polycopiés */
+.lst-etoile > .li.lv0, .lst-fleche > .li.lv0, .lst-triangle > .li.lv0, .lst-carre > .li.lv0 { padding-left: 24pt; margin: 3.7pt 0 0; }
+.lst-etoile > .li.lv0 > .li-mark, .lst-fleche > .li.lv0 > .li-mark, .lst-triangle > .li.lv0 > .li-mark, .lst-carre > .li.lv0 > .li-mark { width: auto; margin-left: -12pt; margin-right: 5pt; }
+.lst-etoile, .lst-fleche, .lst-triangle, .lst-carre { margin: 4pt 0; }
+/* Côte à côte et dessins à l'intérieur d'un encadré : espacements resserrés */
+.env .cols { margin: 4pt 0; }
+.env .col-cell .tikz, .env .col-cell .fig { margin: 3pt 0; }
+.env .col-cell .para.center { margin: 2pt 0; }
+/* Encadré coloré placé dans une colonne : il prend toute la largeur de la colonne */
+.col-cell .env.cours:not(.cg-exo) { margin-left: 4pt; margin-right: 0; }

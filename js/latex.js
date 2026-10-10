@@ -96,8 +96,9 @@ L.forceCounter = function (b, X) {
   else if ((b.type === 'figure' || b.type === 'tikz') && (b.capMode || 'num') === 'num') c = 'figure';
   else if (b.type === 'box' && b.numbered && !(L.KINDS[b.kind] || {}).fixed) {
     const cn = (b.customName || '').trim(), st = (L.KINDS[b.kind] || {}).style;
+    const co = X && X.cours ? X.cours[(cn ? 'c:' + cn : b.kind)] : null;   // style « cours » : compteur = nom de l'environnement
     const cu = cn && X && X.custom ? X.custom.find(x => x.name === cn && x.style === st) : null;
-    c = cu ? cu.env : b.kind;
+    c = co ? co.env : cu ? cu.env : b.kind;
   }
   return c ? '\\setcounter{' + c + '}{' + (+b.forceNum - 1) + '}\n' : '';
 };
@@ -142,6 +143,21 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       const inner = b.children.map(c => L.blockToLatex(c, X)).filter(Boolean).join('\n\n') || '\\mbox{}';
       if (k.style === 'abstract') return '\\begin{abstract}\n' + inner + '\n\\end{abstract}';
       const cname = (b.customName || '').trim();
+      if (k.style === 'cadre') { X.pk.add('cadre'); return '\\begin{lhecadre}\n' + inner + '\n\\end{lhecadre}'; }
+      // Style « cours » : un environnement tcolorbox par type (onglet de titre coloré), exercices à la plume
+      const g = X.doc.meta.boxTheme === 'cours' ? L.boxGroup(b.kind) : null;
+      if (g) {
+        X.cours = X.cours || {};
+        const key = (cname ? 'c:' + cname : b.kind) + (b.numbered ? '' : '*');
+        let e = X.cours[key];
+        if (!e) {
+          const n = Object.keys(X.cours).length;
+          const env = !cname && b.numbered ? b.kind : 'lhe' + (cname ? 'perso' + String.fromCharCode(97 + n % 26) + (n >= 26 ? 'x' : '') : b.kind + 'nn');
+          e = X.cours[key] = { env, name: cname || L.kindName(b.kind, X.lang), g, numbered: !!b.numbered };
+        }
+        return '\\begin{' + e.env + '}' + (b.title ? '[' + L.texEsc(b.title) + ']' : '') +
+          (b.numbered ? '\\label{' + L.labelOf(b) + '}' : '') + '\n' + inner + '\n\\end{' + e.env + '}';
+      }
       if (b.kind === 'preuve') return '\\begin{proof}' + (cname || b.title ? '[' + L.texEsc(cname || b.title) + ']' : '') + '\n' + inner + '\n\\end{proof}';
       if (b.kind === 'correction') {
         X.pk.add('correction');
@@ -185,7 +201,8 @@ L.blockToLatexRaw = function (b, X, indent = '') {
         const cells = [];
         for (let ci = 0; ci < cols;) {
           const sp = Math.max(1, Math.min(spans[ri + ':' + ci] || 1, cols - ci));
-          let t = R(r[ci] || '').replace(/\\\\\n/g, ' ');
+          // Retour à la ligne dans une case : gardé dans une colonne « largeur restante » (X), sinon espace
+          let t = R(r[ci] || '').replace(/\\\\\n/g, fill && sp === 1 && colw[ci] === 'fill' ? '\\newline ' : ' ');
           if (b.head && ri === 0 && t) t = '\\textbf{' + t + '}';
           if (sp > 1) t = '\\multicolumn{' + sp + '}{' + (grid ? (ci === 0 ? '|' : '') + 'c|' : 'c') + '}{' + t + '}';
           cells.push(t);
@@ -249,7 +266,8 @@ L.blockToLatexRaw = function (b, X, indent = '') {
       const r = (b.ratio || 50) / 100;
       const ws = [r - 0.02, 1 - r - 0.02];
       X.inCols = true;
-      const parts = b.children.map((col, i) => '\\begin{minipage}[t]{' + ws[i].toFixed(2) + '\\textwidth}\n' +
+      // \linewidth : juste aussi dans un encadré ; \vspace{0pt} : colonnes alignées par le haut (comme l'éditeur)
+      const parts = b.children.map((col, i) => '\\begin{minipage}[t]{' + ws[i].toFixed(2) + '\\linewidth}\\vspace{0pt}\n' +
         col.children.map(c => L.blockToLatex(c, X)).filter(Boolean).join('\n\n') + '\n\\end{minipage}');
       X.inCols = false;
       return '\\par\\medskip\\noindent\n' + parts.join('\\hfill\n') + '\\par\\medskip';
@@ -307,22 +325,33 @@ L.hfToLatex = function (m, X) {
     .replace(/\\\{titre\\\}/g, L.texEsc(L.plain(m.title))).replace(/\\\{auteur\\\}/g, L.texEsc(L.plain(m.author)))
     .replace(/\\\{date\\\}/g, L.texEsc(L.plain(m.date)));
   const slot = { 'head-l': ['head', 'l'], 'head-c': ['head', 'c'], 'head-r': ['head', 'r'], 'foot-l': ['foot', 'l'], 'foot-c': ['foot', 'c'], 'foot-r': ['foot', 'r'] }[m.numPos || 'foot-c'];
-  const out = [];
+  // Style « cours » : en-tête en sans empattements gras (texte penché), pied : gras / machine à écrire / gras
+  const cours = m.secStyle === 'cours';
+  const deco = (where, k, t, isNum) => !cours || !t ? t
+    : where === 'head' ? '{\\sffamily\\bfseries' + (isNum ? '' : '\\slshape') + ' ' + t + '}'
+    : k === 'c' ? '{\\ttfamily ' + t + '}' : '{\\bfseries ' + t + '}';
+  const out = [], foot = [];
   for (const [where, obj] of [['head', m.header || {}], ['foot', m.footer || {}]]) {
     for (const k of ['l', 'c', 'r']) {
-      let t = tok(obj[k]);
-      if (num && slot[0] === where && slot[1] === k) t = t ? t + '~--~' + num : num;
-      if (t) out.push('\\fancy' + where + '[' + k.toUpperCase() + ']{' + t + '}');
+      let t = deco(where, k, tok(obj[k]));
+      const hasNum = num && slot[0] === where && slot[1] === k;
+      if (hasNum) t = t ? t + '~--~' + deco(where, k, num, true) : deco(where, k, num, true);
+      const pos = where === 'head' && m.headMirror ? { l: 'LO,RE', c: 'C', r: 'RO,LE' }[k] : k.toUpperCase();   // recto-verso
+      if (t) (where === 'foot' ? foot : out).push('\\fancy' + where + '[' + pos + ']{' + t + '}');
     }
   }
-  out.push('\\renewcommand{\\headrulewidth}{' + (m.headRule ? '0.4pt' : '0pt') + '}');
-  out.push('\\renewcommand{\\footrulewidth}{' + (m.footRule ? '0.4pt' : '0pt') + '}');
+  out.push(...foot);
+  const rules = ['\\renewcommand{\\headrulewidth}{' + (m.headRule ? '0.4pt' : '0pt') + '}',
+    '\\renewcommand{\\footrulewidth}{' + (m.footRule ? (cours ? '1pt' : '0.4pt') : '0pt') + '}'];
   const pre = ['\\usepackage{fancyhdr}'];
   if (/LastPage/.test(num)) pre.push('\\usepackage{lastpage}');
   pre.push('\\setlength{\\headheight}{14pt}');
-  pre.push('\\fancypagestyle{lhe}{\\fancyhf{}' + out.join('') + '}');
-  pre.push('\\fancypagestyle{plain}{\\fancyhf{}' + out.join('') + '}');
+  pre.push('\\fancypagestyle{lhe}{\\fancyhf{}' + out.join('') + rules.join('') + '}');
+  pre.push('\\fancypagestyle{plain}{\\fancyhf{}' + out.join('') + rules.join('') + '}');
+  // Première page avec le pied de page seulement
+  if (m.hfFirst === 'foot') pre.push('\\fancypagestyle{lhefirst}{\\fancyhf{}' + foot.join('') + '\\renewcommand{\\headrulewidth}{0pt}' + rules[1] + '}');
   pre.push('\\pagestyle{lhe}');
+  if (cours) pre.push('\\AtBeginDocument{\\setlength{\\headwidth}{\\textwidth}}');
   return { pre, empty: false };
 };
 
@@ -335,7 +364,11 @@ L.listToLatex = function (b, X) {
   }[b.style];
   const start = b.start !== undefined && b.start !== '' && !isNaN(+b.start) ? Math.trunc(+b.start) : 1;
   const tight = b.style === 'sujet' || b.style === 'puce' ? ', itemsep=0pt, parsep=0pt, topsep=2pt' : '';   // questions serrées, comme dans l'éditeur
-  const envOf = lv => lab ? '\\begin{enumerate}[label=' + lab[lv] + (lv === 0 && start !== 1 ? ', start=' + start : '') + tight + ']' : (b.style === 'puce' ? '\\begin{itemize}[label=' + ['\\textbullet', '--', '$\\ast$'][lv] + tight + ']' : '\\begin{itemize}');
+  const bullets = {
+    puce: ['\\textbullet', '--', '$\\ast$'], etoile: ['$\\star$', '--', '$\\ast$'],
+    fleche: ['$\\blacktriangleright$', '$\\triangleright$', '--'], triangle: ['$\\triangleright$', '--', '$\\ast$'], carre: ['$\\blacksquare$', '--', '$\\ast$'],
+  }[b.style];
+  const envOf = lv => lab ? '\\begin{enumerate}[label=' + lab[lv] + (lv === 0 && start !== 1 ? ', start=' + start : '') + tight + ']' : (bullets ? '\\begin{itemize}[label=' + bullets[lv] + tight + ']' : '\\begin{itemize}');
   const endOf = () => lab ? '\\end{enumerate}' : '\\end{itemize}';
   let out = [], cur = -1;
   const hasItem = [false, false, false];
@@ -362,6 +395,12 @@ L.titleToLatex = function (m, X) {
   const R = x => L.htmlToLatex(x, X);
   const has = k => !L.isEmptyHtml(m[k]);
   if (m.titleStyle === 'aucun') return '';
+  if (m.titleStyle === 'cadre') {
+    X.pk.add('petitescaps');
+    return '\\begin{center}\n' + (has('subtitle') ? '  {\\sffamily\\bfseries\\Large ' + R(m.subtitle) + '\\par}\\vspace{14pt}\n' : '') +
+      '  {\\setlength{\\fboxrule}{1.4pt}\\setlength{\\fboxsep}{0pt}\\fbox{\\parbox[c][37.5pt][c]{0.93\\linewidth}{\\centering\\sffamily\\fontsize{28.4}{34}\\selectfont\\lhepetitescaps{' +
+      L.texEsc(L.plain(m.title)) + '}}}\\par}\n\\end{center}\n\\vspace{10pt}';
+  }
   if (m.titleStyle === 'fiche') {
     return '\\noindent ' + (has('institution') ? R(m.institution) : '') + '\\hfill ' + (has('date') ? R(m.date) : '') + '\\\\[-0.6em]\n' +
       '\\rule{\\textwidth}{0.4pt}\n\\begin{center}\n  {\\Large\\bfseries ' + R(m.title) + '}' +
@@ -380,6 +419,75 @@ L.titleToLatex = function (m, X) {
   return '\\maketitle';
 };
 
+/* Préambule du style « cours » : encadrés colorés (tcolorbox), exercices à la plume (bclogo),
+   encadré gris, titres I - / 1) / a. (titlesec), table des matières, titre encadré */
+L.coursPreamble = function (m, X) {
+  const P = [];
+  const cours = X.cours ? Object.values(X.cours) : [];
+  if (cours.length || X.pk.has('cadre')) P.push('\\usepackage[most]{tcolorbox}');
+  if (X.pk.has('cadre')) P.push('\\newtcolorbox{lhecadre}{enhanced, breakable=false, sharp corners, boxrule=1.5pt, colframe=black, colback=black!25!white, left=4pt, right=4pt, top=5pt, bottom=3pt, before skip=10pt, after skip=10pt}');
+  if (cours.length) {
+    P.push('% Encadrés colorés (style « cours ») : onglet de titre posé sur le cadre');
+    Object.entries(L.BOX_COLORS).forEach(([g, c]) => { if (cours.some(e => e.g === g)) P.push('\\definecolor{lhe' + g + 'a}{HTML}{' + c[0] + '}\\definecolor{lhe' + g + 'b}{HTML}{' + c[1] + '}\\definecolor{lhe' + g + 'c}{HTML}{' + c[2] + '}\\definecolor{lhe' + g + 'd}{HTML}{' + c[3] + '}'); });
+    P.push('\\tcbset{lhecours/.style={enhanced, breakable=false, boxsep=0pt, left=9.5pt, right=9pt, top=11.25pt, bottom=19.25pt, left skip=16pt, right skip=16pt,',
+      '  before skip balanced=0pt, after skip balanced=0pt, before={\\par\\addvspace{13pt}\\noindent}, after={\\par\\addvspace{12pt}},',
+      '  arc=2.5pt, boxrule=1pt, fonttitle=\\rmfamily\\bfseries\\normalsize,',
+      '  attach boxed title to top left={xshift=9.5pt, yshift*=-\\tcboxedtitleheight/2},',
+      '  boxed title style={arc=3pt, boxrule=0.5pt, colframe=black, left=3pt, right=3pt, top=0.5pt, bottom=0.5pt}}}');
+    P.push('\\newcommand{\\lhesoustitre}[1]{\\if\\relax\\detokenize{#1}\\relax\\else\\ \\ - #1\\fi}');
+    if (cours.some(e => e.g === 'exo')) {
+      P.push('\\usepackage[tikz]{bclogo}');
+      P.push('\\newtcolorbox{lheexobarre}{blanker, breakable, left=14.4pt, borderline west={1.5pt}{3.1pt}{gray}, before skip=0pt, after skip=0pt}');
+    }
+    cours.forEach(e => {
+      const name = L.texEsc(e.name);
+      if (e.numbered) P.push('\\newcounter{' + e.env + '}' + (m.thmBySection ? '[section]' : ''));
+      if (m.thmBySection && e.numbered) P.push('\\renewcommand{\\the' + e.env + '}{\\arabic{section}.\\arabic{' + e.env + '}}');
+      const num = e.numbered ? '~\\the' + e.env : '';
+      if (e.g === 'exo') {
+        P.push('\\NewDocumentEnvironment{' + e.env + '}{O{}}{\\par\\addvspace{8pt}' + (e.numbered ? '\\refstepcounter{' + e.env + '}' : '') +
+          '\\noindent\\makebox[22.4pt][l]{\\raisebox{-2pt}{\\resizebox{!}{11pt}{\\bcplume}}}\\textit{' + name + num + '\\ :\\if\\relax\\detokenize{#1}\\relax\\else\\ #1\\fi}\\par\\nobreak\\vspace{2.5pt}' +
+          '\\begin{lheexobarre}\\itshape}{\\end{lheexobarre}\\par\\addvspace{32pt}}');
+      } else {
+        P.push('\\newtcolorbox{' + e.env + '}[1][]{lhecours, colframe=lhe' + e.g + 'a, colback=lhe' + e.g + 'b, boxed title style={colback=lhe' + e.g + 'c}, coltitle=lhe' + e.g + 'd,' +
+          (e.numbered ? ' code={\\refstepcounter{' + e.env + '}},' : '') + ' title={' + name + num + '\\lhesoustitre{#1}}}');
+      }
+    });
+  }
+  if (X.pk.has('petitescaps')) {
+    // Petites capitales en sans empattements (la police n'en a pas : minuscules en capitales réduites)
+    P.push('\\ExplSyntaxOn',
+      '\\NewDocumentCommand{\\lhepetitescaps}{m}{\\text_map_inline:nn{#1}{\\str_if_eq:eeTF{\\text_uppercase:n{##1}}{\\exp_not:n{##1}}{##1}{\\scalebox{0.77}{\\text_uppercase:n{##1}}}}}',
+      '\\ExplSyntaxOff');
+  }
+  if (m.secStyle === 'cours') {
+    P.push('% Titres I - / 1) / a. en sans empattements (Computer Modern Sans)');
+    P.push('\\renewcommand{\\sfdefault}{cmss}');
+    P.push('\\usepackage{titlesec}');
+    P.push('\\renewcommand{\\thesection}{\\Roman{section}}\\renewcommand{\\thesubsection}{\\arabic{subsection}}\\renewcommand{\\thesubsubsection}{\\alph{subsubsection}}');
+    P.push('\\titleformat{\\section}{\\sffamily\\bfseries\\Large}{\\thesection\\ -}{0.5em}{}');
+    P.push('\\titleformat{\\subsection}{\\sffamily\\bfseries\\large}{\\hspace*{10.6pt}\\thesubsection)}{0.5em}{}');
+    P.push('\\titleformat{\\subsubsection}{\\sffamily\\bfseries}{\\hspace*{10.6pt}\\thesubsubsection.}{0.5em}{}');
+    P.push('\\titleformat{\\paragraph}[hang]{\\sffamily\\bfseries}{}{0pt}{}\\titlespacing*{\\paragraph}{0pt}{12pt}{4pt}');
+    P.push('\\titlespacing*{\\section}{0pt}{19pt}{12pt}\\titlespacing*{\\subsection}{0pt}{10pt}{6.6pt}\\titlespacing*{\\subsubsection}{0pt}{10pt}{6pt}');
+  }
+  if (m.toc && (m.secStyle === 'cours' || m.tocPages === false)) {
+    const pg = (lv) => m.tocPages === false ? '' : lv === 1 ? '\\hfill\\contentspage' : '\\titlerule*[0.6pc]{.}\\contentspage';
+    P.push('\\usepackage{titletoc}');
+    if (m.secStyle === 'cours') {
+      P.push('\\titlecontents{section}[0pt]{\\addvspace{9pt}\\sffamily\\bfseries}{\\makebox[24.5pt][l]{\\thecontentslabel\\ -}}{}{' + pg(1) + '}');
+      P.push('\\titlecontents{subsection}[34.6pt]{}{\\contentslabel[\\thecontentslabel)]{17.5pt}}{}{' + pg(2) + '}');
+      P.push('\\titlecontents{subsubsection}[59.6pt]{}{\\contentslabel[\\thecontentslabel.]{17.6pt}}{}{' + pg(3) + '}');
+      P.push('\\makeatletter\\renewcommand{\\tableofcontents}{{\\noindent\\rmfamily\\bfseries\\Large\\contentsname\\par}\\vspace{2pt}\\@starttoc{toc}}\\makeatother');
+    } else {
+      P.push('\\titlecontents{section}[1.5em]{\\addvspace{1em}\\bfseries}{\\contentslabel{1.5em}}{}{' + pg(1) + '}');
+      P.push('\\titlecontents{subsection}[3.8em]{}{\\contentslabel{2.3em}}{}{' + pg(2) + '}');
+      P.push('\\titlecontents{subsubsection}[7em]{}{\\contentslabel{3.2em}}{}{' + pg(3) + '}');
+    }
+  }
+  return P;
+};
+
 L.docToLatex = function (doc) {
   const m = doc.meta;
   const X = { doc, lang: m.lang || 'fr', envs: new Set(), pk: new Set(), images: [], warnings: new Set() };
@@ -391,7 +499,7 @@ L.docToLatex = function (doc) {
   P.push('% Document généré par LaTeX Home Edition — compilable avec pdfLaTeX (Overleaf, TeX Live, MiKTeX)');
   // 10, 11 et 12 pt sont natifs ; les autres tailles passent par extarticle (extsizes)
   const fsz = +m.fontSize || 11;
-  P.push('\\documentclass[' + fsz + 'pt,a4paper]{' + ([10, 11, 12].includes(fsz) ? 'article' : 'extarticle') + '}');
+  P.push('\\documentclass[' + fsz + 'pt,a4paper' + (m.headMirror ? ',twoside' : '') + ']{' + ([10, 11, 12].includes(fsz) ? 'article' : 'extarticle') + '}');
   P.push('\\usepackage[utf8]{inputenc}');
   P.push('\\usepackage[T1]{fontenc}');
   P.push('\\usepackage[' + (m.lang === 'en' ? 'english' : 'french') + ']{babel}');
@@ -421,6 +529,7 @@ L.docToLatex = function (doc) {
     P.push('\\definecolor{lhecorr}{HTML}{1F4FBF}');
     P.push('\\newenvironment{correction}[1][0pt]{\\par\\begin{list}{}{\\setlength{\\leftmargin}{#1}\\setlength{\\rightmargin}{0pt}\\setlength{\\labelwidth}{0pt}\\setlength{\\labelsep}{0pt}\\setlength{\\itemindent}{0pt}\\setlength{\\listparindent}{0pt}\\setlength{\\itemsep}{0pt}\\setlength{\\parsep}{0pt}\\setlength{\\topsep}{3pt}}\\item[]\\leavevmode{\\color{lhecorr}\\bfseries Correction.}\\ \\color{lhecorr}\\itshape\\ignorespaces}{\\end{list}}');
   }
+  L.coursPreamble(m, X).forEach(l => P.push(l));
   if (X.pk.has('tikz')) {
     P.push('\\usepackage{tikz}');
     const libs = new Set(['arrows', 'arrows.meta', 'positioning', 'calc', 'plotmarks']);
@@ -429,9 +538,11 @@ L.docToLatex = function (doc) {
   }
   if (/\\coloneqq/.test(body)) P.push('\\usepackage{mathtools}');
   if (/\\cancel\{/.test(body)) P.push('\\usepackage{cancel}');
+  if (/\\mathscr\{/.test(body)) P.push('\\usepackage{mathrsfs}');
   // footskip : pied de page à ~12 mm du bord (mêmes valeurs que l'éditeur)
   if (m.margins === 'normales') P.push('\\usepackage[a4paper,margin=2.5cm,footskip=13mm]{geometry}');
   else if (m.margins === 'etroites') P.push('\\usepackage[a4paper,margin=1.5cm,bottom=2.2cm,footskip=10mm]{geometry}');
+  else if (m.margins === 'fines') P.push('\\usepackage[a4paper,left=1.25cm,right=1.25cm,top=2.48cm,bottom=2.12cm,headsep=25pt,footskip=9.5mm]{geometry}');
   if (m.spacing === 1.5) P.push('\\usepackage{setspace}\n\\onehalfspacing');
   if (m.boxedThm && X.envs.size) P.push('\\usepackage{mdframed}');
   if (X.pk.has('listings')) {
@@ -513,7 +624,8 @@ L.docToLatex = function (doc) {
 
   const D = ['', '\\begin{document}', ''];
   if (title) D.push(title, '');
-  if (!HF.empty && m.hfFirst === false && (m.titleStyle === 'article' || m.titleStyle === 'fiche' || m.titleStyle === 'aucun')) D.push('\\thispagestyle{empty}', '');
+  if (!HF.empty && m.hfFirst === false && (m.titleStyle === 'article' || m.titleStyle === 'fiche' || m.titleStyle === 'aucun' || m.titleStyle === 'cadre')) D.push('\\thispagestyle{empty}', '');
+  if (!HF.empty && m.hfFirst === 'foot' && m.titleStyle !== 'pagegarde') D.push('\\thispagestyle{lhefirst}', '');
   const ps = L.pageStart(m);
   if (!HF.empty && ps !== 1) D.push('\\setcounter{page}{' + ps + '}', '');
   if (m.toc) D.push('\\tableofcontents', '');

@@ -27,6 +27,9 @@ L.ITEMS = [
   { g: 'Maths & sciences', key: 'exemple', label: 'Exemple', icon: 'Ex', kw: 'exemple', make: () => L.newBlock('box', { kind: 'exemple' }) },
   { g: 'Maths & sciences', key: 'remarque', label: 'Remarque', icon: 'Rq', kw: 'remarque note', make: () => L.newBlock('box', { kind: 'remarque' }) },
   { g: 'Maths & sciences', key: 'methode', label: 'Méthode', icon: 'M', kw: 'methode', make: () => L.newBlock('box', { kind: 'methode' }) },
+  { g: 'Maths & sciences', key: 'rappel', label: 'Rappel', icon: 'Rap', kw: 'rappel', make: () => L.newBlock('box', { kind: 'rappel' }) },
+  { g: 'Maths & sciences', key: 'aretenir', label: 'À retenir', icon: '!', kw: 'a retenir important essentiel', make: () => L.newBlock('box', { kind: 'aretenir' }) },
+  { g: 'Maths & sciences', key: 'cadre', label: 'Encadré gris', icon: '▣', kw: 'encadre gris cadre fond formule importante', make: () => L.newBlock('box', { kind: 'cadre' }) },
   { g: 'Maths & sciences', key: 'tabvar', label: 'Tableau de variations', icon: '↗↘', kw: 'tableau variations fonction derivee tkz', make: () => L.newTabvar('variations') },
   { g: 'Maths & sciences', key: 'tabsign', label: 'Tableau de signes', icon: '+ −', kw: 'tableau signes produit quotient', make: () => L.newTabvar('signes') },
   { g: 'Maths & sciences', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: () => L.dlgAvancement(b => App.insertBlock(b)) },
@@ -397,11 +400,11 @@ Object.assign(App, {
       const n = info ? nums[i] : L.pageStart(m) + i;
       const skip = n === null || n === undefined || (i === firstNum && m.hfFirst === false && m.titleStyle !== 'pagegarde');
       if (!skip) {
-        const hf = L.renderHF(m, n, total);
+        const hf = L.renderHF(m, n, total).filter(x => !(i === firstNum && m.hfFirst === 'foot' && x.classList.contains('page-head')));
         hf.forEach(x => el.appendChild(x));
         // Discret rappel, cliquable, que l'en-tête (et le pied de page) se répètent
         // sur chaque page — sinon rien n'indique qu'on peut en ajouter un.
-        if (!hf.some(x => x.classList.contains('page-head'))) {
+        if (!hf.some(x => x.classList.contains('page-head')) && !(i === firstNum && m.hfFirst === 'foot')) {
           el.appendChild(L.h('div', { class: 'page-head hint', text: '+ En-tête (sur chaque page)' }));
         }
         if (!hf.some(x => x.classList.contains('page-hfoot'))) {
@@ -1078,7 +1081,8 @@ Object.assign(App, {
         row('Options rapides',
           chk('Table des matières', m.toc, v => upd(() => { m.toc = v; })),
 
-          chk('Encadrer les théorèmes', m.boxedThm, v => upd(() => { m.boxedThm = v; }))),
+          chk('Encadrer les théorèmes', m.boxedThm, v => upd(() => { m.boxedThm = v; })),
+          chk('Encadrés colorés (cours)', m.boxTheme === 'cours', v => upd(() => { m.boxTheme = v ? 'cours' : 'classique'; }))),
         row('Taille du texte', (() => {
           const s = L.h('select', null, ...L.DOC_SIZES.map(v => L.h('option', { value: v, text: v + ' pt' })));
           s.value = String(+m.fontSize || 11);
@@ -1138,8 +1142,8 @@ Object.assign(App, {
         L.h('div', { class: 'pp-help', html: '<p>Pour écrire plusieurs lignes alignées, utilisez « Calcul sur plusieurs lignes » dans l\'onglet <i>Matrices &amp; systèmes</i> de l\'éditeur.</p>' }));
     } else if (b.type === 'list') {
       P.append(
-        row('Style', seg([['bullet', '–  Puces'], ['puce', '•  Puces'], ['number', '1.'], ['alpha', 'a)'], ['roman', 'i)'], ['sujet', 'I. 1. a.']], b.style, v => upd(() => { b.style = v; }))),
-        b.style !== 'bullet' ? row('Commencer à', (() => { const i = L.h('input', { type: 'number', value: b.start ?? 1, style: { width: '90px' } }); i.onchange = () => upd(() => { if (i.value === '' || +i.value === 1) delete b.start; else b.start = Math.trunc(+i.value); }); return i; })()) : '',
+        row('Style', seg([['bullet', '–  Puces'], ['puce', '•  Puces'], ['etoile', '⋆'], ['fleche', '▶'], ['triangle', '▷'], ['carre', '■'], ['number', '1.'], ['alpha', 'a)'], ['roman', 'i)'], ['sujet', 'I. 1. a.']], b.style, v => upd(() => { b.style = v; }))),
+        !L.BULLET_STYLES.includes(b.style) ? row('Commencer à', (() => { const i = L.h('input', { type: 'number', value: b.start ?? 1, style: { width: '90px' } }); i.onchange = () => upd(() => { if (i.value === '' || +i.value === 1) delete b.start; else b.start = Math.trunc(+i.value); }); return i; })()) : '',
         this.listItemRow(b, row, btn, upd),
         row('', btn('+ Ajouter un élément', () => { b.items.push({ html: '', level: 0 }); this.focusAfter = { id: b.id, f: 'items.' + (b.items.length - 1) + '.html' }; upd(() => {}); })),
         L.h('div', { class: 'pp-help', html: '<p><kbd>Tab</kbd> décale un élément vers la droite (sous-question), <kbd>Maj</kbd>+<kbd>Tab</kbd> vers la gauche. <kbd>Entrée</kbd> sur un élément vide termine la liste.</p>' }));
@@ -1912,7 +1916,7 @@ Object.assign(App, {
     numIn.onchange = () => upd(() => { if (numIn.value === '') delete it.num; else it.num = Math.trunc(+numIn.value); });
     const keep = n => { this.focusAfter = { id: b.id, f: 'items.' + n + '.html', where: 'end' }; };
     box.appendChild(this.rightTextRow(b, 'items.' + i + '.html', row, upd, 'Texte à droite (barème de la question)'));
-    if (b.style !== 'bullet') box.appendChild(row('Numéro de cette question', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, numIn, L.h('span', { class: 'pp-help', text: 'vide = automatique ; les suivantes continuent.' }))));
+    if (!L.BULLET_STYLES.includes(b.style)) box.appendChild(row('Numéro de cette question', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, numIn, L.h('span', { class: 'pp-help', text: 'vide = automatique ; les suivantes continuent.' }))));
     box.appendChild(L.h('div', { class: 'btn-row' },
       btn('↑', () => { if (i > 0) upd(() => { b.items.splice(i - 1, 0, b.items.splice(i, 1)[0]); keep(i - 1); }); }),
       btn('↓', () => { if (i < b.items.length - 1) upd(() => { b.items.splice(i + 1, 0, b.items.splice(i, 1)[0]); keep(i + 1); }); }),

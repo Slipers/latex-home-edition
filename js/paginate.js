@@ -2,7 +2,8 @@
    entre deux lignes, titres gardés avec la suite, notes en bas de page). */
 
 L.pageClasses = function (m) {
-  return 'fs-' + (m.fontSize || 11) + ' margins-' + (m.margins || 'normales') + (m.spacing === 1.5 ? ' spacing-15' : '') + (m.fontFamily === 'sans' ? ' ff-sans' : '');
+  return 'fs-' + (m.fontSize || 11) + ' margins-' + (m.margins || 'normales') + (m.spacing === 1.5 ? ' spacing-15' : '') + (m.fontFamily === 'sans' ? ' ff-sans' : '') +
+    (m.secStyle === 'cours' ? ' secs-cours' : '') + (m.boxTheme === 'cours' ? ' boxes-cours' : '');
 };
 
 L.loadFonts = function () {
@@ -39,7 +40,7 @@ L.paginate = async function (doc, host) {
   const fnStyle = m.fnStyle || 'sup';
   const addNotes = el => {
     const added = [];
-    const list = el.matches && el.matches('.pnote-src') ? [el] : Array.from(el.querySelectorAll('.fn, .pnote-src'));
+    const list = el.matches && el.matches('.pnote-src') ? [el] : Array.from(el.querySelectorAll('.fn:not(.fn-box), .pnote-src'));   // notes d'encadré : restent dans l'encadré
     list.forEach(f => {
       if (!foot.firstChild) { const r = L.h('div', { class: 'fn-rule' }); foot.appendChild(r); added.push(r); }
       const pn = f.classList.contains('pnote-src');
@@ -166,6 +167,7 @@ L.paginate = async function (doc, host) {
   L._split = (el, test) => {
     if (el.matches('p.para')) return splitPara(el, test);
     if (el.matches('.lst')) return splitKids(el, null, test);
+    if (el.matches('.env.cours:not(.cg-exo), .env.st-cadre')) return null;   // encadrés « cours » : jamais coupés (comme tcolorbox)
     if (el.matches('.env')) return splitKids(el, '.env-body', test, '.abs-head');
     if (el.matches('.doc-toc, .biblio')) return splitKids(el, null, test);
     if (el.matches('.code')) return splitCode(el, test);
@@ -188,7 +190,9 @@ L.paginate = async function (doc, host) {
     }
     if (role === 'pagebreak') { if (!empty()) { newPage(); page._forced = true; } continue; }
     const isHead = el.matches('.sec');
-    if (fits(el, isHead ? 2.2 * lh : 0)) { place(el); continue; }
+    // Un titre garde de la place pour la suite… sauf s'il est suivi d'un saut de page
+    const lastOnPage = !queue.length || queue[0].dataset.role === 'pagebreak';
+    if (fits(el, isHead && !lastOnPage ? 2.2 * lh : 0)) { place(el); continue; }
     if (!isHead) {
       const sp = L._split(el, x => fits(x));
       if (sp) { place(sp[0]); sp[1]._splitOffset = sp[0].offsetHeight; newPage(); queue.unshift(sp[1]); continue; }
@@ -222,8 +226,9 @@ L.paginate = async function (doc, host) {
     if (pg.classList.contains('titlepage')) return;
     num++;
     const skip = first && m.hfFirst === false && m.titleStyle !== 'pagegarde';
+    const noHead = first && m.hfFirst === 'foot';   // première page : pied de page seulement
     first = false;
-    if (!skip) L.renderHF(m, num, total).forEach(x => pg.appendChild(x));
+    if (!skip) L.renderHF(m, num, total).forEach(x => { if (!(noHead && x.classList.contains('page-head'))) pg.appendChild(x); });
     pg.querySelectorAll('[data-id]').forEach(x => { if (pageOf[x.dataset.id] === undefined) pageOf[x.dataset.id] = num; });
   });
   let k = start - 1;
@@ -244,7 +249,10 @@ L.renderHF = function (m, n, total) {
   const out = [];
   for (const where of ['head', 'foot']) {
     const obj = where === 'head' ? m.header : m.footer;
-    const cells = ['l', 'c', 'r'].map(k => {
+    // En-tête « recto-verso » : gauche et droite échangées sur les pages paires
+    const mir = where === 'head' && m.headMirror && n % 2 === 0;
+    const cells = ['l', 'c', 'r'].map(k0 => {
+      const k = mir ? { l: 'r', c: 'c', r: 'l' }[k0] : k0;
       let t = tok(obj && obj[k]);
       if (fmt !== 'none' && pos === where + '-' + k) return { t, num: L.pageNumText(fmt, n, total, m.lang) };
       return { t };

@@ -7,11 +7,17 @@ const LIST_LABELS = {
   roman: ['i)', 'a.', 'A.'],
   sujet: ['I.', '1.', 'a.'],          // sujet de DS : parties, questions, sous-questions
   puce: ['•', '–', '∗'],
+  etoile: ['⋆', '–', '∗'],
+  fleche: ['▶', '▷', '–'],
+  triangle: ['▷', '–', '∗'],
+  carre: ['■', '–', '∗'],
 };
+/* Listes à puces (pas de numéro) */
+L.BULLET_STYLES = ['bullet', 'puce', 'etoile', 'fleche', 'triangle', 'carre'];
 
 L.listMark = function (style, level, n, lang) {
   if (style === 'bullet') return (LIST_LABELS.bullet[lang] || LIST_LABELS.bullet.fr)[level];
-  if (style === 'puce') return LIST_LABELS.puce[level];
+  if (L.BULLET_STYLES.includes(style)) return LIST_LABELS[style][level];
   const fmt = (LIST_LABELS[style] || LIST_LABELS.number)[level];
   return fmt.replace(/1|a|i|A|I/, c => c === '1' ? n : c === 'a' ? L.alpha(n) : c === 'A' ? L.alpha(n).toUpperCase() : c === 'I' ? L.roman(n).toUpperCase() : L.roman(n));
 };
@@ -107,7 +113,12 @@ L.renderTitle = function (ctx) {
     return L.rich(ctx, 'div', cls, m[key], 'meta', key, ph);
   };
   let box;
-  if (m.titleStyle === 'fiche') {
+  if (m.titleStyle === 'cadre') {
+    // Titre de chapitre : une ligne en gras (sous-titre) puis le titre encadré, en petites capitales
+    box = L.h('div', { class: 'doc-title-cadre' },
+      f('subtitle', 'tc-top', 'Ligne au-dessus du cadre (ex. : Partie 1 : …)'),
+      L.h('div', { class: 'tc-box' }, f('title', 't-title', 'Titre du chapitre') || L.h('span')));
+  } else if (m.titleStyle === 'fiche') {
     box = L.h('div', { class: 'doc-title-fiche' },
       L.h('div', { class: 'f-top' }, f('institution', 't-inst', 'Établissement / matière') || L.h('span'), f('date', 't-date', 'Date') || L.h('span')),
       L.h('div', { class: 'f-rule' }),
@@ -139,7 +150,7 @@ L.renderTitle = function (ctx) {
 };
 
 L.renderToc = function (ctx, pages) {
-  const box = L.h('div', { class: 'doc-toc', 'data-role': 'toc' },
+  const box = L.h('div', { class: 'doc-toc' + (ctx.meta.tocPages === false ? ' no-pages' : ''), 'data-role': 'toc' },
     L.h('div', { class: 'toc-h', text: L.NAMES[ctx.lang].toc }));
   if (!ctx.toc.length) box.appendChild(L.h('div', { class: 'toc-empty', text: 'Ajoutez des sections : elles apparaîtront ici automatiquement.' }));
   ctx.toc.forEach(e => {
@@ -217,6 +228,8 @@ L.R = {
   box(b, ctx) {
     const k = L.KINDS[b.kind] || L.KINDS.theoreme;
     const lang = ctx.lang;
+    const g = ctx.meta.boxTheme === 'cours' ? L.boxGroup(b.kind) : null;
+    if (k.style === 'cadre' || g) return L.boxCours(b, ctx, k, g);
     const el = L.h('div', { class: 'env st-' + k.style + (ctx.meta.boxedThm && k.style !== 'abstract' && k.style !== 'proof' && k.style !== 'correction' ? ' boxed' : ''), 'data-kind': b.kind, 'data-indent': b.indent ? String(b.indent) : null });
     const body = L.h('div', { class: 'env-body' });
     if (k.style === 'abstract') {
@@ -267,6 +280,13 @@ L.R = {
     const cap = L.caption(b, ctx, 'table', 'Légende du tableau');
     if (cap) el.appendChild(cap);
     const table = L.h('table');
+    // Colonnes « largeur restante » : même largeur pour toutes (comme les colonnes X de tabularx)
+    const nFill = colw.slice(0, cols).filter(w => w === 'fill').length;
+    if (nFill) {
+      const cg = L.h('colgroup');
+      for (let ci = 0; ci < cols; ci++) cg.appendChild(L.h('col', colw[ci] === 'fill' ? { style: { width: (100 / nFill).toFixed(3) + '%' } } : {}));
+      table.appendChild(cg);
+    }
     const spans = b.spans || {};
     b.rows.forEach((r, ri) => {
       const tr = L.h('tr');
@@ -371,6 +391,59 @@ L.R = {
       L.h('span', { class: 'bib-txt', html: L.bibHtml(e) }))));
     return el;
   },
+};
+
+/* Plume des exercices (style « cours », comme \bcplume de bclogo) */
+L.PLUME_SVG = '<svg viewBox="0 0 24 24" class="plume-svg" aria-hidden="true"><path d="M21.5 2.5C15 3.6 9.6 8.4 7.4 14.2l-2.9 7.3M21.5 2.5c-1 4.1-3.4 6.9-6.6 8.4M21.5 2.5c-2.3 1.8-4.4 4.2-5.8 6.9M14.9 10.9c-1.4 2.5-3.6 4.2-6.5 4.6M13.4 13.1c-1.6.9-3.2 1.3-4.9 1.4M18.2 6.6c-1.7.5-3 .3-3.9-.1M16.4 9.6c-1.9.4-3.2.1-4.1-.5" fill="none" stroke="currentColor" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* Encadrés du style « cours » (onglet de titre coloré ; exercices avec plume et barre grise)
+   et encadré gris sans titre */
+L.boxCours = function (b, ctx, k, g) {
+  const edit = ctx.mode === 'edit';
+  const n = ctx.nums[b.id];
+  const name = (b.customName || '').trim() || L.kindName(b.kind, ctx.lang);
+  const el = L.h('div', { class: 'env ' + (g ? 'cours cg-' + g : 'st-cadre'), 'data-kind': b.kind });
+  if (g && g !== 'exo') {
+    const c = L.BOX_COLORS[g];
+    el.style.setProperty('--bc', '#' + c[0]); el.style.setProperty('--bg', '#' + c[1]);
+    el.style.setProperty('--tb', '#' + c[2]); el.style.setProperty('--tt', '#' + c[3]);
+    const tab = L.h('div', { class: 'env-tab', contenteditable: edit ? 'false' : null, text: name + (n ? ' ' + n.num : '') + (b.title ? '  - ' + b.title : '') });
+    if (!edit) L.typo(tab, ctx.lang);
+    el.appendChild(tab);
+  } else if (g === 'exo') {
+    const head = L.h('div', { class: 'exo-head', contenteditable: edit ? 'false' : null },
+      L.h('span', { class: 'plume', html: L.PLUME_SVG }),
+      L.h('span', { class: 'exo-name', text: name + (n ? ' ' + n.num : '') + ' :' + (b.title ? ' ' + b.title : '') }));
+    if (!edit) L.typo(head, ctx.lang);
+    el.appendChild(head);
+  }
+  const body = L.h('div', { class: 'env-body' });
+  const fn0 = ctx.fn || 0;
+  b.children.forEach(c => body.appendChild(L.renderBlock(c, ctx)));
+  el.appendChild(body);
+  // Notes d'un encadré (sauf exercice) : en bas de l'encadré, repérées par a, b, c… (comme
+  // les notes d'une minipage / tcolorbox en LaTeX) ; elles ne comptent pas dans les notes de la page
+  if (g !== 'exo') {
+    const fns = Array.from(body.querySelectorAll('.fn'));
+    if (fns.length) {
+      ctx.fn = fn0;
+      const notes = L.h('div', { class: 'box-notes', contenteditable: edit ? 'false' : null }, L.h('div', { class: 'bn-rule' }));
+      fns.forEach((f, i) => {
+        const mark = L.alpha(i + 1);
+        f.classList.add('fn-box');
+        f.dataset.mark = mark;
+        const fm = f.querySelector('.fn-mark');
+        if (fm) { fm.className = 'fn-mark fs-sup'; fm.textContent = mark; }
+        const t = L.h('span', { html: L.noteHtml(f) });
+        t.querySelectorAll('.fn').forEach(x => x.remove());
+        L.hydrate(t, { mode: 'view', nums: ctx.nums, bib: ctx.bib, fn: 0, doc: ctx.doc, meta: ctx.meta });
+        if (!edit) L.typo(t, ctx.lang);
+        notes.appendChild(L.h('p', { class: 'bfn' }, L.h('span', { class: 'bfn-lab', text: mark + '.' }), ' ', t));
+      });
+      el.appendChild(notes);
+    }
+  }
+  return el;
 };
 
 /* Légende : « Table 1 – texte » (numérotée), « texte » (sans numéro) ou aucune */
