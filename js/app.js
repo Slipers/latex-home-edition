@@ -16,8 +16,12 @@ Object.assign(App, {
     this.commit();
     const data = this.serialize();
     if (window.lheDesktop) {
-      const r = await lheDesktop.save({ path: this.filePath, name: this.baseName() + '.lhe', data, saveAs });
+      let r;
+      try { r = await lheDesktop.save({ path: this.filePath, name: this.baseName() + '.lhe', data, saveAs }); }
+      catch (e) { r = { error: e && e.message }; }
       if (!r) return;
+      // Écriture refusée (fichier en lecture seule, ouvert ailleurs, clé USB retirée…)
+      if (r.error) return L.toast('Enregistrement impossible : ' + r.error + ' Essayez « Enregistrer sous » (Ctrl+Maj+S).', 'err');
       this.filePath = r.path; this.fileName = r.name;
       this.setDirty(false); this.updateName();
       L.toast('Document enregistré');
@@ -47,10 +51,12 @@ Object.assign(App, {
       this.setDirty(false);
     }
   },
-  async open() {
-    if (this.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Continuer ?')) return;
+  async open(confirmed) {
+    if (!confirmed && this.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Continuer ?')) return;
     if (window.lheDesktop) {
-      const r = await lheDesktop.open();
+      let r;
+      try { r = await lheDesktop.open(); } catch (e) { r = { error: e && e.message }; }
+      if (r && r.error) return L.toast('Impossible d\'ouvrir ce fichier : ' + r.error, 'err');
       if (r) this.openText(r.text, r.name, null, r.path);
       return;
     }
@@ -75,6 +81,7 @@ Object.assign(App, {
       this.load(L.sanitizeDoc({ meta: d.meta, blocks: d.blocks, bib: d.bib, assets: d.assets }), name);
       this.fileHandle = handle;
       this.filePath = filePath;
+      this.saveInfo();
       L.toast('Document ouvert : ' + name);
     } catch (e) { L.toast('Ce fichier n\'est pas un document LaTeX Home Edition valide.', 'err'); }
   },
@@ -210,7 +217,11 @@ Object.assign(App, {
       // Titre du PDF = nom du document (sans le nom de l'application)
       const old = document.title;
       document.title = L.plain(this.doc.meta.title) || this.baseName();
-      try { await lheDesktop.exportPdf(this.baseName()); } finally { document.title = old; }
+      try {
+        const r = await lheDesktop.exportPdf(this.baseName());
+        if (r && r.error) L.toast('Export PDF impossible : ' + r.error, 'err');
+      } catch (e) { L.toast('Export PDF impossible : ' + ((e && e.message) || e), 'err'); }
+      finally { document.title = old; }
       return;
     }
     const old = document.title;
@@ -222,17 +233,30 @@ Object.assign(App, {
   },
 });
 
+/* Avant de fermer la fenêtre : la frappe des dernières secondes (pas encore validée dans
+   l'historique) est prise en compte, et la sauvegarde automatique écrite tout de suite */
+App.flushPending = function () {
+  if (!App.doc) return false;
+  try { App.commit(); } catch (e) { /* document en cours de chargement */ }
+  App.autosaveNow();
+  return !!App.dirty;
+};
+
 /* ---------- Version bureau (Electron) ---------- */
-App.autosaveNow = () => L.store.set('lhe-autosave', JSON.stringify(App.doc));
 if (window.lheDesktop) {
   document.documentElement.classList.add('desktop');
   // Les exports passent par la boîte « Enregistrer sous » de Windows
   L.download = async (name, data) => {
     const blob = data instanceof Blob ? data : new Blob([data]);
-    return lheDesktop.exportFile(name, new Uint8Array(await blob.arrayBuffer()));
+    let r;
+    try { r = await lheDesktop.exportFile(name, new Uint8Array(await blob.arrayBuffer())); }
+    catch (e) { r = { error: (e && e.message) || String(e) }; }
+    if (r && r.error) { L.toast('Export impossible : ' + r.error, 'err'); return null; }
+    return r;
   };
   if (lheDesktop.onOpenLink) lheDesktop.onOpenLink(url => App.openAnyLink(url));
   lheDesktop.onOpenFile(f => {
+    if (!f || f.error) return L.toast('Impossible d\'ouvrir ce fichier' + (f && f.error ? ' : ' + f.error : '.'), 'err');
     if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir « ' + f.name + ' » quand même ?')) return;
     App.openText(f.text, f.name, null, f.path);
   });
@@ -402,7 +426,9 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const k = e.key.toLowerCase();
-    if (!L.$('#modal').hidden) return;
+    // Fenêtre ouverte : raccourcis de l'éditeur inactifs, mais pas de « Enregistrer la page »
+    // ou d'impression du navigateur à la place
+    if (!L.$('#modal').hidden) { if (['s', 'p', 'o'].includes(k)) e.preventDefault(); return; }
     if (k === 'z' && !e.shiftKey) { if (document.activeElement && document.activeElement.tagName === 'MATH-FIELD') return; e.preventDefault(); App.undo(); }
     else if (k === 'y' || (k === 'z' && e.shiftKey)) { if (document.activeElement && document.activeElement.tagName === 'MATH-FIELD') return; e.preventDefault(); App.redo(); }
     else if (k === 's') { e.preventDefault(); App.save(e.shiftKey); }
@@ -423,7 +449,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  window.addEventListener('beforeunload', e => { if (App.dirty) { App.autosave(); } });
+  // (la sauvegarde automatique est retardée pendant la frappe : on l'écrit maintenant)
+  window.addEventListener('beforeunload', () => { App.flushPending(); });
   // Coller un lien de partage n'importe où (hors de la fenêtre d'import) propose d'en importer une copie
   document.addEventListener('paste', e => {
     const t = e.clipboardData && e.clipboardData.getData('text/plain');
@@ -432,6 +459,26 @@ window.addEventListener('DOMContentLoaded', () => {
     e.preventDefault(); e.stopPropagation();
     App.openAnyLink(t);
   }, true);
+  // Fichier déposé hors de la feuille (barre d'outils, panneaux…) : le navigateur l'ouvrait
+  // à la place de l'application. On l'ouvre ou l'importe comme sur la feuille.
+  document.addEventListener('dragover', e => {
+    if (e.defaultPrevented || !e.dataTransfer || !Array.from(e.dataTransfer.types || []).includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  });
+  document.addEventListener('drop', e => {
+    if (e.defaultPrevented) return;   // déjà traité (feuille, fenêtre d'import…)
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!file) return;
+    e.preventDefault();
+    if (!L.$('#modal').hidden) return;
+    if (/\.(lhe|json)$/i.test(file.name)) {
+      if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir « ' + file.name + ' » quand même ?')) return;
+      file.text().then(t => App.openText(t, file.name, null));
+    } else if (/\.(pdf|tex)$/i.test(file.name)) L.dlgImportPdf(file);
+    else if (/^image\//.test(file.type)) { const fig = App.insertBlock(L.newBlock('figure'), { noPick: true }); App.setImage(fig.id, file); }
+    else L.toast('Ce type de fichier ne peut pas être ouvert ici.', 'err');
+  });
   // Les menus sont ancrés à l'écran : on les referme si la barre bouge sous eux
   window.addEventListener('resize', () => App.closeMenus());
   L.$('.tb').addEventListener('scroll', () => App.closeMenus());
@@ -476,7 +523,21 @@ window.addEventListener('DOMContentLoaded', () => {
   if (saved) {
     try {
       const d = JSON.parse(saved);
-      if (d && d.blocks) { if (L.Drive) L.Drive.restoreLink(); App.load(d, null); restored = true; }
+      if (d && d.blocks) {
+        // Le document repris retrouve son fichier : Ctrl+S réenregistre au même endroit
+        // (au lieu de redemander où enregistrer), et des modifications qui n'avaient pas
+        // été enregistrées restent signalées comme telles (lu avant App.load, qui le réécrit)
+        let info = null;
+        try { info = JSON.parse(L.store.get('lhe-autosave-info') || 'null'); } catch (e) { info = null; }
+        if (L.Drive) L.Drive.restoreLink();
+        App.load(d, null); restored = true;
+        if (info && !(L.Drive && L.Drive.linked())) {
+          if (info.fileName) App.fileName = info.fileName;
+          if (info.filePath && window.lheDesktop) App.filePath = info.filePath;
+          App.updateName();
+          if (info.dirty) App.setDirty(true);
+        }
+      }
     } catch (e) {}
   }
   if (!restored) App.load(L.TEMPLATES[0].make(), null);
@@ -486,6 +547,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Fichier .lhe ouvert par double-clic dans l'explorateur
   if (window.lheDesktop) lheDesktop.pendingFile().then(f => {
     if (!f) return;
+    if (f.error) return L.toast('Impossible d\'ouvrir ce fichier : ' + f.error, 'err');
     L.$('#modal').hidden = true;
     App.openText(f.text, f.name, null, f.path);
   });

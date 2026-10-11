@@ -170,7 +170,13 @@ function createWindow(opts = {}) {
     if (/^(https?|mailto):/.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
-  w.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('file:')) { e.preventDefault(); if (/^(https?|mailto):/.test(url)) shell.openExternal(url); } });
+  // Seule la page de l'application peut s'afficher dans la fenêtre : un fichier déposé hors
+  // de la feuille (file://…) ne doit pas la remplacer (le document en cours disparaissait)
+  w.webContents.on('will-navigate', (e, url) => {
+    if (url.startsWith('file:') && /\/index\.html(\?[^#]*)?(#.*)?$/.test(url)) return;
+    e.preventDefault();
+    if (/^(https?|mailto):/.test(url)) shell.openExternal(url);
+  });
 
   // Raccourcis utiles (menu masqué) : F12 outils, F11 plein écran
   w.webContents.on('before-input-event', (e, input) => {
@@ -184,7 +190,7 @@ function createWindow(opts = {}) {
     if (allowClose || quitting) return;
     e.preventDefault();
     let dirty = false;
-    try { dirty = await w.webContents.executeJavaScript('!!(window.App && App.dirty)'); } catch (_) {}
+    try { dirty = await w.webContents.executeJavaScript('!!(window.App && (App.flushPending ? App.flushPending() : App.dirty))'); } catch (_) {}
     if (dirty) {
       const r = await dialog.showMessageBox(w, {
         type: 'question', buttons: ['Enregistrer', 'Quitter sans enregistrer', 'Annuler'], defaultId: 0, cancelId: 2,
@@ -228,13 +234,21 @@ function addRecent(p, oldPath) {
   recents = recents.slice(0, 40);
   saveRecents();
 }
+/* Message clair pour une erreur de fichier (EBUSY : ouvert dans un autre programme…) */
+function fileErr(err) {
+  const c = err && err.code;
+  if (c === 'EBUSY' || c === 'EPERM' || c === 'EACCES') return 'le fichier est ouvert dans un autre programme ou protégé en écriture (fermez-le, ou choisissez un autre nom).';
+  if (c === 'ENOENT') return 'le fichier ou le dossier est introuvable.';
+  if (c === 'ENOSPC') return 'le disque est plein.';
+  return String((err && err.message) || err).split(NL)[0].slice(0, 160);
+}
 const isRecent = p => typeof p === 'string' && loadRecents().some(r => r.path === p);
 function readDoc(p) { const text = fs.readFileSync(p, 'utf8'); addRecent(p); return { path: p, name: path.basename(p), text }; }
 ipcMain.handle('lhe:recents', () => loadRecents().filter(r => fs.existsSync(r.path)).map(r => {
   let mtime = r.at; try { mtime = fs.statSync(r.path).mtimeMs; } catch (_) { /* ignoré */ }
   return { path: r.path, name: path.basename(r.path), at: r.at, mtime };
 }));
-ipcMain.handle('lhe:open-recent', (e, p) => (isRecent(p) && fs.existsSync(p) ? readDoc(p) : null));
+ipcMain.handle('lhe:open-recent', (e, p) => { try { return isRecent(p) && fs.existsSync(p) ? readDoc(p) : null; } catch (_) { return null; } });
 ipcMain.handle('lhe:peek-recent', (e, p) => { try { return isRecent(p) && fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null; } catch (_) { return null; } });
 ipcMain.handle('lhe:forget-recent', (e, p) => { loadRecents(); recents = recents.filter(r => r.path !== p); saveRecents(); return true; });
 
@@ -242,7 +256,7 @@ ipcMain.handle('lhe:forget-recent', (e, p) => { loadRecents(); recents = recents
 ipcMain.handle('lhe:open', async e => {
   const r = await dialog.showOpenDialog(winOf(e), { title: 'Ouvrir un document', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe', 'json'] }], properties: ['openFile'] });
   if (r.canceled || !r.filePaths[0]) return null;
-  return readDoc(r.filePaths[0]);
+  try { return readDoc(r.filePaths[0]); } catch (err) { return { error: fileErr(err) }; }
 });
 // Renommer le fichier .lhe ouvert, dans son dossier — jamais par-dessus un autre fichier
 ipcMain.handle('lhe:rename', async (e, { path: p, name }) => {
@@ -250,21 +264,24 @@ ipcMain.handle('lhe:rename', async (e, { path: p, name }) => {
   const base = String(name || '').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').replace(/\.(lhe|json)$/i, '').trim().replace(/[. ]+$/, '');
   if (!base) return { error: 'Nom de fichier invalide.' };
   const dest = path.join(path.dirname(p), base + '.lhe');
-  if (dest.toLowerCase() === p.toLowerCase() && dest !== p) { fs.renameSync(p, dest); addRecent(dest, p); return { path: dest, name: path.basename(dest) }; }   // casse seulement
-  if (dest === p) return { path: p, name: path.basename(p) };
-  if (fs.existsSync(dest)) return { error: 'Un fichier « ' + path.basename(dest) + ' » existe déjà dans ce dossier : choisissez un autre nom.' };
-  fs.renameSync(p, dest);
+  try {
+    if (dest.toLowerCase() === p.toLowerCase() && dest !== p) { fs.renameSync(p, dest); addRecent(dest, p); return { path: dest, name: path.basename(dest) }; }   // casse seulement
+    if (dest === p) return { path: p, name: path.basename(p) };
+    if (fs.existsSync(dest)) return { error: 'Un fichier « ' + path.basename(dest) + ' » existe déjà dans ce dossier : choisissez un autre nom.' };
+    fs.renameSync(p, dest);
+  } catch (err) { return { error: 'Renommage impossible : ' + fileErr(err) }; }
   app.addRecentDocument(dest);
   addRecent(dest, p);
   return { path: dest, name: path.basename(dest) };
 });
 ipcMain.handle('lhe:save', async (e, { path: p, name, data, saveAs }) => {
+  if (p && !/.(lhe|json)$/i.test(p)) p = null;   // la page ne peut écrire qu'un document
   if (!p || saveAs) {
     const r = await dialog.showSaveDialog(winOf(e), { title: 'Enregistrer le document', defaultPath: name || 'document.lhe', filters: [{ name: 'Document LaTeX Home Edition', extensions: ['lhe'] }] });
     if (r.canceled || !r.filePath) return null;
     p = r.filePath;
   }
-  fs.writeFileSync(p, data, 'utf8');
+  try { fs.writeFileSync(p, data, 'utf8'); } catch (err) { return { error: fileErr(err) }; }
   app.addRecentDocument(p);
   addRecent(p);
   return { path: p, name: path.basename(p) };
@@ -274,7 +291,7 @@ ipcMain.handle('lhe:pending', e => {
   const w = winOf(e);
   const p = w && w._pendingFile; if (w) w._pendingFile = null;
   if (!p) return null;
-  return readDoc(p);
+  try { return readDoc(p); } catch (err) { return { error: fileErr(err) }; }
 });
 ipcMain.handle('lhe:prefs-get', () => prefs);
 ipcMain.handle('lhe:prefs-set', (e, patch) => {
@@ -290,8 +307,10 @@ ipcMain.handle('lhe:new-window', () => { if (prefs.multiInstance) newWindow(); r
 ipcMain.handle('lhe:pdf', async (e, { name }) => {
   const r = await dialog.showSaveDialog(winOf(e), { title: 'Exporter en PDF', defaultPath: (name || 'document') + '.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (r.canceled || !r.filePath) return null;
-  const pdf = await e.sender.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { marginType: 'none' } });
-  fs.writeFileSync(r.filePath, pdf);
+  try {
+    const pdf = await e.sender.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { marginType: 'none' } });
+    fs.writeFileSync(r.filePath, pdf);
+  } catch (err) { return { error: fileErr(err) }; }
   shell.openPath(r.filePath);
   return r.filePath;
 });
@@ -301,7 +320,7 @@ ipcMain.handle('lhe:export', async (e, { name, bytes }) => {
   const ext = path.extname(name).slice(1);
   const r = await dialog.showSaveDialog(winOf(e), { title: 'Exporter', defaultPath: name, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
   if (r.canceled || !r.filePath) return null;
-  fs.writeFileSync(r.filePath, Buffer.from(bytes));
+  try { fs.writeFileSync(r.filePath, Buffer.from(bytes)); } catch (err) { return { error: fileErr(err) }; }
   shell.showItemInFolder(r.filePath);
   return r.filePath;
 });
@@ -401,7 +420,7 @@ autoUpdater.on('download-progress', p => send('lhe:update', { state: 'downloadin
 autoUpdater.on('error', err => { if (manualCheck || busy) send('lhe:update', { state: 'error', message: errText(err) }); busy = false; });
 autoUpdater.on('update-downloaded', async info => {
   send('lhe:update', { state: 'installing', version: info.version });
-  for (const w of windows) { try { await w.webContents.executeJavaScript('App.autosaveNow && App.autosaveNow()'); } catch (_) {} }
+  for (const w of windows) { try { await w.webContents.executeJavaScript('App.flushPending ? App.flushPending() : (App.autosaveNow && App.autosaveNow())'); } catch (_) {} }
   setTimeout(() => {
     quitting = true;
     // Installation silencieuse (/S) puis relance automatique de la nouvelle version
@@ -421,7 +440,7 @@ if (!app.requestSingleInstanceLock()) {
     if (!w) { createWindow({ file: f, link: l }); return; }
     if (w.isMinimized()) w.restore();
     w.focus();
-    if (f) sendTo(w, 'lhe:open-file', readDoc(f));
+    if (f) { try { sendTo(w, 'lhe:open-file', readDoc(f)); } catch (err) { sendTo(w, 'lhe:open-file', { error: fileErr(err) }); } }
     if (l) sendTo(w, 'lhe:open-link', l);
   });
   // Liens lhe://… (partage, documents en direct) : l'application s'ouvre dessus
@@ -447,7 +466,7 @@ if (!app.requestSingleInstanceLock()) {
       if (w.isMinimized()) w.restore();
       w.focus();
       sendTo(w, 'lhe:open-file', readDoc(p));
-    } catch (_) { /* ignoré */ }
+    } catch (err) { sendTo(w, 'lhe:open-file', { error: fileErr(err) }); }
   });
   pendingFile = fileFromArgs(process.argv);
   pendingLink = pendingLink || linkFromArgs(process.argv);

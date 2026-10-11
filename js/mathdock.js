@@ -128,7 +128,11 @@ L.MathDock = (function () {
       if (!f) return;
       f.block.numbered = !f.block.numbered;
       L.$('#mdNum').classList.toggle('on', f.block.numbered);
-      App.renumber();
+      // Numéros mis à jour partout (équations suivantes, références), formule en cours gardée
+      App.commit(); App.render();
+      const el = App.blockEl(target.blockId), eq = el && el.querySelector('.eq');
+      if (eq) eq.classList.add('editing');
+      preview(mode === 'chem' ? current() : mf.value);
     };
     L.$$('.md-mode').forEach(b => b.onclick = () => setMode(b.dataset.mode));
     buildCats();

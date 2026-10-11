@@ -2,12 +2,24 @@
 
 L.modal = function ({ title, body, foot, wide, onClose }) {
   const wrap = L.$('#modal'), box = L.$('.modal-box', wrap);
+  // Une fenêtre en remplace une autre (connexion demandée depuis « Mes fichiers »…) :
+  // l'ancienne est d'abord fermée proprement. Sans cela, sa touche Échap restait
+  // active et refermait plus tard une autre fenêtre.
+  if (L._modalCur) L._modalCur.dispose();
   box.className = 'modal-box' + (wide ? ' wide' : '');
   box.innerHTML = '';
-  const close = () => {
-    wrap.hidden = true; box.innerHTML = '';
+  let closed = false;
+  const dispose = () => {
+    if (closed) return false;
+    closed = true;
     document.removeEventListener('keydown', onKey, true);
+    if (L._modalCur && L._modalCur.dispose === dispose) L._modalCur = null;
     if (onClose) onClose();
+    return true;
+  };
+  const close = () => {
+    if (!dispose()) return;
+    wrap.hidden = true; box.innerHTML = '';
   };
   const onKey = e => {
     if (e.key !== 'Escape') return;
@@ -23,6 +35,7 @@ L.modal = function ({ title, body, foot, wide, onClose }) {
     foot.map(b => L.h('button', { class: 'btn ' + (b.cls || ''), text: b.text, onclick: () => b.onClick(close) }))));
   wrap.hidden = false;
   wrap.onmousedown = e => { if (e.target === wrap) close(); };
+  L._modalCur = { dispose };
   const f = box.querySelector('input, textarea, select');
   if (f) setTimeout(() => f.focus(), 30);
   return { close, box };

@@ -109,12 +109,14 @@ L.todayFr = function (lang = 'fr') {
 };
 
 L.roman = function (n) {
-  const m = [[10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
+  if (!(n > 0)) return String(n);   // 0 ou négatif : pas d'écriture romaine
+  // (jusqu'à M : 40 = xl, 90 = xc… comme \roman en LaTeX)
+  const m = [[1000, 'm'], [900, 'cm'], [500, 'd'], [400, 'cd'], [100, 'c'], [90, 'xc'], [50, 'l'], [40, 'xl'], [10, 'x'], [9, 'ix'], [5, 'v'], [4, 'iv'], [1, 'i']];
   let r = '';
   for (const [v, s] of m) while (n >= v) { r += s; n -= v; }
   return r;
 };
-L.alpha = n => String.fromCharCode(96 + ((n - 1) % 26) + 1);
+L.alpha = n => n > 0 ? String.fromCharCode(96 + ((n - 1) % 26) + 1) : String(n);
 
 /* Lecture d'une image locale, redimensionnée pour garder le projet léger */
 L.readImage = function (file, max = 1800) {

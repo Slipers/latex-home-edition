@@ -83,6 +83,7 @@ Object.assign(App, {
     doc.bib = doc.bib || [];
     doc.assets = doc.assets || {};
     if (!doc.blocks || !doc.blocks.length) doc.blocks = [L.newBlock('paragraph')];
+    L.adoptImages(doc);
     this.doc = doc;
     this.sel = null;
     this.history = []; this.future = [];
@@ -145,20 +146,35 @@ Object.assign(App, {
     const live = L.Collab && L.Collab.active();
     this.dirty = live ? L.Collab.hasPending() : v;
     L.$('#docName').classList.toggle('dirty', this.dirty);
+    this.saveInfo();
     if (v && L.Live) L.Live.changed();
     if (v && L.Drive) L.Drive.changed();   // fichier en ligne : enregistrement automatique
+  },
+  /* Fichier d'où vient le document et modifications non enregistrées : relus au démarrage
+     avec la sauvegarde automatique */
+  saveInfo() {
+    L.store.set('lhe-autosave-info', JSON.stringify({ fileName: this.fileName || null, filePath: this.filePath || null, dirty: !!this.dirty }));
   },
   updateName() {
     const t = L.plain(this.doc.meta.title);
     L.$('#docName').textContent = this.fileName || (t ? t : 'Sans titre');
     document.title = (t || 'Sans titre') + ' — LaTeX Home Edition';
     if (L.updateCorrGroup) L.updateCorrGroup();
+    this.saveInfo();   // nom ou fichier changé (renommage, Enregistrer sous…)
   },
-  autosave: L.debounce(() => {
+  autosave: L.debounce(() => App.autosaveNow(), 800),
+  /* Sauvegarde automatique immédiate. Seules les images encore utilisées sont gardées :
+     une image remplacée restait sinon dans le document et finissait par remplir le
+     stockage du navigateur (sauvegarde automatique impossible). */
+  autosaveNow() {
     if (!App.doc) return;
-    const ok = L.store.set('lhe-autosave', JSON.stringify(App.doc));
+    const d = App.doc, used = {}, json = JSON.stringify(d.blocks);
+    Object.keys(d.assets || {}).forEach(k => { if (json.includes(k)) used[k] = d.assets[k]; });
+    const ok = L.store.set('lhe-autosave', JSON.stringify({ meta: d.meta, blocks: d.blocks, bib: d.bib, assets: used }));
+    App.saveInfo();
     if (!ok && !App._warnedQuota) { App._warnedQuota = true; L.toast('Sauvegarde automatique impossible (images trop lourdes) : pensez à « Enregistrer ».', 'err'); }
-  }, 800),
+    return ok;
+  },
 
   /* ================= Rendu ================= */
   render() {
@@ -490,7 +506,7 @@ Object.assign(App, {
      tableau, titre…), ou au début de la ligne qui dépasse. `topS` : haut de la zone de
      texte de la page (on ne coupe jamais avant ce qui est déjà en haut de page). */
   overflowPoint(flow, limitS, topS) {
-    const NOSPLIT = '.eq, .tvwrap, .tbl, .fig, .code, .tikz, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk, .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="code"], .blk[data-type="vspace"], .blk[data-type="rule"]';
+    const NOSPLIT = '.env.cours:not(.cg-exo), .env.st-cadre, .eq, .tvwrap, .tbl, .fig, .code, .tikz, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk, .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="code"], .blk[data-type="vspace"], .blk[data-type="rule"]';
     const SKIP = '.gutter, .pg-sp, .pg-float, .num, .li-mark, .env-head-inline, .collab-layer, .cmt-layer, .vspace-lab, .tv-hint';
     const BLOCKLIKE = '.blk, .li, [data-f], ' + NOSPLIT;
     const above = r => r.bottom <= limitS + 0.5;
@@ -639,7 +655,13 @@ Object.assign(App, {
     if (!found) { r.selectNodeContents(field); r.collapse(where !== 'end'); }
     else r.collapse(true);
     sel.removeAllRanges(); sel.addRange(r);
-    if (found) this.syncField(field);
+    if (found) {
+      this.syncField(field);
+      // Le marqueur venait d'être enregistré dans l'historique avec l'opération (fusion,
+      // décalage…) : on le retire aussi de l'état mémorisé, sinon la prochaine
+      // modification créait une étape d'annulation invisible (Ctrl+Z à faire deux fois)
+      if (this.last && this.last.includes(PUA)) this.last = this.snapshot();
+    }
     this.ensureCaretVisible();
   },
   placeCaretAfter(node) {
@@ -719,6 +741,13 @@ Object.assign(App, {
     let ref = refId && refId !== '__title' && refId !== '__toc' ? L.find(doc, refId) : null;
     // pas d'encadré dans un encadré, pas de colonnes dans des colonnes
     if (ref && (block.type === 'box' || block.type === 'cols')) while (ref.parent) ref = L.find(doc, ref.parent.type === 'col' ? L.find(doc, ref.parent.id).parent.id : ref.parent.id);
+    // Colonnes dans une colonne, encadré dans un encadré (menu « + Ajouter dans cette
+    // colonne ») : l'élément est placé après le conteneur, au premier niveau
+    if (opts.into && (block.type === 'box' || block.type === 'cols')) {
+      let c = L.find(doc, opts.into);
+      const nested = c && (block.type === 'cols' ? true : c.block.type === 'box');
+      if (nested) { while (c && c.parent) c = L.find(doc, c.parent.id); if (c) { opts = Object.assign({}, opts, { into: null }); ref = c; } }
+    }
     if (opts.into) { const bx = L.find(doc, opts.into); list = bx.block.children; index = list.length; }
     else if (ref) {
       list = ref.list; index = ref.index + 1;
@@ -949,6 +978,13 @@ Object.assign(App, {
       ],
     });
   },
+  /* Une sélection qui déborde sur un autre paragraphe est ramenée au champ du curseur :
+     sinon la mise en forme déplaçait le texte de l'autre paragraphe dans celui-ci (doublons) */
+  clampRange(r, field) {
+    if (!field.contains(r.startContainer)) r.setStart(field, 0);
+    if (!field.contains(r.endContainer)) r.setEnd(field, field.childNodes.length);
+    return r;
+  },
   /* Couleur du texte sélectionné */
   /* Encadre le texte sélectionné (\fbox), ou retire le cadre s'il y en a déjà un */
   toggleFbox() {
@@ -956,7 +992,7 @@ Object.assign(App, {
     if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
     const s = window.getSelection();
     if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
-    const r = s.getRangeAt(0);
+    const r = App.clampRange(s.getRangeAt(0), cr.field);
     const a = r.startContainer, el = a.nodeType === 1 ? a : a.parentElement;
     const box = el && el.closest('.fbox');
     if (box && cr.field.contains(box)) { box.replaceWith(...box.childNodes); }
@@ -975,7 +1011,7 @@ Object.assign(App, {
     if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
     const s = window.getSelection();
     if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
-    const r = s.getRangeAt(0);
+    const r = App.clampRange(s.getRangeAt(0), cr.field);
     if (r.collapsed) return L.toast('Sélectionnez d\'abord du texte.');
     const frag = r.extractContents();
     frag.querySelectorAll('span[class^="c-"]').forEach(x => x.replaceWith(...x.childNodes));
@@ -990,6 +1026,7 @@ Object.assign(App, {
   insertBlocks(blocks, opts = {}) {
     if (!blocks || !blocks.length) return 0;
     const doc = this.doc;
+    L.adoptImages(doc, blocks);
     const ref = opts.replace ? L.find(doc, opts.replace) : (opts.after || this.sel) && !String(opts.after || this.sel).startsWith('__') ? L.find(doc, opts.after || this.sel) : null;
     if (ref && (opts.replace || (ref.block.type === 'paragraph' && L.isEmptyHtml(ref.block.html)))) ref.list.splice(ref.index, 1, ...blocks);
     else if (ref) ref.list.splice(ref.index + 1, 0, ...blocks);
@@ -1023,8 +1060,9 @@ Object.assign(App, {
     if (!cr) return L.toast('Sélectionnez d\'abord du texte.');
     const s = window.getSelection();
     if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
+    this.clampRange(s.getRangeAt(0), cr.field);
     if (cmd === 'code') {
-      const r = s.getRangeAt(0);
+      const r = App.clampRange(s.getRangeAt(0), cr.field);
       if (r.collapsed) return;
       const c = document.createElement('code');
       c.appendChild(r.extractContents());
@@ -1213,9 +1251,10 @@ Object.assign(App, {
           btn('Séparer', () => { if (b.spans && b.spans[cell.r + ':' + cell.c]) upd(() => { delete b.spans[cell.r + ':' + cell.c]; }); }))),
         row('Lignes et colonnes', L.h('div', { class: 'btn-row' },
           btn('+ Ligne', () => upd(() => { b.rows.splice(cell.r + 1, 0, Array(cols).fill('')); L.shiftSpans(b, cell.r + 1, 1); })),
-          btn('+ Colonne', () => upd(() => { b.rows.forEach(r => r.splice(cell.c + 1, 0, '')); b.align.splice(cell.c + 1, 0, 'c'); b.spans = {}; })),
+          // Les largeurs (ajustée / large) et les cases fusionnées suivent les colonnes
+          btn('+ Colonne', () => upd(() => { b.rows.forEach(r => r.splice(cell.c + 1, 0, '')); b.align.splice(cell.c + 1, 0, 'c'); if (b.colw) b.colw.splice(cell.c + 1, 0, 'auto'); L.shiftColSpans(b, cell.c + 1, 1); })),
           btn('− Ligne', () => { if (b.rows.length > 1) upd(() => { b.rows.splice(cell.r, 1); L.shiftSpans(b, cell.r, -1); this.lastCell = null; }); }, 'danger'),
-          btn('− Colonne', () => { if (cols > 1) upd(() => { b.rows.forEach(r => r.splice(cell.c, 1)); b.align.splice(cell.c, 1); b.spans = {}; this.lastCell = null; }); }, 'danger'))),
+          btn('− Colonne', () => { if (cols > 1) upd(() => { b.rows.forEach(r => r.splice(cell.c, 1)); b.align.splice(cell.c, 1); if (b.colw) b.colw.splice(cell.c, 1); L.shiftColSpans(b, cell.c, -1); this.lastCell = null; }); }, 'danger'))),
         L.h('div', { class: 'pp-help', html: '<p>Les ajouts et suppressions se font à côté de la case où se trouve le curseur (ligne ' + (cell.r + 1) + ', colonne ' + (cell.c + 1) + ').</p>' }),
         row('Alignement des colonnes', alignRow));
     } else if (b.type === 'figure') {
@@ -1438,7 +1477,7 @@ App.bindEditor = function () {
         return;
       }
       if (b.type === 'paragraph') {
-        this.syncField(field);
+        this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
         if (L.isEmptyHtml(b.html) && f.parent && f.parent.type !== 'col' && f.index === f.list.length - 1 && f.list.length > 1) {
           // Sortir de l'encadré
           f.list.splice(f.index, 1);
@@ -1454,6 +1493,7 @@ App.bindEditor = function () {
         this.sel = nb.id; this.focusAfter = { id: nb.id, where: 'start' };
         this.commit(); this.render();
       } else if (b.type === 'heading') {
+        this.syncField(field); this.commit();
         const atStart = this.caretAt(field, 'start') && !L.isEmptyHtml(b.html);
         const nb = L.newBlock('paragraph');
         if (atStart) { f.list.splice(f.index, 0, nb); this.focusAfter = { id: b.id, where: 'start' }; }
@@ -1462,7 +1502,7 @@ App.bindEditor = function () {
       } else if (b.type === 'list') {
         const i = +fd.split('.')[1];
         const it = b.items[i];
-        this.syncField(field);
+        this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
         if (L.isEmptyHtml(it.html)) {
           if (it.level > 0) { it.level--; this.focusAfter = { id: b.id, f: fd }; }
           else {
@@ -1495,7 +1535,7 @@ App.bindEditor = function () {
       const i = +fd.split('.')[1];
       if (i < b.items.length - 1) {
         e.preventDefault();
-        this.syncField(field);
+        this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
         b.items[i].html = (b.items[i].html || '') + PUA + (b.items[i + 1].html || '');
         b.items.splice(i + 1, 1);
         this.focusAfter = { id: b.id, f: 'items.' + i + '.html' };
@@ -1506,7 +1546,7 @@ App.bindEditor = function () {
     if (e.key === 'Backspace' && b && this.caretAt(field, 'start')) {
       if (b.type === 'paragraph') {
         e.preventDefault();
-        this.syncField(field);
+        this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
         const prev = f.index > 0 ? f.list[f.index - 1] : null;
         if (L.isEmptyHtml(b.html)) {
           if (f.parent && f.list.length === 1) { if (f.parent.type !== 'col') this.removeBlock(f.parent.id); return; }
@@ -1526,11 +1566,11 @@ App.bindEditor = function () {
         } else if (prev) { this.select(prev.id); }
       } else if (b.type === 'heading') {
         e.preventDefault();
-        this.syncField(field);
+        this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
         this.replaceBlock(b.id, L.newBlock('paragraph', { html: PUA + b.html }));
       } else if (b.type === 'list') {
         e.preventDefault();
-        this.syncField(field);
+        this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
         const i = +fd.split('.')[1];
         const it = b.items[i];
         if (it.level > 0) { it.level--; this.focusAfter = { id: b.id, f: fd, where: 'start' }; }
@@ -1559,7 +1599,7 @@ App.bindEditor = function () {
     }
     if (e.key === 'Tab' && b && b.type === 'list') {
       e.preventDefault();
-      this.syncField(field);
+      this.syncField(field); this.commit();   // la frappe en cours : étape d'annulation à part
       const i = +fd.split('.')[1];
       const it = b.items[i];
       const max = i > 0 ? Math.min(2, (b.items[i - 1].level || 0) + 1) : 0;
@@ -1720,6 +1760,14 @@ App.bindEditor = function () {
     if (file && !dragId) {
       e.preventDefault();
       if (/\.(pdf|tex)$/i.test(file.name)) { L.dlgImportPdf(file); return; }
+      // Document LaTeX Home Edition déposé : on l'ouvre
+      if (/\.(lhe|json)$/i.test(file.name)) {
+        if (this.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir « ' + file.name + ' » quand même ?')) return;
+        file.text().then(t => this.openText(t, file.name, null));
+        return;
+      }
+      // Autre fichier : rien n'est inséré (avant, un cadre d'image vide restait sur la feuille)
+      if (!/^image\//.test(file.type)) { L.toast('Ce fichier n\'est pas une image : déposez une image, un PDF ou un document .lhe.', 'err'); return; }
       const fd = e.target.closest('.fig-drop');
       if (fd) { this.setImage(fd.closest('.blk').dataset.id, file); return; }
       const fig = this.insertBlock(L.newBlock('figure'), { after: t ? t.blk.dataset.id : null, noPick: true });
@@ -1816,7 +1864,7 @@ Object.assign(App, {
     if (!cr) return L.toast('Sélectionnez du texte, ou cliquez sur une équation pour changer sa taille.');
     const s = window.getSelection();
     if (!s.rangeCount || !cr.field.contains(s.anchorNode)) { s.removeAllRanges(); s.addRange(cr.r); }
-    const r = s.getRangeAt(0);
+    const r = App.clampRange(s.getRangeAt(0), cr.field);
     if (r.collapsed) {
       const f = this.caretBlock();
       if (f && f.block.type === 'equation') return this.setBlockSize(f.block, cls);

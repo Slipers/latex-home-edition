@@ -171,6 +171,20 @@ L.find = function (doc, id) {
   return res;
 };
 
+/* Image donnée directement dans le bloc (import de PDF…) : rangée dans doc.assets, où
+   l'éditeur, l'aperçu et l'export LaTeX vont la chercher (sinon elle ne s'affichait pas) */
+L.adoptImages = function (doc, blocks) {
+  doc.assets = doc.assets || {};
+  L.walk(blocks || doc.blocks || [], b => {
+    if (b.type === 'figure' && typeof b.src === 'string' && /^data:image\//.test(b.src)) {
+      const aid = 'img' + L.uid('');
+      doc.assets[aid] = b.src;
+      b.src = aid;
+    }
+  });
+  return doc;
+};
+
 L.cloneBlock = function (b) {
   const c = JSON.parse(JSON.stringify(b));
   L.walk([c], x => { x.id = L.uid(); });
@@ -316,6 +330,22 @@ L.shiftSpans = function (b, from, delta) {
     const [r, c] = k.split(':').map(Number);
     if (delta < 0 && r === from) continue;
     out[(r >= from ? r + delta : r) + ':' + c] = v;
+  }
+  b.spans = out;
+};
+
+/* Même chose pour une colonne insérée (+1) ou supprimée (-1) à l'indice « at » :
+   une fusion qui chevauche l'endroit s'élargit ou se rétrécit d'une case */
+L.shiftColSpans = function (b, at, delta) {
+  if (!b.spans) return;
+  const out = {};
+  for (const [k, v] of Object.entries(b.spans)) {
+    const [r, c] = k.split(':').map(Number);
+    let nc = c, sp = v;
+    if (delta > 0) { if (c >= at) nc = c + 1; else if (c + v > at) sp = v + 1; }
+    else if (c > at) nc = c - 1;
+    else if (c + v > at) sp = v - 1;   // la colonne supprimée faisait partie de la fusion
+    if (sp > 1) out[r + ':' + nc] = sp;
   }
   b.spans = out;
 };

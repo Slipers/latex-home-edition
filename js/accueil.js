@@ -431,7 +431,7 @@
         L.h('section', { class: 'home-create' }, L.h('div', { class: 'home-wrap' },
           L.h('div', { class: 'home-h' }, L.h('h2', { text: 'Créer un document' }),
             L.h('div', { class: 'home-chips' },
-              chip('folder', 'Ouvrir du PC', async () => { if (await canLeave()) App.open(); }, 'Ouvrir un fichier .lhe de l\'ordinateur (Ctrl+O)'),
+              chip('folder', 'Ouvrir du PC', async () => { if (await canLeave()) App.open(true); }, 'Ouvrir un fichier .lhe de l\'ordinateur (Ctrl+O)'),
               chip('link', 'Lien reçu', () => L.dlgOpenShare(), 'Ouvrir un lien de partage qu\'on vous a envoyé'),
               chip('cloud', 'Mes fichiers', () => D().dialog(), 'Tous vos fichiers en ligne, corbeille comprise (Ctrl+Maj+O)'))),
           tplRow())),

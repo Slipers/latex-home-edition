@@ -421,9 +421,9 @@ L.boxCours = function (b, ctx, k, g) {
   const fn0 = ctx.fn || 0;
   b.children.forEach(c => body.appendChild(L.renderBlock(c, ctx)));
   el.appendChild(body);
-  // Notes d'un encadré (sauf exercice) : en bas de l'encadré, repérées par a, b, c… (comme
-  // les notes d'une minipage / tcolorbox en LaTeX) ; elles ne comptent pas dans les notes de la page
-  if (g !== 'exo') {
+  // Notes d'un encadré : en bas de l'encadré, repérées par a, b, c… (comme les notes d'une
+  // minipage / tcolorbox en LaTeX) ; elles ne comptent pas dans les notes de la page
+  {
     const fns = Array.from(body.querySelectorAll('.fn'));
     if (fns.length) {
       ctx.fn = fn0;
@@ -432,6 +432,7 @@ L.boxCours = function (b, ctx, k, g) {
         const mark = L.alpha(i + 1);
         f.classList.add('fn-box');
         f.dataset.mark = mark;
+        f.dataset.n = b.id + '-' + mark;   // identifiant propre : les notes de page gardent leurs numéros 1, 2…
         const fm = f.querySelector('.fn-mark');
         if (fm) { fm.className = 'fn-mark fs-sup'; fm.textContent = mark; }
         const t = L.h('span', { html: L.noteHtml(f) });

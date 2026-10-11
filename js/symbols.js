@@ -279,7 +279,9 @@ L.SymbolPicker = (function () {
     x = Math.max(10, Math.min(x, window.innerWidth - w - 10));
     if (y + h > window.innerHeight - 10) y = Math.max(10, (opts.above ?? y) - h - 8);
     box.style.left = x + 'px'; box.style.top = y + 'px';
-    setTimeout(() => input.focus(), 0);
+    // Focus tout de suite : une frappe rapide après Tab n'atterrit plus dans le paragraphe
+    input.focus({ preventScroll: true });
+    setTimeout(() => { if (!box.hidden && document.activeElement !== input) input.focus(); }, 0);
   }
 
   function close(picked) {

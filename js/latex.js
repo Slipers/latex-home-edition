@@ -265,11 +265,11 @@ L.blockToLatexRaw = function (b, X, indent = '') {
     case 'cols': {
       const r = (b.ratio || 50) / 100;
       const ws = [r - 0.02, 1 - r - 0.02];
-      X.inCols = true;
+      X.inCols = (X.inCols || 0) + 1;   // compteur : colonnes éventuellement imbriquées
       // \linewidth : juste aussi dans un encadré ; \vspace{0pt} : colonnes alignées par le haut (comme l'éditeur)
       const parts = b.children.map((col, i) => '\\begin{minipage}[t]{' + ws[i].toFixed(2) + '\\linewidth}\\vspace{0pt}\n' +
         col.children.map(c => L.blockToLatex(c, X)).filter(Boolean).join('\n\n') + '\n\\end{minipage}');
-      X.inCols = false;
+      X.inCols--;
       return '\\par\\medskip\\noindent\n' + parts.join('\\hfill\n') + '\\par\\medskip';
     }
     case 'pagebreak': return '\\newpage';
@@ -396,10 +396,13 @@ L.titleToLatex = function (m, X) {
   const has = k => !L.isEmptyHtml(m[k]);
   if (m.titleStyle === 'aucun') return '';
   if (m.titleStyle === 'cadre') {
-    X.pk.add('petitescaps');
+    // Petites capitales pour un titre en texte simple ; un titre avec formules ou mise en
+    // forme est repris tel quel (les petites capitales ne s'appliquent qu'au texte)
+    const simple = !/<span|<b>|<i>|<u>|<sub|<sup|<code/.test(m.title || '');
+    if (simple) X.pk.add('petitescaps');
     return '\\begin{center}\n' + (has('subtitle') ? '  {\\sffamily\\bfseries\\Large ' + R(m.subtitle) + '\\par}\\vspace{14pt}\n' : '') +
-      '  {\\setlength{\\fboxrule}{1.4pt}\\setlength{\\fboxsep}{0pt}\\fbox{\\parbox[c][37.5pt][c]{0.93\\linewidth}{\\centering\\sffamily\\fontsize{28.4}{34}\\selectfont\\lhepetitescaps{' +
-      L.texEsc(L.plain(m.title)) + '}}}\\par}\n\\end{center}\n\\vspace{10pt}';
+      '  {\\setlength{\\fboxrule}{1.4pt}\\setlength{\\fboxsep}{0pt}\\fbox{\\parbox[c][37.5pt][c]{0.93\\linewidth}{\\centering\\sffamily\\fontsize{28.4}{34}\\selectfont ' +
+      (simple ? '\\lhepetitescaps{' + L.texEsc(L.plain(m.title)) + '}' : R(m.title)) + '}}\\par}\n\\end{center}\n\\vspace{10pt}';
   }
   if (m.titleStyle === 'fiche') {
     return '\\noindent ' + (has('institution') ? R(m.institution) : '') + '\\hfill ' + (has('date') ? R(m.date) : '') + '\\\\[-0.6em]\n' +

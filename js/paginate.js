@@ -125,7 +125,7 @@ L.paginate = async function (doc, host) {
   };
 
   /* --- Découpe d'un conteneur (liste, encadré, sommaire…) entre ses enfants --- */
-  const splitKids = (el, hostSel, test, dropInB) => {
+  const splitKids = (el, hostSel, test, dropInB, dropInA) => {
     const hostOf = root => hostSel ? root.querySelector(hostSel) : root;
     const kids = Array.from(hostOf(el).children);
     if (kids.length < 1) return null;
@@ -143,6 +143,7 @@ L.paginate = async function (doc, host) {
     if (sub) { [partA, partB] = sub; }
     if (n === 0 && !partA) return null;
     const a = build(n, partA);
+    if (dropInA) a.querySelectorAll(dropInA).forEach(x => x.remove());
     const b = el.cloneNode(true), hb = hostOf(b);
     Array.from(hb.children).slice(0, n + 1).forEach(k => k.remove());
     if (partB) hb.insertBefore(partB, hb.firstChild);
@@ -168,7 +169,7 @@ L.paginate = async function (doc, host) {
     if (el.matches('p.para')) return splitPara(el, test);
     if (el.matches('.lst')) return splitKids(el, null, test);
     if (el.matches('.env.cours:not(.cg-exo), .env.st-cadre')) return null;   // encadrés « cours » : jamais coupés (comme tcolorbox)
-    if (el.matches('.env')) return splitKids(el, '.env-body', test, '.abs-head');
+    if (el.matches('.env')) return splitKids(el, '.env-body', test, '.abs-head, .exo-head', ':scope > .box-notes');
     if (el.matches('.doc-toc, .biblio')) return splitKids(el, null, test);
     if (el.matches('.code')) return splitCode(el, test);
     return null;

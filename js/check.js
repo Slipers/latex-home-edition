@@ -9,7 +9,7 @@
     box: b => [b.title],
     table: b => [].concat(...(b.rows || []), [b.caption]),
     figure: b => [b.caption],
-    pnote: b => [b.text],
+    pnote: b => [L.pnoteHtml(b)],   // texte en bas de page (HTML ; ancien format : texte simple)
   };
 
   const richOf = b => (RICH[b.type] ? RICH[b.type](b) : []).filter(x => typeof x === 'string');
@@ -72,6 +72,11 @@
         });
       }
       if (b.type === 'code' && !String(b.code || '').trim()) pbs.push({ id: b.id, quoi: 'Bloc de code vide', detail: '' });
+      if (b.type === 'tikz' && L.TikZ) {
+        let r = null;
+        try { r = L.TikZ.render(b.code || '', {}); } catch (e) { r = { error: e.message }; }
+        if (r && r.error) pbs.push({ id: b.id, grave: true, quoi: 'Dessin TikZ incorrect', detail: String(r.error).slice(0, 90) });
+      }
     });
 
     stats.formules += stats.equations;

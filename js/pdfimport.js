@@ -1012,11 +1012,11 @@
         }
         if (!blocks.length) throw new Error('aucun contenu n\'a pu être extrait de ce fichier.');
         if (dest.v === 'new') {
-          App.load({ meta: Object.assign(L.defaultMeta(), meta), blocks, bib: [], assets: {} }, null);
+          App.load({ meta: Object.assign(L.defaultMeta(), meta), blocks: JSON.parse(JSON.stringify(blocks)), bib: [], assets: {} }, null);
           App.fileName = null; App.filePath = null; App.fileHandle = null;
           App.updateName();
         } else {
-          App.insertBlocks(blocks);
+          App.insertBlocks(JSON.parse(JSON.stringify(blocks)));
         }
         close();
         L.dlgImportDone(name, stats, warnings);
@@ -1109,7 +1109,7 @@
         gauche.replaceChildren(L.h('div', { class: 'rg-charge', text: 'Aperçu du PDF indisponible.' }));
       }
       // résultat reconstruit
-      const doc = { meta: Object.assign(L.defaultMeta(), res.meta, { titleStyle: 'aucun' }), blocks: cur.blocks.length ? cur.blocks : [L.newBlock('paragraph', { html: '<i>(page vide)</i>' })], bib: [], assets: {} };
+      const doc = L.adoptImages({ meta: Object.assign(L.defaultMeta(), res.meta, { titleStyle: 'aucun' }), blocks: JSON.parse(JSON.stringify(cur.blocks.length ? cur.blocks : [L.newBlock('paragraph', { html: '<i>(page vide)</i>' })])), bib: [], assets: {} });
       const feuille = L.h('div', { class: 'paper rg-paper ' + L.pageClasses(doc.meta) }, L.renderDoc(doc, 'view'));
       droite.replaceChildren(feuille);
     }
@@ -1158,7 +1158,7 @@
         { text: 'Fermer', onClick: c => c() },
         { text: 'Appliquer au document', cls: 'primary', onClick: c => {
           if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Le remplacer par le résultat ?')) return;
-          App.load({ meta: Object.assign(L.defaultMeta(), res.meta), blocks: res.blocks, bib: [], assets: {} }, null);
+          App.load({ meta: Object.assign(L.defaultMeta(), res.meta), blocks: JSON.parse(JSON.stringify(res.blocks)), bib: [], assets: {} }, null);
           App.fileName = null; App.filePath = null; App.fileHandle = null;
           App.updateName();
           c();
