@@ -1,5 +1,12 @@
 /* Pont sécurisé entre la page et le système (fichiers, PDF, mises à jour) */
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
+
+/* Dictionnaires du correcteur intégré (français + anglais, voir main.js) : la page
+   souligne elle-même les fautes et propose les corrections (clic droit / survol) */
+contextBridge.exposeInMainWorld('lheSpell', {
+  misspelled: words => (Array.isArray(words) ? words : []).map(w => { try { return webFrame.isWordMisspelled(String(w)); } catch (e) { return false; } }),
+  suggest: word => { try { return webFrame.getWordSuggestions(String(word)).slice(0, 8); } catch (e) { return []; } },
+});
 
 contextBridge.exposeInMainWorld('lheDesktop', {
   open: () => ipcRenderer.invoke('lhe:open'),
@@ -21,4 +28,7 @@ contextBridge.exposeInMainWorld('lheDesktop', {
   onUpdate: cb => ipcRenderer.on('lhe:update', (e, info) => cb(info)),
   onOpenFile: cb => ipcRenderer.on('lhe:open-file', (e, f) => cb(f)),
   onOpenLink: cb => ipcRenderer.on('lhe:open-link', (e, url) => cb(url)),
+  onSpellMenu: cb => ipcRenderer.on('lhe:spell-menu', (e, m) => cb(m)),
+  spellReplace: text => ipcRenderer.invoke('lhe:spell-replace', text),
+  spellAdd: word => ipcRenderer.invoke('lhe:spell-add', word),
 });

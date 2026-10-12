@@ -163,6 +163,20 @@ function createWindow(opts = {}) {
   });
   // Un processus de rendu qui plante : on le recharge au lieu de laisser une fenêtre vide
   w.webContents.on('render-process-gone', (e, d) => { if (d.reason !== 'clean-exit' && !w.isDestroyed()) setTimeout(() => w.reload(), 500); });
+  // Clic droit dans un texte : sur un mot souligné par le correcteur, la page affiche sa bulle
+  // de corrections ; ailleurs, un menu Couper / Copier / Coller
+  w.webContents.on('context-menu', (e, p) => {
+    if (!p.isEditable && !p.selectionText) return;
+    if (p.misspelledWord) {
+      w.webContents.send('lhe:spell-menu', { x: p.x, y: p.y, word: p.misspelledWord, suggestions: (p.dictionarySuggestions || []).slice(0, 6) });
+      return;
+    }
+    const items = p.isEditable
+      ? [{ label: 'Couper', role: 'cut', enabled: p.editFlags.canCut }, { label: 'Copier', role: 'copy', enabled: p.editFlags.canCopy },
+        { label: 'Coller', role: 'paste', enabled: p.editFlags.canPaste }, { type: 'separator' }, { label: 'Tout sélectionner', role: 'selectAll' }]
+      : [{ label: 'Copier', role: 'copy', enabled: p.editFlags.canCopy }];
+    Menu.buildFromTemplate(items).popup({ window: w });
+  });
 
   // Liens externes : navigateur par défaut ; Overleaf : fenêtre dédiée (formulaire POST)
   w.webContents.setWindowOpenHandler(({ url }) => {
@@ -326,6 +340,9 @@ ipcMain.handle('lhe:export', async (e, { name, bytes }) => {
 });
 
 ipcMain.handle('lhe:version', () => app.getVersion());
+// Correcteur : remplacer le mot souligné sous le clic droit, ou l'ajouter au dictionnaire
+ipcMain.handle('lhe:spell-replace', (e, text) => { e.sender.replaceMisspelling(String(text || '')); });
+ipcMain.handle('lhe:spell-add', (e, word) => e.sender.session.addWordToSpellCheckerDictionary(String(word || '')));
 ipcMain.handle('lhe:check-updates', () => checkUpdates(true));
 
 /* ---------- Mises à jour automatiques (GitHub Releases) ----------

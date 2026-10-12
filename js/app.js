@@ -297,30 +297,100 @@ App.showVersion = async function () {
   L.store.set('lhe-version', v);
 };
 
+/* ---------- Colonne « Insérer » ----------
+   Une ligne par élément (icône teintée selon la famille + nom), groupés par famille ;
+   chaque groupe se replie (mémorisé). La recherche filtre sur le nom et les mots-clés,
+   Entrée insère le premier résultat. */
+App.buildInsertPanel = function () {
+  const list = L.$('#insList'), search = L.$('#insSearch'), clear = L.$('#insSearchX');
+  if (!list) return;
+  let folded = {};
+  try { folded = JSON.parse(L.store.get('lhe-ins-folded') || '{}') || {}; } catch (e) { folded = {}; }
+  const nrm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  list.replaceChildren();
+  const rows = [];
+  let sec = null, body = null, g = null;
+  L.ITEMS.forEach(it => {
+    if (it.g !== g) {
+      g = it.g;
+      const name = g;
+      body = L.h('div', { class: 'ins-rows' });
+      const head = L.h('button', { class: 'ins-h', 'aria-expanded': String(!folded[name]) },
+        L.h('span', { class: 'ins-h-t', text: name }), L.h('span', { class: 'ins-h-chev', text: '›' }));
+      sec = L.h('section', { class: 'ins-sec' + (folded[name] ? ' folded' : ''), 'data-g': name }, head, body);
+      head.onclick = () => {
+        const on = !sec.classList.contains('folded');
+        sec.classList.toggle('folded', on);
+        head.setAttribute('aria-expanded', String(!on));
+        if (on) folded[name] = 1; else delete folded[name];
+        L.store.set('lhe-ins-folded', JSON.stringify(folded));
+      };
+      list.appendChild(sec);
+    }
+    const b = L.h('button', { class: 'ins-item', title: it.label },
+      L.h('span', { class: L.icClass(it.icon, it.fam), text: it.icon }), L.h('span', { class: 'lab', text: it.label }));
+    b.onmousedown = e => e.preventDefault();   // garde le curseur dans le texte
+    b.onclick = () => App.runItem(it);
+    body.appendChild(b);
+    rows.push({ it, b, sec, words: (nrm(it.label) + ' ' + it.kw + ' ' + nrm(it.g)).split(/[\s/()'’.-]+/).filter(Boolean) });
+  });
+  const empty = L.h('div', { class: 'ins-none', text: 'Aucun élément ne correspond.', hidden: true });
+  list.appendChild(empty);
+  const filter = () => {
+    const q = nrm(search.value.trim());
+    clear.hidden = !q;
+    list.classList.toggle('searching', !!q);
+    let n = 0;
+    rows.forEach(r => {
+      const ok = !q || nrm(r.it.label).includes(q) || r.words.some(w => w.startsWith(q));
+      r.b.hidden = !ok;
+      if (ok) n++;
+    });
+    L.$$('.ins-sec', list).forEach(s => { s.hidden = !!q && !L.$$('.ins-item:not([hidden])', s).length; });
+    empty.hidden = n > 0;
+  };
+  search.oninput = filter;
+  search.onkeydown = e => {
+    if (e.key === 'Escape') { search.value = ''; filter(); search.blur(); }
+    else if (e.key === 'Enter') { const r = rows.find(x => !x.b.hidden); if (r) { e.preventDefault(); App.runItem(r.it); search.value = ''; filter(); } }
+  };
+  clear.onclick = () => { search.value = ''; filter(); search.focus(); };
+};
+
+/* Barre d'état : nombre de mots du document */
+App.updateWordCount = L.debounce(() => {
+  const el = L.$('#wordCount');
+  if (!el || !App.doc) return;
+  let words = 0;
+  L.walk(App.doc.blocks, b => {
+    const t = b.html ? L.plain(b.html) : b.items ? b.items.map(i => L.plain(i.html)).join(' ') : b.type === 'table' && Array.isArray(b.rows) ? b.rows.map(r => (Array.isArray(r) ? r : []).map(c => typeof c === 'string' ? L.plain(c) : '').join(' ')).join(' ') : '';
+    words += t ? t.split(/\s+/).filter(w => /[\p{L}\p{N}]/u.test(w)).length : 0;
+  });
+  el.textContent = words.toLocaleString('fr-FR') + (words > 1 ? ' mots' : ' mot');
+}, 400);
+
 /* ---------- Démarrage ---------- */
 window.addEventListener('DOMContentLoaded', () => {
   L.MathDock.init();
 
-  // Colonne « Insérer »
-  const pane = L.$('#pane-insert');
-  let g = null, grid = null;
-  L.ITEMS.forEach(it => {
-    if (it.g !== g) {
-      g = it.g;
-      grid = L.h('div', { class: 'ins-grid' });
-      pane.appendChild(L.h('div', { class: 'ins-sec' }, L.h('h4', { text: g }), grid));
-    }
-    const b = L.h('button', { class: 'ins-btn', title: it.label }, L.h('span', { class: 'ic', text: it.icon }), it.label);
-    b.onmousedown = e => e.preventDefault();
-    b.onclick = () => App.runItem(it);
-    grid.appendChild(b);
-  });
+  // Icônes vectorielles de l'interface
+  L.$$('[data-ico]').forEach(el => el.replaceChildren(L.svg(el.dataset.ico, +el.dataset.size || 16)));
+  // Colonne « Insérer » : liste par familles (repliables) et recherche
+  App.buildInsertPanel();
 
-  // Onglets
-  L.$$('.tab').forEach(t => t.onclick = () => {
-    L.$$('.tab').forEach(x => x.classList.toggle('active', x === t));
-    L.$$('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + t.dataset.tab));
-  });
+  // Onglets Insérer / Plan
+  App.showTab = tab => {
+    L.$$('#left .tab').forEach(x => x.classList.toggle('active', x.dataset.tab === tab));
+    L.$$('#left .tab-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + tab));
+  };
+  L.$$('#left .tab').forEach(t => t.onclick = () => App.showTab(t.dataset.tab));
+  // Panneaux latéraux repliables (mémorisé)
+  App.foldPanel = (side, on) => {
+    document.body.classList.toggle('fold-' + side, on);
+    L.store.set('lhe-fold-' + side, on ? '1' : '');
+    requestAnimationFrame(() => { App.layoutSheets && App.doc && App.layoutSheets(); App.fitToolbar && App.fitToolbar(); });
+  };
+  ['left', 'right'].forEach(side => { if (L.store.get('lhe-fold-' + side) === '1') document.body.classList.add('fold-' + side); });
 
   // Barre d'outils
   const acts = {
@@ -375,6 +445,10 @@ window.addEventListener('DOMContentLoaded', () => {
     check: () => L.dlgCheck(),
     overleaf: () => L.dlgOverleaf(),
     help: () => L.dlgHelp(),
+    'fold-left': () => App.foldPanel('left', true),
+    'fold-right': () => App.foldPanel('right', true),
+    'unfold-left': b => { App.foldPanel('left', false); if (b && b.dataset.tab) App.showTab(b.dataset.tab); },
+    'unfold-right': () => App.foldPanel('right', false),
   };
   document.addEventListener('mousedown', e => {
     const b = e.target.closest('[data-act], [data-fmt]');
@@ -386,7 +460,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const b = e.target.closest('[data-act]');
     if (b && acts[b.dataset.act]) {
       if (b.closest('.menu')) App.closeMenus();
-      acts[b.dataset.act]();
+      acts[b.dataset.act](b);
     }
     const cc = e.target.closest('[data-color]');
     if (cc) { App.closeMenus(); App.setColor(cc.dataset.color); }
@@ -484,6 +558,7 @@ window.addEventListener('DOMContentLoaded', () => {
   L.$('.tb').addEventListener('scroll', () => App.closeMenus());
 
   App.bindEditor();
+  L.Spell.init();
   App.showVersion();
   /* Barre d'outils sur une seule ligne : si elle déborde, on retire des libellés
      par niveaux (data-lv : d'abord les moins utiles ; l'icône et son info-bulle

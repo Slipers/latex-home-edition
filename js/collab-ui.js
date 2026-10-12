@@ -364,6 +364,7 @@
       body.append(L.h('p', { class: 'auth-small', text: 'Dans la version web, ouvrez simplement l\'application dans un autre onglet pour avoir une deuxième instance.' }));
     }
     body.append(L.Theme.settingsSection());
+    if (L.Spell) body.append(L.Spell.settingsSection());
     L.modal({ title: 'Préférences', body });
   };
 

@@ -503,6 +503,8 @@ L.docToLatex = function (doc) {
   // 10, 11 et 12 pt sont natifs ; les autres tailles passent par extarticle (extsizes)
   const fsz = +m.fontSize || 11;
   P.push('\\documentclass[' + fsz + 'pt,a4paper' + (m.headMirror ? ',twoside' : '') + ']{' + ([10, 11, 12].includes(fsz) ? 'article' : 'extarticle') + '}');
+  // twoside active \flushbottom : les pages seraient étirées (grands blancs avant un encadré ou une figure)
+  if (m.headMirror) P.push('\\raggedbottom');
   P.push('\\usepackage[utf8]{inputenc}');
   P.push('\\usepackage[T1]{fontenc}');
   P.push('\\usepackage[' + (m.lang === 'en' ? 'english' : 'french') + ']{babel}');

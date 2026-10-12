@@ -79,7 +79,8 @@ L.rich = function (ctx, tag, cls, html, b, f, ph) {
   if (ctx.mode !== 'edit') L.typo(el, ctx.lang);
   if (ctx.mode === 'edit') {
     el.setAttribute('contenteditable', 'true');
-    el.setAttribute('spellcheck', 'true');
+    // Correcteur : nos soulignements (rouge / bleu) ou, à défaut, celui du navigateur
+    el.setAttribute('spellcheck', L.Spell && !L.Spell.nativeSpell() ? 'false' : 'true');
     el.dataset.b = b; el.dataset.f = f;
     if (ph) el.dataset.ph = ph;
     if (L.isEmptyHtml(html)) el.classList.add('is-empty');

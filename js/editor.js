@@ -9,51 +9,52 @@ window.App = {
 
 /* ---------- Catalogue des éléments insérables ---------- */
 L.ITEMS = [
-  { g: 'Texte', key: 'paragraph', label: 'Paragraphe', icon: '¶', kw: 'texte paragraphe', make: () => L.newBlock('paragraph') },
-  { g: 'Texte', key: 'h1', label: 'Section', icon: '1', kw: 'titre section chapitre partie', make: () => L.newBlock('heading', { level: 1 }) },
-  { g: 'Texte', key: 'h2', label: 'Sous-section', icon: '1.1', kw: 'titre sous-section', make: () => L.newBlock('heading', { level: 2 }) },
-  { g: 'Texte', key: 'h3', label: 'Sous-sous-section', icon: '1.1.1', kw: 'titre sous-sous-section', make: () => L.newBlock('heading', { level: 3 }) },
-  { g: 'Texte', key: 'ul', label: 'Liste à puces', icon: '–', kw: 'liste puces tirets', make: () => L.newBlock('list', { style: 'bullet' }) },
-  { g: 'Texte', key: 'ol', label: 'Liste numérotée', icon: '1.', kw: 'liste numerotee questions', make: () => L.newBlock('list', { style: 'number' }) },
-  { g: 'Maths & sciences', key: 'equation', label: 'Équation', icon: '(1)', kw: 'equation formule math centree', make: () => L.newBlock('equation') },
-  { g: 'Maths & sciences', key: 'imath', label: 'Formule dans le texte', icon: '∑', kw: 'formule inline math', action: () => App.insertInlineMath() },
-  { g: 'Maths & sciences', key: 'theoreme', label: 'Théorème', icon: 'Th', kw: 'theoreme', make: () => L.newBlock('box', { kind: 'theoreme' }) },
-  { g: 'Maths & sciences', key: 'definition', label: 'Définition', icon: 'Déf', kw: 'definition', make: () => L.newBlock('box', { kind: 'definition' }) },
-  { g: 'Maths & sciences', key: 'proposition', label: 'Proposition', icon: 'Pr', kw: 'proposition', make: () => L.newBlock('box', { kind: 'proposition' }) },
-  { g: 'Maths & sciences', key: 'propriete', label: 'Propriété', icon: 'Pté', kw: 'propriete', make: () => L.newBlock('box', { kind: 'propriete' }) },
-  { g: 'Maths & sciences', key: 'lemme', label: 'Lemme', icon: 'Lm', kw: 'lemme', make: () => L.newBlock('box', { kind: 'lemme' }) },
-  { g: 'Maths & sciences', key: 'corollaire', label: 'Corollaire', icon: 'Cor', kw: 'corollaire', make: () => L.newBlock('box', { kind: 'corollaire' }) },
-  { g: 'Maths & sciences', key: 'preuve', label: 'Démonstration', icon: '□', kw: 'demonstration preuve', make: () => L.newBlock('box', { kind: 'preuve' }) },
-  { g: 'Maths & sciences', key: 'exemple', label: 'Exemple', icon: 'Ex', kw: 'exemple', make: () => L.newBlock('box', { kind: 'exemple' }) },
-  { g: 'Maths & sciences', key: 'remarque', label: 'Remarque', icon: 'Rq', kw: 'remarque note', make: () => L.newBlock('box', { kind: 'remarque' }) },
-  { g: 'Maths & sciences', key: 'methode', label: 'Méthode', icon: 'M', kw: 'methode', make: () => L.newBlock('box', { kind: 'methode' }) },
-  { g: 'Maths & sciences', key: 'rappel', label: 'Rappel', icon: 'Rap', kw: 'rappel', make: () => L.newBlock('box', { kind: 'rappel' }) },
-  { g: 'Maths & sciences', key: 'aretenir', label: 'À retenir', icon: '!', kw: 'a retenir important essentiel', make: () => L.newBlock('box', { kind: 'aretenir' }) },
-  { g: 'Maths & sciences', key: 'cadre', label: 'Encadré gris', icon: '▣', kw: 'encadre gris cadre fond formule importante', make: () => L.newBlock('box', { kind: 'cadre' }) },
-  { g: 'Maths & sciences', key: 'tabvar', label: 'Tableau de variations', icon: '↗↘', kw: 'tableau variations fonction derivee tkz', make: () => L.newTabvar('variations') },
-  { g: 'Maths & sciences', key: 'tabsign', label: 'Tableau de signes', icon: '+ −', kw: 'tableau signes produit quotient', make: () => L.newTabvar('signes') },
-  { g: 'Maths & sciences', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: () => L.dlgAvancement(b => App.insertBlock(b)) },
-  { g: 'Exercices', key: 'exercice', label: 'Exercice', icon: '✎', kw: 'exercice', make: () => L.newBlock('box', { kind: 'exercice' }) },
-  { g: 'Exercices', key: 'question', label: 'Question', icon: 'Q', kw: 'question', make: () => L.newBlock('box', { kind: 'question' }) },
-  { g: 'Exercices', key: 'correction', label: 'Correction (bleue)', icon: '✔', kw: 'correction corrige solution reponse bleu', make: () => L.newBlock('box', { kind: 'correction', indent: 1 }) },
-  { g: 'Exercices', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
-  { g: 'Objets', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
-  { g: 'Objets', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
-  { g: 'Objets', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
-  { g: 'Objets', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
-  { g: 'Objets', key: 'figures2', label: 'Images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
-  { g: 'Objets', key: 'cols2', label: 'Deux colonnes', icon: '▯▯', kw: 'deux colonnes cote a cote texte', make: () => L.newCols('paragraph') },
-  { g: 'Objets', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
-  { g: 'Objets', key: 'resume', label: 'Résumé', icon: 'Rés', kw: 'resume abstract', make: () => L.newBlock('box', { kind: 'resume' }) },
-  { g: 'Mise en page', key: 'importtex', label: 'Importer du code LaTeX', icon: 'TeX', kw: 'importer coller code latex convertir', action: () => L.dlgImportLatex() },
-  { g: 'Mise en page', key: 'pnote', label: 'Texte en bas de page', icon: '↧', kw: 'bas de page pied note remarque texte page', make: () => L.newBlock('pnote') },
-  { g: 'Mise en page', key: 'rule', label: 'Ligne de séparation', icon: '―', kw: 'ligne trait separation horizontale', make: () => L.newBlock('rule') },
-  { g: 'Mise en page', key: 'vspace', label: 'Espace vertical', icon: '↕', kw: 'espace vertical blanc saut ligne', make: () => L.newBlock('vspace') },
-  { g: 'Mise en page', key: 'rtag', label: 'Texte à droite (barème…)', icon: '⇥', kw: 'texte droite bareme points note marge aligner', action: () => App.rightTextDialog() },
-  { g: 'Mise en page', key: 'hfill', label: 'Espace extensible', icon: '⟷', kw: 'espace extensible droite aligner hfill tabulation', action: () => App.insertHfill() },
-  { g: 'Mise en page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
-  { g: 'Mise en page', key: 'bibliography', label: 'Bibliographie', icon: '[1]', kw: 'bibliographie references sources', make: () => L.newBlock('bibliography') },
-  { g: 'Mise en page', key: 'toc', label: 'Table des matières', icon: '≡', kw: 'table matieres sommaire', action: () => { App.doc.meta.toc = true; App.commit(); App.render(); L.toast('Table des matières ajoutée sous le titre'); } },
+  { g: 'Texte', fam: 'txt', key: 'paragraph', label: 'Paragraphe', icon: '¶', kw: 'texte paragraphe', make: () => L.newBlock('paragraph') },
+  { g: 'Texte', fam: 'txt', key: 'h1', label: 'Section', icon: '1', kw: 'titre section chapitre partie', make: () => L.newBlock('heading', { level: 1 }) },
+  { g: 'Texte', fam: 'txt', key: 'h2', label: 'Sous-section', icon: '1.1', kw: 'titre sous-section', make: () => L.newBlock('heading', { level: 2 }) },
+  { g: 'Texte', fam: 'txt', key: 'h3', label: 'Sous-sous-section', icon: '1.1.1', kw: 'titre sous-sous-section', make: () => L.newBlock('heading', { level: 3 }) },
+  { g: 'Texte', fam: 'txt', key: 'ul', label: 'Liste à puces', icon: '–', kw: 'liste puces tirets', make: () => L.newBlock('list', { style: 'bullet' }) },
+  { g: 'Texte', fam: 'txt', key: 'ol', label: 'Liste numérotée', icon: '1.', kw: 'liste numerotee questions', make: () => L.newBlock('list', { style: 'number' }) },
+  { g: 'Formules', fam: 'math', key: 'equation', label: 'Équation', icon: '(1)', kw: 'equation formule math centree', make: () => L.newBlock('equation') },
+  { g: 'Formules', fam: 'math', key: 'imath', label: 'Formule dans le texte', icon: '∑', kw: 'formule inline math', action: () => App.insertInlineMath() },
+  { g: 'Formules', fam: 'math', key: 'tabvar', label: 'Tableau de variations', icon: '↗↘', kw: 'tableau variations fonction derivee tkz', make: () => L.newTabvar('variations') },
+  { g: 'Formules', fam: 'math', key: 'tabsign', label: 'Tableau de signes', icon: '+ −', kw: 'tableau signes produit quotient', make: () => L.newTabvar('signes') },
+  { g: 'Formules', fam: 'math', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: () => L.dlgAvancement(b => App.insertBlock(b)) },
+  { g: 'Encadrés', fam: 'box', key: 'theoreme', label: 'Théorème', icon: 'Th', kw: 'theoreme', make: () => L.newBlock('box', { kind: 'theoreme' }) },
+  { g: 'Encadrés', fam: 'box', key: 'definition', label: 'Définition', icon: 'Déf', kw: 'definition', make: () => L.newBlock('box', { kind: 'definition' }) },
+  { g: 'Encadrés', fam: 'box', key: 'proposition', label: 'Proposition', icon: 'Pr', kw: 'proposition', make: () => L.newBlock('box', { kind: 'proposition' }) },
+  { g: 'Encadrés', fam: 'box', key: 'propriete', label: 'Propriété', icon: 'Pté', kw: 'propriete', make: () => L.newBlock('box', { kind: 'propriete' }) },
+  { g: 'Encadrés', fam: 'box', key: 'lemme', label: 'Lemme', icon: 'Lm', kw: 'lemme', make: () => L.newBlock('box', { kind: 'lemme' }) },
+  { g: 'Encadrés', fam: 'box', key: 'corollaire', label: 'Corollaire', icon: 'Cor', kw: 'corollaire', make: () => L.newBlock('box', { kind: 'corollaire' }) },
+  { g: 'Encadrés', fam: 'box', key: 'preuve', label: 'Démonstration', icon: '□', kw: 'demonstration preuve', make: () => L.newBlock('box', { kind: 'preuve' }) },
+  { g: 'Encadrés', fam: 'box', key: 'exemple', label: 'Exemple', icon: 'Ex', kw: 'exemple', make: () => L.newBlock('box', { kind: 'exemple' }) },
+  { g: 'Encadrés', fam: 'box', key: 'remarque', label: 'Remarque', icon: 'Rq', kw: 'remarque note', make: () => L.newBlock('box', { kind: 'remarque' }) },
+  { g: 'Encadrés', fam: 'box', key: 'methode', label: 'Méthode', icon: 'M', kw: 'methode', make: () => L.newBlock('box', { kind: 'methode' }) },
+  { g: 'Encadrés', fam: 'box', key: 'rappel', label: 'Rappel', icon: 'Rap', kw: 'rappel', make: () => L.newBlock('box', { kind: 'rappel' }) },
+  { g: 'Encadrés', fam: 'box', key: 'aretenir', label: 'À retenir', icon: '!', kw: 'a retenir important essentiel', make: () => L.newBlock('box', { kind: 'aretenir' }) },
+  { g: 'Encadrés', fam: 'box', key: 'cadre', label: 'Encadré gris', icon: '▣', kw: 'encadre gris cadre fond formule importante', make: () => L.newBlock('box', { kind: 'cadre' }) },
+  { g: 'Encadrés', fam: 'box', key: 'resume', label: 'Résumé', icon: 'Rés', kw: 'resume abstract', make: () => L.newBlock('box', { kind: 'resume' }) },
+  { g: 'Exercices', fam: 'exo', key: 'exercice', label: 'Exercice', icon: '✎', kw: 'exercice', make: () => L.newBlock('box', { kind: 'exercice' }) },
+  { g: 'Exercices', fam: 'exo', key: 'question', label: 'Question', icon: 'Q', kw: 'question', make: () => L.newBlock('box', { kind: 'question' }) },
+  { g: 'Exercices', fam: 'exo', key: 'correction', label: 'Correction (bleue)', icon: '✔', kw: 'correction corrige solution reponse bleu', make: () => L.newBlock('box', { kind: 'correction', indent: 1 }) },
+  { g: 'Exercices', fam: 'exo', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'figures2', label: 'Images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'cols2', label: 'Deux colonnes', icon: '▯▯', kw: 'deux colonnes cote a cote texte', make: () => L.newCols('paragraph') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
+  { g: 'Mise en page', fam: 'page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
+  { g: 'Mise en page', fam: 'page', key: 'vspace', label: 'Espace vertical', icon: '↕', kw: 'espace vertical blanc saut ligne', make: () => L.newBlock('vspace') },
+  { g: 'Mise en page', fam: 'page', key: 'rule', label: 'Ligne de séparation', icon: '―', kw: 'ligne trait separation horizontale', make: () => L.newBlock('rule') },
+  { g: 'Mise en page', fam: 'page', key: 'rtag', label: 'Texte à droite (barème…)', icon: '⇥', kw: 'texte droite bareme points note marge aligner', action: () => App.rightTextDialog() },
+  { g: 'Mise en page', fam: 'page', key: 'hfill', label: 'Espace extensible', icon: '⟷', kw: 'espace extensible droite aligner hfill tabulation', action: () => App.insertHfill() },
+  { g: 'Mise en page', fam: 'page', key: 'pnote', label: 'Texte en bas de page', icon: '↧', kw: 'bas de page pied note remarque texte page', make: () => L.newBlock('pnote') },
+  { g: 'Mise en page', fam: 'page', key: 'toc', label: 'Table des matières', icon: '≡', kw: 'table matieres sommaire', action: () => { App.doc.meta.toc = true; App.commit(); App.render(); L.toast('Table des matières ajoutée sous le titre'); } },
+  { g: 'Mise en page', fam: 'page', key: 'bibliography', label: 'Bibliographie', icon: '[1]', kw: 'bibliographie references sources', make: () => L.newBlock('bibliography') },
+  { g: 'Importer', fam: 'imp', key: 'importtex', label: 'Importer du code LaTeX', icon: 'TeX', kw: 'importer coller code latex convertir', action: () => L.dlgImportLatex() },
+  { g: 'Importer', fam: 'imp', key: 'importpdf', label: 'Importer un PDF ou un .tex', icon: 'PDF', kw: 'importer pdf convertir fichier tex', action: () => L.dlgImportPdf() },
 ];
 
 const TYPE_INFO = {
@@ -61,7 +62,10 @@ const TYPE_INFO = {
   box: ['Th', 'Encadré'], table: ['▦', 'Tableau'], figure: ['🖼', 'Figure'], code: ['{ }', 'Code'], tikz: ['✎', 'Dessin TikZ'],
   tabvar: ['↗↘', 'Tableau de variations / signes'], cols: ['▯▯', 'Côte à côte'], rule: ['―', 'Ligne de séparation'], pnote: ['↧', 'Texte en bas de page'], vspace: ['↕', 'Espace vertical'], pagebreak: ['⤓', 'Saut de page'], bibliography: ['[1]', 'Bibliographie'],
 };
+const TYPE_FAM = { paragraph: 'txt', heading: 'txt', list: 'txt', equation: 'math', tabvar: 'math', table: 'obj', figure: 'obj', code: 'obj', tikz: 'obj', cols: 'obj', rule: 'page', pnote: 'page', vspace: 'page', pagebreak: 'page', bibliography: 'page' };
 
+/* Classe d'une icône d'élément : teinte de sa famille, police réduite si le texte est long */
+L.icClass = (icon, fam) => { const n = Array.from(String(icon || '')).length; return 'ic fam-' + (fam || 'txt') + (n > 4 ? ' xs' : n > 2 ? ' sm' : ''); };
 const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 /* Haut \u00e0 l'\u00e9cran d'une position de texte (null si introuvable). Une position repli\u00e9e n'a
    parfois pas de rectangle : on mesure alors le caract\u00e8re qui suit (ou celui d'avant). */
@@ -196,6 +200,7 @@ Object.assign(App, {
     this.pagesSoon();
     if (L.Collab) L.Collab.afterRender();
     if (L.Comments) L.Comments.redraw();
+    if (L.Spell) L.Spell.refresh();
   },
 
   /* ================= Pas de défilement parasite =================
@@ -612,6 +617,13 @@ Object.assign(App, {
     const page = Math.max(1, this.sheets.filter(sh => sh.top <= y + 2).length);
     pill.textContent = 'Page ' + page + ' sur ' + this.sheets.length;
     pill.hidden = false;
+    // Plan : la section du bloc sélectionné (s'il est visible), sinon celle affichée, est surlignée
+    const dr = L.$('#desk').getBoundingClientRect(), se = this.sel && this.blockEl(this.sel);
+    const sr = se && se.getBoundingClientRect();
+    const lim = sr && sr.bottom > dr.top && sr.top < dr.bottom ? sr.top + 4 : dr.top + dr.height / 3;
+    let cur = null;
+    L.$$('#paper .blk[data-type="heading"]').forEach(h => { if (h.getBoundingClientRect().top <= lim) cur = h.dataset.id; });
+    L.$$('#outline .ol-item').forEach(o => o.classList.toggle('cur', o.dataset.id === cur));
   },
   refreshAux: L.debounce(() => {
     // Met à jour le sommaire et le plan pendant la frappe, sans toucher au texte en cours
@@ -731,6 +743,7 @@ Object.assign(App, {
     this.sel = id;
     if (id) { const el = this.blockEl(id); if (el) el.classList.add('sel'); }
     this.updateProps();
+    this.updatePageIndicator();
   },
 
   /* ================= Opérations sur les blocs ================= */
@@ -1077,131 +1090,174 @@ Object.assign(App, {
     const box = L.$('#outline');
     const info = L.computeNumbers(this.doc);
     box.innerHTML = '';
-    if (!info.toc.length) box.appendChild(L.h('div', { class: 'ol-empty', text: 'Le plan de votre document apparaîtra ici dès que vous ajouterez des sections.' }));
-    info.toc.forEach(t => box.appendChild(L.h('div', {
-      class: 'ol-item l' + t.level, onclick: () => { const el = this.blockEl(t.id); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); this.select(t.id); } },
-    }, L.h('span', { class: 'n', text: t.num }), L.h('span', { text: L.plain(t.html) || '(sans titre)' }))));
-    let words = 0, eqs = 0, figs = 0, tabs = 0, ex = 0;
+    if (!info.toc.length) box.appendChild(L.h('div', { class: 'ol-empty', html: '<b>Pas encore de plan</b>Ajoutez des sections (onglet <i>Insérer</i>, ou <kbd>#</kbd> + espace au début d\'une ligne) : elles apparaîtront ici pour naviguer dans le document.' }));
+    info.toc.forEach(t => box.appendChild(L.h('button', {
+      class: 'ol-item l' + t.level, 'data-id': t.id,
+      onclick: () => { const el = this.blockEl(t.id); if (el) { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); this.select(t.id); } },
+    }, L.h('span', { class: 'n', text: t.num }), L.h('span', { class: 't', text: L.plain(t.html) || '(sans titre)' }))));
+    let eqs = 0, figs = 0, tabs = 0, ex = 0;
     L.walk(this.doc.blocks, b => {
-      if (b.type === 'equation') eqs++; else if (b.type === 'figure') figs++; else if (b.type === 'table') tabs++;
+      if (b.type === 'equation') eqs++; else if (b.type === 'figure' || b.type === 'tikz') figs++; else if (b.type === 'table') tabs++;
       else if (b.type === 'box' && b.kind === 'exercice') ex++;
-      const t = b.html ? L.plain(b.html) : b.items ? b.items.map(i => L.plain(i.html)).join(' ') : '';
-      words += t ? t.split(/\s+/).filter(Boolean).length : 0;
     });
-    box.appendChild(L.h('div', { class: 'ol-stats', html:
-      '<b>' + words + '</b> mots · <b>' + eqs + '</b> équation' + (eqs > 1 ? 's' : '') + '<br><b>' + figs + '</b> figure' + (figs > 1 ? 's' : '') +
-      ' · <b>' + tabs + '</b> tableau' + (tabs > 1 ? 'x' : '') + (ex ? ' · <b>' + ex + '</b> exercice' + (ex > 1 ? 's' : '') : '') }));
+    const st = (n, one, many) => n ? L.h('span', null, L.h('b', { text: String(n) }), ' ' + (n > 1 ? many : one)) : null;
+    const stats = [st(eqs, 'équation', 'équations'), st(figs, 'figure', 'figures'), st(tabs, 'tableau', 'tableaux'), st(ex, 'exercice', 'exercices')].filter(Boolean);
+    if (stats.length) box.appendChild(L.h('div', { class: 'ol-stats' }, ...stats));
+    if (App.updateWordCount) App.updateWordCount();
   },
 
+  /* ================= Panneau de droite : réglages du bloc sélectionné =================
+     En-tête (type du bloc + actions), puis des sections courtes ; les options rares
+     sont rangées dans des « Plus d'options » repliables (leur état est mémorisé). */
   updateProps() {
     const P = L.$('#props');
     P.innerHTML = '';
     const doc = this.doc;
     const f = this.sel && !this.sel.startsWith('__') ? L.find(doc, this.sel) : null;
-    const row = (label, ...c) => L.h('div', { class: 'pp-row' }, label ? L.h('span', { class: 'pp-lab', text: label }) : null, ...c);
-    const seg = (opts, val, on) => {
-      const s = L.h('div', { class: 'seg' });
+    const open = this.ppOpen || (this.ppOpen = {});
+    const row = (label, ...c) => L.h('div', { class: 'pp-row' }, label ? L.h('span', { class: 'pp-lab', text: label }) : null, ...c.filter(Boolean));
+    const sec = (title, ...c) => L.h('section', { class: 'pp-sec' }, title ? L.h('h5', { class: 'pp-sec-h', text: title }) : null, ...c.filter(Boolean));
+    const more = (key, title, ...c) => {
+      const d = L.h('details', { class: 'pp-more' }, L.h('summary', { text: title }), L.h('div', { class: 'pp-more-b' }, ...c.filter(Boolean)));
+      d.open = !!open[key];
+      d.ontoggle = () => { open[key] = d.open; };
+      return d;
+    };
+    const seg = (opts, val, on, cls) => {
+      const s = L.h('div', { class: 'seg' + (cls ? ' ' + cls : '') });
       opts.forEach(([v, t, title]) => s.appendChild(L.h('button', { class: v === val ? 'on' : '', text: t, title: title || null, onclick: () => on(v) })));
       return s;
     };
-    const chk = (label, val, on) => {
+    const chk = (label, val, on, hint) => {
       const i = L.h('input', { type: 'checkbox' }); i.checked = !!val; i.onchange = () => on(i.checked);
-      return L.h('label', { class: 'chk' }, i, label);
+      return L.h('label', { class: 'chk sw' }, i, L.h('span', { class: 'sw-t' }), L.h('span', { class: 'sw-l' }, label, hint ? L.h('small', { text: hint }) : null));
     };
-    const btn = (text, on, cls = '') => L.h('button', { class: 'btn ' + cls, text, onclick: on });
+    const btn = (text, on, cls = '', title) => L.h('button', { class: 'btn ' + cls, text, title: title || null, onclick: on });
+    const help = html => L.h('div', { class: 'pp-help', html });
     const upd = fn => { fn(); this.commit(); this.render(); };
+    const head = (ic, fam, title, sub, acts) => L.h('div', { class: 'pp-head' },
+      L.h('div', { class: 'pp-head-top' },
+        L.h('span', { class: L.icClass(ic, fam), text: ic }),
+        L.h('div', { class: 'pp-head-t' }, L.h('b', { text: title }), sub ? L.h('small', { text: sub, title: sub }) : null),
+        L.h('button', { class: 'side-fold', 'data-act': 'fold-right', title: 'Masquer ce panneau' }, L.svg('foldR', 15))),
+      acts || null);
 
     if (!f) {
       const m = doc.meta;
+      const sizeSel = L.h('select', null, ...L.DOC_SIZES.map(v => L.h('option', { value: v, text: v + ' pt' })));
+      sizeSel.value = String(+m.fontSize || 11);
+      sizeSel.onchange = () => upd(() => { m.fontSize = +sizeSel.value; });
+      const numSel = L.h('select', null, ...L.NUM_FORMATS.map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if ((m.numFormat || 'arabic') === v) o.selected = true; return o; }));
+      numSel.onchange = () => upd(() => { m.numFormat = numSel.value; });
+      const title = L.plain(m.title || '');
       P.append(
-        L.h('div', { class: 'pp-type' }, L.h('span', { class: 'ic', text: '📄' }), 'Document'),
-        row('', btn('⚙  Titre, police, marges…', () => L.dlgSettings(), 'primary')),
-        row('Options rapides',
+        head('▤', 'doc', 'Document', title ? '« ' + title + ' »' : 'Réglages de tout le document'),
+        sec(null, btn('⚙  Titre, police, marges…', () => L.dlgSettings(), 'primary wide')),
+        sec('Options',
           chk('Table des matières', m.toc, v => upd(() => { m.toc = v; })),
-
           chk('Encadrer les théorèmes', m.boxedThm, v => upd(() => { m.boxedThm = v; })),
-          chk('Encadrés colorés (cours)', m.boxTheme === 'cours', v => upd(() => { m.boxTheme = v ? 'cours' : 'classique'; }))),
-        row('Taille du texte', (() => {
-          const s = L.h('select', null, ...L.DOC_SIZES.map(v => L.h('option', { value: v, text: v + ' pt' })));
-          s.value = String(+m.fontSize || 11);
-          s.onchange = () => upd(() => { m.fontSize = +s.value; });
-          return s;
-        })()),
-        row('Numéros de page', (() => { const s = L.h('select', null, ...L.NUM_FORMATS.map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if ((m.numFormat || 'arabic') === v) o.selected = true; return o; })); s.onchange = () => upd(() => { m.numFormat = s.value; }); return s; })(),
-          btn('En-tête et pied de page…', () => L.dlgSettings('hf'))),
-        row('Sources', btn('Gérer la bibliographie (' + (doc.bib || []).length + ')', () => L.dlgBib())),
-        L.h('hr', { class: 'pp-sep' }),
-        L.h('div', { class: 'pp-help' },
-          L.h('p', { html: '<b>Pour commencer :</b> cliquez dans la feuille et écrivez. Ajoutez des éléments avec la colonne de gauche, le bouton <b>+</b> au survol d\'un bloc, ou en tapant <kbd>/</kbd> sur une ligne vide.' }),
-          L.h('p', { html: 'Cliquez sur un bloc pour afficher ici ses réglages.' })));
+          chk('Encadrés colorés', m.boxTheme === 'cours', v => upd(() => { m.boxTheme = v ? 'cours' : 'classique'; }), 'Style « cours » : un cadre de couleur par type')),
+        sec('Pages',
+          L.h('div', { class: 'pp-grid2' }, row('Taille du texte', sizeSel), row('Numéros de page', numSel)),
+          btn('En-tête et pied de page…', () => L.dlgSettings('hf'), 'wide')),
+        sec('Sources', btn('Bibliographie' + ((doc.bib || []).length ? ' (' + doc.bib.length + ')' : '') + '…', () => L.dlgBib(), 'wide')),
+        L.h('div', { class: 'pp-tips' },
+          L.h('b', { text: 'Pour bien démarrer' }),
+          L.h('ul', { html: '<li>Cliquez dans la feuille et écrivez.</li>'
+            + '<li><kbd>/</kbd> sur une ligne vide : insérer un élément.</li>'
+            + '<li><kbd>$</kbd> ou <kbd>Ctrl</kbd>+<kbd>M</kbd> : une formule dans le texte.</li>'
+            + '<li>Cliquez sur un bloc pour voir ses réglages ici.</li>' })));
       return;
     }
     const b = f.block;
     const [ic, name] = TYPE_INFO[b.type] || ['?', b.type];
-    P.appendChild(L.h('div', { class: 'pp-type' }, L.h('span', { class: 'ic', text: b.type === 'box' ? '▢' : ic }),
-      b.type === 'box' ? L.kindName(b.kind, doc.meta.lang) : name,
-      f.parent ? L.h('span', { style: { fontWeight: 400, color: 'var(--mut)', fontSize: '12px' }, text: f.parent.type === 'col' ? ' (dans une colonne)' : ' (dans l\'encadré)' }) : null));
+    const fam = b.type === 'box' ? (['exercice', 'question', 'correction', 'solution'].includes(b.kind) ? 'exo' : 'box') : (TYPE_FAM[b.type] || 'txt');
+    const boxIc = b.type === 'box' ? ((L.ITEMS.find(it => it.key === b.kind) || {}).icon || '▢') : ic;
+    const sub = f.parent ? (f.parent.type === 'col' ? 'Dans une colonne' : 'Dans l\'encadré « ' + L.kindName(f.parent.kind, doc.meta.lang) + ' »') : null;
+    const act = (icon, label, on, cls = '', text) => L.h('button', { class: cls + (text ? ' lab' : ''), title: label, onclick: on }, L.svg(icon, 15), text ? L.h('span', { text }) : null);
+    const acts = L.h('div', { class: 'pp-acts' },
+      act('up', 'Monter', () => this.moveBlock(b.id, -1)),
+      act('down', 'Descendre', () => this.moveBlock(b.id, 1)),
+      L.h('span', { class: 'pp-acts-sp' }),
+      act('copy', 'Dupliquer le bloc', () => this.duplicate(b.id), '', 'Dupliquer'),
+      act('trash', 'Supprimer le bloc', () => this.removeBlock(b.id), 'danger', 'Supprimer'));
+    P.appendChild(head(boxIc, fam, b.type === 'box' ? L.kindName(b.kind, doc.meta.lang) : name, sub, acts));
     // Numéro forcé (ex. commencer à 0)
     const forceRow = () => {
-      const i = L.h('input', { type: 'number', value: b.forceNum ?? '', placeholder: 'auto', style: { width: '90px' } });
+      const i = L.h('input', { type: 'number', value: b.forceNum ?? '', placeholder: 'auto', class: 'num-in' });
       i.onchange = () => upd(() => { if (i.value === '') delete b.forceNum; else b.forceNum = Math.trunc(+i.value); });
-      return row('Forcer le numéro', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, i,
-        L.h('span', { class: 'pp-help', text: 'Vide = automatique. La suite continue à partir de ce numéro.' })));
+      return row('Forcer le numéro', L.h('div', { class: 'inline' }, i, L.h('span', { class: 'pp-help', text: 'Vide = automatique ; la suite continue.' })));
     };
-    const capRow = () => row('Légende', seg([['num', 'Numérotée'], ['nonum', 'Sans numéro'], ['none', 'Aucune']], b.capMode || 'num', v => upd(() => { b.capMode = v; })));
+    const capSec = kind => sec('Légende',
+      seg([['num', 'Numérotée'], ['nonum', 'Sans numéro'], ['none', 'Aucune']], b.capMode || 'num', v => upd(() => { b.capMode = v; })),
+      (b.capMode || 'num') === 'num' ? more('cap', 'Plus d\'options', this.capLabelRow(b, row, kind), forceRow()) : null);
 
     if (b.type === 'heading') {
       P.append(
-        row('Niveau', seg([[1, 'Section'], [2, 'Sous-sect.'], [3, 'Sous-sous'], [4, 'Paragr.']], b.level, v => upd(() => { b.level = v; }))),
-        row('', chk('Numéroté automatiquement', b.numbered, v => upd(() => { b.numbered = v; }))));
-      if (b.numbered && b.level <= 3) P.append(forceRow());
+        sec('Niveau', seg([[1, 'Section'], [2, 'Sous-sect.'], [3, 'Sous-sous'], [4, 'Paragr.']], b.level, v => upd(() => { b.level = v; }))),
+        sec(null, chk('Numéroté automatiquement', b.numbered, v => upd(() => { b.numbered = v; })),
+          b.numbered && b.level <= 3 ? more('num', 'Plus d\'options', forceRow()) : null));
     } else if (b.type === 'paragraph') {
       P.append(
-        row('Alignement', seg([['justify', 'Justifié'], ['left', 'Gauche'], ['center', 'Centré'], ['right', 'Droite']], b.align || 'justify', v => upd(() => { b.align = v; }))),
-        row('', chk('Sans alinéa (pas de retrait)', b.noindent, v => upd(() => { b.noindent = v; }))),
-        this.rightTextRow(b, 'html', row, upd),
-        row('Transformer en', L.h('div', { class: 'btn-row' },
+        sec('Alignement', seg([['justify', 'Justifié'], ['left', 'Gauche'], ['center', 'Centré'], ['right', 'Droite']], b.align || 'justify', v => upd(() => { b.align = v; }))),
+        sec('Mise en forme',
+          chk('Sans alinéa', b.noindent, v => upd(() => { b.noindent = v; }), 'Pas de retrait en début de paragraphe'),
+          this.rightTextRow(b, 'html', row, upd)),
+        sec('Transformer en', L.h('div', { class: 'chips' },
           btn('Section', () => this.convertParagraph(b.id, 'h1')), btn('Sous-section', () => this.convertParagraph(b.id, 'h2')),
           btn('Liste', () => this.convertParagraph(b.id, 'ul')), btn('Théorème', () => this.convertParagraph(b.id, 'theoreme')),
           btn('Définition', () => this.convertParagraph(b.id, 'definition')), btn('Remarque', () => this.convertParagraph(b.id, 'remarque')))));
     } else if (b.type === 'equation') {
+      const s = L.h('select', null,
+        L.h('option', { value: '', text: 'Normale' }),
+        ...Object.keys(L.TEXT_SIZES).map(k => L.h('option', { value: k, text: L.TEXT_SIZES[k][0] })));
+      s.value = b.size || '';
+      s.onchange = () => upd(() => { if (s.value) b.size = s.value; else delete b.size; });
       P.append(
-        row('', btn('✎  Modifier l\'équation', () => L.MathDock.open({ kind: 'block', blockId: b.id }), 'primary')),
-        row('Taille', (() => {
-          const s = L.h('select', null,
-            L.h('option', { value: '', text: 'Normale' }),
-            ...Object.keys(L.TEXT_SIZES).map(k => L.h('option', { value: k, text: L.TEXT_SIZES[k][0] })));
-          s.value = b.size || '';
-          s.onchange = () => upd(() => { if (s.value) b.size = s.value; else delete b.size; });
-          return s;
-        })()),
-        row('', chk('Numérotée — (1), (2)…', b.numbered, v => upd(() => { b.numbered = v; }))),
-        b.numbered ? forceRow() : '',
-        L.h('div', { class: 'pp-help', html: '<p>Pour écrire plusieurs lignes alignées, utilisez « Calcul sur plusieurs lignes » dans l\'onglet <i>Matrices &amp; systèmes</i> de l\'éditeur.</p>' }));
+        sec(null, btn('✎  Modifier l\'équation', () => L.MathDock.open({ kind: 'block', blockId: b.id }), 'primary wide')),
+        sec('Affichage',
+          chk('Numérotée — (1), (2)…', b.numbered, v => upd(() => { b.numbered = v; })),
+          row('Taille', s),
+          b.numbered ? more('num', 'Plus d\'options', forceRow()) : null),
+        help('Plusieurs lignes alignées : « Calcul sur plusieurs lignes », dans l\'onglet <i>Matrices &amp; systèmes</i> de l\'éditeur de formules.'));
     } else if (b.type === 'list') {
+      const styles = L.h('div', { class: 'glyphs' });
+      [['bullet', '–', 'Tirets'], ['puce', '•', 'Puces rondes'], ['etoile', '⋆', 'Étoiles'], ['fleche', '▶', 'Flèches'], ['triangle', '▷', 'Triangles'], ['carre', '■', 'Carrés'],
+        ['number', '1.', 'Numéros 1. 2. 3.'], ['alpha', 'a)', 'Lettres a) b) c)'], ['roman', 'i)', 'Chiffres romains i) ii)'], ['sujet', 'I. 1. a.', 'Sujet : I. 1. a.']]
+        .forEach(([v, t, title]) => styles.appendChild(L.h('button', { class: (b.style === v ? 'on' : '') + (t.length > 3 ? ' wide' : ''), text: t, title, onclick: () => upd(() => { b.style = v; }) })));
+      let startRow = null;
+      if (!L.BULLET_STYLES.includes(b.style)) {
+        const i = L.h('input', { type: 'number', value: b.start ?? 1, class: 'num-in' });
+        i.onchange = () => upd(() => { if (i.value === '' || +i.value === 1) delete b.start; else b.start = Math.trunc(+i.value); });
+        startRow = row('Commencer à', i);
+      }
       P.append(
-        row('Style', seg([['bullet', '–  Puces'], ['puce', '•  Puces'], ['etoile', '⋆'], ['fleche', '▶'], ['triangle', '▷'], ['carre', '■'], ['number', '1.'], ['alpha', 'a)'], ['roman', 'i)'], ['sujet', 'I. 1. a.']], b.style, v => upd(() => { b.style = v; }))),
-        !L.BULLET_STYLES.includes(b.style) ? row('Commencer à', (() => { const i = L.h('input', { type: 'number', value: b.start ?? 1, style: { width: '90px' } }); i.onchange = () => upd(() => { if (i.value === '' || +i.value === 1) delete b.start; else b.start = Math.trunc(+i.value); }); return i; })()) : '',
-        this.listItemRow(b, row, btn, upd),
-        row('', btn('+ Ajouter un élément', () => { b.items.push({ html: '', level: 0 }); this.focusAfter = { id: b.id, f: 'items.' + (b.items.length - 1) + '.html' }; upd(() => {}); })),
-        L.h('div', { class: 'pp-help', html: '<p><kbd>Tab</kbd> décale un élément vers la droite (sous-question), <kbd>Maj</kbd>+<kbd>Tab</kbd> vers la gauche. <kbd>Entrée</kbd> sur un élément vide termine la liste.</p>' }));
+        sec('Style', styles, startRow),
+        this.listItemRow(b, row, btn, upd, sec),
+        sec(null, btn('+ Ajouter un élément', () => { b.items.push({ html: '', level: 0 }); this.focusAfter = { id: b.id, f: 'items.' + (b.items.length - 1) + '.html' }; upd(() => {}); }, 'wide')),
+        help('<kbd>Tab</kbd> décale un élément (sous-question), <kbd>Maj</kbd>+<kbd>Tab</kbd> le ramène. <kbd>Entrée</kbd> sur un élément vide termine la liste.'));
     } else if (b.type === 'box') {
-      const kinds = L.h('div', { class: 'kind-grid' });
-      Object.keys(L.KINDS).forEach(k => kinds.appendChild(L.h('button', {
-        class: k === b.kind ? 'on' : '', text: L.kindName(k, doc.meta.lang),
-        onclick: () => upd(() => { b.kind = k; b.numbered = L.KINDS[k].numbered; }),
-      })));
+      const KIND_GROUPS = [['Théorèmes', ['theoreme', 'proposition', 'propriete', 'lemme', 'corollaire']], ['Définitions', ['definition', 'notation', 'methode']],
+        ['Exemples et remarques', ['exemple', 'remarque', 'rappel', 'aretenir']], ['Démonstrations et corrigés', ['preuve', 'solution', 'correction']],
+        ['Exercices', ['exercice', 'question']], ['Autres', ['cadre', 'resume']]];
+      const kindSel = L.h('select', null, ...KIND_GROUPS.map(([g, ks]) => L.h('optgroup', { label: g },
+        ...ks.filter(k => L.KINDS[k]).map(k => L.h('option', { value: k, text: L.kindName(k, doc.meta.lang) })))));
+      kindSel.value = b.kind;
+      kindSel.onchange = () => upd(() => { b.kind = kindSel.value; b.numbered = L.KINDS[b.kind].numbered; });
       const title = L.h('input', { type: 'text', value: b.title || '', placeholder: 'Ex. : de Pythagore' });
       title.oninput = () => { b.title = title.value; this.commitSoon(); this.renderSoon(); };
-      P.append(row('Type', kinds));
       const cname = L.h('input', { type: 'text', value: b.customName || '', placeholder: L.kindName(b.kind, doc.meta.lang) + ' (par défaut)' });
       cname.oninput = () => { b.customName = cname.value; this.commitSoon(); this.renderSoon(); };
-      if (b.kind !== 'resume') P.append(row('Nom affiché', cname, L.h('div', { class: 'pp-help', text: 'Ex. : « Attention », « Loi », « À retenir »… Il remplace « ' + L.kindName(b.kind, doc.meta.lang) + ' ».' })));
-      if (b.kind !== 'resume') P.append(row('Titre (facultatif)', title));
-      if (b.kind === 'correction') P.append(row('Décalage', seg([[0, 'Aucun'], [1, 'Sous I.'], [2, 'Sous 1.'], [3, 'Sous a.']], b.indent || 0, v => upd(() => { b.indent = v; })), L.h('div', { class: 'pp-help', text: 'Aligne la correction sous le texte de la question (partie, question ou sous-question).' })));
-      if (!(L.KINDS[b.kind] || {}).fixed) P.append(row('', chk('Numéroté', b.numbered, v => upd(() => { b.numbered = v; }))));
-      if (b.numbered && !(L.KINDS[b.kind] || {}).fixed) P.append(forceRow());
-      P.append(row('Ajouter dans l\'encadré', L.h('div', { class: 'btn-row' },
+      const fixed = (L.KINDS[b.kind] || {}).fixed;
+      P.append(sec('Type', kindSel,
+        b.kind !== 'resume' ? row('Titre (facultatif)', title) : null,
+        !fixed ? chk('Numéroté', b.numbered, v => upd(() => { b.numbered = v; })) : null,
+        b.kind === 'correction' ? row('Décalage', seg([[0, 'Aucun'], [1, 'Sous I.'], [2, 'Sous 1.'], [3, 'Sous a.']], b.indent || 0, v => upd(() => { b.indent = v; })),
+          L.h('div', { class: 'pp-help', text: 'Aligne la correction sous le texte de la question.' })) : null,
+        b.kind !== 'resume' || (b.numbered && !fixed) ? more('box', 'Plus d\'options',
+          b.kind !== 'resume' ? row('Nom affiché', cname, L.h('div', { class: 'pp-help', text: 'Remplace « ' + L.kindName(b.kind, doc.meta.lang) + ' » (ex. « Attention », « Loi »).' })) : null,
+          b.numbered && !fixed ? forceRow() : null) : null));
+      P.append(sec('Ajouter dans l\'encadré', L.h('div', { class: 'chips' },
         btn('Paragraphe', () => this.insertBlock(L.newBlock('paragraph'), { into: b.id })),
         btn('Équation', () => this.insertBlock(L.newBlock('equation'), { into: b.id })),
         btn('Liste', () => this.insertBlock(L.newBlock('list', { style: 'number' }), { into: b.id })),
@@ -1210,70 +1266,62 @@ Object.assign(App, {
     } else if (b.type === 'table') {
       const cols = Math.max(...b.rows.map(r => r.length));
       const cell = this.lastCell && this.lastCell.id === b.id ? this.lastCell : { r: b.rows.length - 1, c: cols - 1 };
-      const alignRow = L.h('div', { class: 'btn-row' });
-      for (let c = 0; c < cols; c++) {
-        const s = L.h('select', { title: 'Colonne ' + (c + 1), style: { flex: '1', minWidth: '0', padding: '5px' } },
-          ...[['l', 'Gauche'], ['c', 'Centre'], ['r', 'Droite']].map(([v, t]) => { const o = L.h('option', { value: v, text: (c + 1) + ' : ' + t }); if ((b.align[c] || 'c') === v) o.selected = true; return o; }));
-        s.onchange = () => upd(() => { b.align[c] = s.value; });
-        alignRow.appendChild(s);
-      }
       const sw = L.h('div', { class: 'swatches' });
-      [['', 'Aucune', '#fff'], ...Object.entries(L.HEAD_COLORS).map(([k, v]) => [k, k, '#' + v])].forEach(([k, t, c]) =>
+      [['', 'Aucune', 'transparent'], ...Object.entries(L.HEAD_COLORS).map(([k, v]) => [k, k, '#' + v])].forEach(([k, t, c]) =>
         sw.appendChild(L.h('button', { class: (b.headColor || '') === k ? 'on' : '', title: t, style: { background: c }, text: k ? '' : '∅', onclick: () => upd(() => { b.headColor = k; }) })));
-      const wRow = L.h('div', { class: 'btn-row' });
+      // Une ligne par colonne : alignement + largeur
+      const colRows = L.h('div', { class: 'col-rows' });
       for (let c = 0; c < cols; c++) {
-        const s = L.h('select', { title: 'Colonne ' + (c + 1), style: { flex: '1', minWidth: '0', padding: '5px' } },
-          ...[['auto', 'ajustée'], ['fill', 'large']].map(([v, t]) => { const o = L.h('option', { value: v, text: (c + 1) + ' : ' + t }); if (((b.colw || [])[c] || 'auto') === v) o.selected = true; return o; }));
-        s.onchange = () => upd(() => { b.colw = b.colw || []; b.colw[c] = s.value; });
-        wRow.appendChild(s);
+        const al = seg([['l', '⫷', 'À gauche'], ['c', '☰', 'Centré'], ['r', '⫸', 'À droite']], b.align[c] || 'c', v => upd(() => { b.align[c] = v; }), 'mini');
+        const wide = ((b.colw || [])[c] || 'auto') === 'fill';
+        const wb = L.h('button', { class: 'btn small' + (wide ? ' on' : ''), text: wide ? 'Large' : 'Ajustée', title: 'Largeur de la colonne : « Large » prend toute la place restante (le texte passe à la ligne)',
+          onclick: () => upd(() => { b.colw = b.colw || []; b.colw[c] = wide ? 'auto' : 'fill'; }) });
+        colRows.appendChild(L.h('div', { class: 'col-row' + (c === cell.c ? ' cur' : '') }, L.h('span', { class: 'col-n', text: 'Col. ' + (c + 1) }), al, wb));
       }
-      if (b.avc) P.append(row('', btn('⚗  Modifier le tableau d’avancement', () => L.dlgAvancement(nb => {
+      if (b.avc) P.append(sec(null, btn('⚗  Modifier le tableau d’avancement', () => L.dlgAvancement(nb => {
         ['rows', 'spans', 'align', 'style', 'headColor', 'caption', 'capMode', 'avc', 'head'].forEach(k => { b[k] = nb[k]; });
         this.commit(); this.render();
-      }, b.avc), 'primary')));
+      }, b.avc), 'primary wide')));
       P.append(
-        capRow(),
-        (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'table') : '',
-        (b.capMode || 'num') === 'num' ? forceRow() : '',
-        row('Style', seg([['pro', 'Professionnel'], ['grille', 'Grille'], ['simple', 'Simple']], b.style, v => upd(() => { b.style = v; }))),
-        row('', chk('Première ligne en en-tête (gras)', b.head, v => upd(() => { b.head = v; }))),
-        row('Couleur de la première ligne', sw),
-        row('Largeur des colonnes', wRow, L.h('div', { class: 'pp-help', html: '« large » : la colonne prend toute la place restante et le texte passe à la ligne (comme une grille de consignes).' })),
-        row('Image dans une case', btn('🖼  Insérer une image dans la case', () => this.pickInlineImage()), L.h('div', { class: 'pp-help', text: 'Ou copiez une capture d\'écran puis collez-la (Ctrl+V) dans la case.' })),
-        row('Cases fusionnées', L.h('div', { class: 'btn-row' },
-          btn('Fusionner avec la case de droite', () => {
-            const sp = b.spans || (b.spans = {});
-            const k = cell.r + ':' + cell.c, cur = sp[k] || 1;
-            if (cell.c + cur >= cols) return L.toast('Pas de case à droite à fusionner.');
-            const nk = cell.r + ':' + (cell.c + cur);
-            upd(() => { sp[k] = cur + (sp[nk] || 1); delete sp[nk]; });
-          }),
-          btn('Séparer', () => { if (b.spans && b.spans[cell.r + ':' + cell.c]) upd(() => { delete b.spans[cell.r + ':' + cell.c]; }); }))),
-        row('Lignes et colonnes', L.h('div', { class: 'btn-row' },
-          btn('+ Ligne', () => upd(() => { b.rows.splice(cell.r + 1, 0, Array(cols).fill('')); L.shiftSpans(b, cell.r + 1, 1); })),
-          // Les largeurs (ajustée / large) et les cases fusionnées suivent les colonnes
-          btn('+ Colonne', () => upd(() => { b.rows.forEach(r => r.splice(cell.c + 1, 0, '')); b.align.splice(cell.c + 1, 0, 'c'); if (b.colw) b.colw.splice(cell.c + 1, 0, 'auto'); L.shiftColSpans(b, cell.c + 1, 1); })),
-          btn('− Ligne', () => { if (b.rows.length > 1) upd(() => { b.rows.splice(cell.r, 1); L.shiftSpans(b, cell.r, -1); this.lastCell = null; }); }, 'danger'),
-          btn('− Colonne', () => { if (cols > 1) upd(() => { b.rows.forEach(r => r.splice(cell.c, 1)); b.align.splice(cell.c, 1); if (b.colw) b.colw.splice(cell.c, 1); L.shiftColSpans(b, cell.c, -1); this.lastCell = null; }); }, 'danger'))),
-        L.h('div', { class: 'pp-help', html: '<p>Les ajouts et suppressions se font à côté de la case où se trouve le curseur (ligne ' + (cell.r + 1) + ', colonne ' + (cell.c + 1) + ').</p>' }),
-        row('Alignement des colonnes', alignRow));
+        sec('Lignes et colonnes',
+          L.h('div', { class: 'pp-grid2' },
+            btn('+ Ligne', () => upd(() => { b.rows.splice(cell.r + 1, 0, Array(cols).fill('')); L.shiftSpans(b, cell.r + 1, 1); }), '', 'Ajouter une ligne sous la case du curseur'),
+            // Les largeurs (ajustée / large) et les cases fusionnées suivent les colonnes
+            btn('+ Colonne', () => upd(() => { b.rows.forEach(r => r.splice(cell.c + 1, 0, '')); b.align.splice(cell.c + 1, 0, 'c'); if (b.colw) b.colw.splice(cell.c + 1, 0, 'auto'); L.shiftColSpans(b, cell.c + 1, 1); }), '', 'Ajouter une colonne à droite de la case du curseur'),
+            btn('− Ligne', () => { if (b.rows.length > 1) upd(() => { b.rows.splice(cell.r, 1); L.shiftSpans(b, cell.r, -1); this.lastCell = null; }); }, 'danger', 'Supprimer la ligne du curseur'),
+            btn('− Colonne', () => { if (cols > 1) upd(() => { b.rows.forEach(r => r.splice(cell.c, 1)); b.align.splice(cell.c, 1); if (b.colw) b.colw.splice(cell.c, 1); L.shiftColSpans(b, cell.c, -1); this.lastCell = null; }); }, 'danger', 'Supprimer la colonne du curseur'),
+            btn('Fusionner →', () => {
+              const sp = b.spans || (b.spans = {});
+              const k = cell.r + ':' + cell.c, cur = sp[k] || 1;
+              if (cell.c + cur >= cols) return L.toast('Pas de case à droite à fusionner.');
+              const nk = cell.r + ':' + (cell.c + cur);
+              upd(() => { sp[k] = cur + (sp[nk] || 1); delete sp[nk]; });
+            }, '', 'Fusionner la case du curseur avec celle de droite'),
+            btn('Séparer', () => { if (b.spans && b.spans[cell.r + ':' + cell.c]) upd(() => { delete b.spans[cell.r + ':' + cell.c]; }); }, '', 'Séparer une case fusionnée')),
+          help('Autour de la case du curseur : ligne ' + (cell.r + 1) + ', colonne ' + (cell.c + 1) + '.')),
+        sec('Apparence',
+          seg([['pro', 'Professionnel'], ['grille', 'Grille'], ['simple', 'Simple']], b.style, v => upd(() => { b.style = v; })),
+          chk('Première ligne en en-tête', b.head, v => upd(() => { b.head = v; }), 'En gras'),
+          row('Couleur de la première ligne', sw)),
+        sec('Colonnes', colRows),
+        capSec('table'),
+        more('timg', 'Image dans une case', btn('🖼  Insérer une image dans la case', () => this.pickInlineImage(), 'wide'),
+          help('Ou copiez une capture d\'écran puis collez-la (<kbd>Ctrl</kbd>+<kbd>V</kbd>) dans la case.')));
     } else if (b.type === 'figure') {
       const rng = L.h('input', { type: 'range', min: 10, max: 100, step: 5, value: b.width || 60 });
-      const lab = L.h('span', { text: (b.width || 60) + ' % de la largeur du texte' });
-      rng.oninput = () => { b.width = +rng.value; lab.textContent = b.width + ' % de la largeur du texte'; const img = this.blockEl(b.id)?.querySelector('img'); if (img) img.style.width = b.width + '%'; this.commitSoon(); };
+      const lab = L.h('span', { class: 'rng-v', text: (b.width || 60) + ' %' });
+      rng.oninput = () => { b.width = +rng.value; lab.textContent = b.width + ' %'; const img = this.blockEl(b.id)?.querySelector('img'); if (img) img.style.width = b.width + '%'; this.commitSoon(); };
       P.append(
-        row('', btn(b.src ? '🖼  Changer l\'image' : '🖼  Choisir une image', () => this.pickImage(b.id), 'primary')),
-        row('Taille', rng, lab),
-        capRow(),
-        (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'figure') : '',
-        row('', L.h('div', { class: 'pp-help', text: 'Le texte de la légende se modifie directement sous l\'image, sur la feuille.' })),
-        (b.capMode || 'num') === 'num' ? forceRow() : '');
+        sec(null, btn(b.src ? '🖼  Changer l\'image' : '🖼  Choisir une image', () => this.pickImage(b.id), 'primary wide')),
+        sec('Largeur', L.h('div', { class: 'rng' }, rng, lab), help('En % de la largeur du texte.')),
+        capSec('figure'),
+        help('Le texte de la légende se modifie directement sous l\'image, sur la feuille.'));
     } else if (b.type === 'tikz') {
       const rng = L.h('input', { type: 'range', min: 0.3, max: 2.5, step: 0.1, value: b.scale || 1 });
-      const lab = L.h('span', { text: '× ' + String(b.scale || 1).replace('.', ',') });
+      const lab = L.h('span', { class: 'rng-v', text: '× ' + String(b.scale || 1).replace('.', ',') });
       rng.oninput = () => { lab.textContent = '× ' + rng.value.replace('.', ','); };
       rng.onchange = () => upd(() => { b.scale = +rng.value; });
-      const ex = L.h('select', null, L.h('option', { value: '', text: 'Choisir un exemple…' }), ...L.TikZ.EXAMPLES.map(([t], k) => L.h('option', { value: String(k), text: t })));
+      const ex = L.h('select', null, L.h('option', { value: '', text: 'Partir d\'un exemple…' }), ...L.TikZ.EXAMPLES.map(([t], k) => L.h('option', { value: String(k), text: t })));
       ex.onchange = () => {
         const e = L.TikZ.EXAMPLES[+ex.value];
         if (!e) return;
@@ -1281,43 +1329,40 @@ Object.assign(App, {
         upd(() => { b.code = e[1]; });
       };
       P.append(
-        row('Échelle', rng, lab),
-        row('Exemples', ex),
-        capRow(),
-        (b.capMode || 'num') === 'num' ? this.capLabelRow(b, row, 'figure') : '',
-        (b.capMode || 'num') === 'num' ? forceRow() : '',
-        L.h('div', { class: 'pp-help', html: '<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>' }));
+        sec('Échelle', L.h('div', { class: 'rng' }, rng, lab)),
+        sec('Exemples', ex),
+        capSec('figure'),
+        more('tikzhelp', 'Aide TikZ', help('<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>')));
     } else if (b.type === 'code') {
       const s = L.h('select', null, ...L.CODE_LANGS
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
-      P.append(row('Langage', s), row('', chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
+      P.append(sec('Langage', s, chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
     } else if (b.type === 'pnote') {
       const prev = L.h('div', { class: 'pnote-prev paper ' + L.pageClasses(doc.meta), html: L.pnoteHtml(b) || '<i style="color:#999">(vide)</i>' });
       L.hydrate(prev, { mode: 'view', nums: {}, bib: {}, fn: 0, doc, meta: doc.meta });
-      P.append(row('Texte en bas de page', prev, btn('✎  Modifier (texte, formules, symboles)', () => this.editNote({ pnote: b.id }), 'primary')), L.h('div', { class: 'pp-help', html: '<p>Ce texte, sans numéro, apparaît en bas de la page où se trouve ce repère ↧. Pour une note numérotée liée à un mot, utilisez plutôt le bouton <b>¹ Note</b>.</p>' }));
+      P.append(sec('Texte en bas de page', prev, btn('✎  Modifier (texte, formules, symboles)', () => this.editNote({ pnote: b.id }), 'primary wide')),
+        help('Ce texte, sans numéro, apparaît en bas de la page où se trouve ce repère ↧. Pour une note numérotée liée à un mot, utilisez plutôt le bouton <b>¹ Note</b>.'));
     } else if (b.type === 'vspace') {
-      P.append(row('Hauteur', seg(Object.entries(L.VSPACES).map(([k, v]) => [k, v[0]]), b.size || 'moyen', v => upd(() => { b.size = v; }))));
+      P.append(sec('Hauteur', seg(Object.entries(L.VSPACES).map(([k, v]) => [k, v[0]]), b.size || 'moyen', v => upd(() => { b.size = v; }))));
     } else if (b.type === 'cols') {
-      const addTo = (i, lab) => row('Ajouter dans la colonne ' + lab, L.h('div', { class: 'btn-row' },
+      const addTo = (i, lab) => sec('Ajouter dans la colonne ' + lab, L.h('div', { class: 'chips' },
         ...[['Tableau', 'table'], ['Image', 'figure'], ['Paragraphe', 'paragraph'], ['Équation', 'equation'], ['Liste', 'list']].map(([t, ty]) =>
           btn(t, () => this.insertBlock(L.newBlock(ty), { into: b.children[i].id })))));
       P.append(
-        row('Largeurs', seg([[50, '50 / 50'], [60, '60 / 40'], [40, '40 / 60'], [65, '65 / 35'], [35, '35 / 65']], b.ratio || 50, v => upd(() => { b.ratio = v; }))),
+        sec('Largeurs', seg([[50, '50/50'], [60, '60/40'], [40, '40/60'], [65, '65/35'], [35, '35/65']], b.ratio || 50, v => upd(() => { b.ratio = v; })),
+          btn('⇄ Échanger les deux colonnes', () => upd(() => { b.children.reverse(); }), 'wide')),
         addTo(0, 'de gauche'), addTo(1, 'de droite'),
-        row('', btn('⇄ Échanger les deux colonnes', () => upd(() => { b.children.reverse(); }))),
-        L.h('div', { class: 'pp-help', html: '<p>En LaTeX, chaque colonne devient une <i>minipage</i>. Les tableaux et figures gardent leur légende numérotée.</p>' }));
+        help('En LaTeX, chaque colonne devient une <i>minipage</i>. Les tableaux et figures gardent leur légende numérotée.'));
     } else if (b.type === 'tabvar') {
-      P.append(row('', btn('✎  Modifier le tableau', () => L.dlgTabvar(b), 'primary')),
-        L.h('div', { class: 'pp-help', html: '<p>Exporté en LaTeX avec le paquet <i>tkz-tab</i>, la référence pour les tableaux de variations.</p>' }));
+      P.append(sec(null, btn('✎  Modifier le tableau', () => L.dlgTabvar(b), 'primary wide')),
+        help('Exporté en LaTeX avec le paquet <i>tkz-tab</i>, la référence pour les tableaux de variations.'));
     } else if (b.type === 'bibliography') {
-      P.append(row('', btn('Gérer les sources (' + (doc.bib || []).length + ')', () => L.dlgBib(), 'primary')),
-        L.h('div', { class: 'pp-help', html: '<p>Citez une source dans le texte avec le bouton « Citation » de la barre d\'outils.</p>' }));
+      P.append(sec(null, btn('Gérer les sources (' + (doc.bib || []).length + ')', () => L.dlgBib(), 'primary wide')),
+        help('Citez une source dans le texte avec le bouton « Citation » de la barre d\'outils.'));
+    } else if (b.type === 'rule' || b.type === 'pagebreak') {
+      P.append(help(b.type === 'rule' ? 'Une ligne horizontale sur toute la largeur du texte.' : 'La suite du document commence sur une nouvelle page.'));
     }
-
-    P.append(L.h('hr', { class: 'pp-sep' }), row('Actions', L.h('div', { class: 'btn-row' },
-      btn('↑ Monter', () => this.moveBlock(b.id, -1)), btn('↓ Descendre', () => this.moveBlock(b.id, 1)),
-      btn('Dupliquer', () => this.duplicate(b.id)), btn('Supprimer', () => this.removeBlock(b.id), 'danger'))));
   },
   renderSoon: L.debounce(() => App.render(), 250),
 });
@@ -1354,7 +1399,7 @@ L.InsertMenu = (function () {
     let g = null;
     items.forEach((it, i) => {
       if (groups && it.g !== g) { g = it.g; b.appendChild(L.h('div', { class: 'pm-h', text: g })); }
-      const el = L.h('button', { class: 'pm-item' + (i === idx ? ' act' : '') }, L.h('span', { class: 'ic', text: it.icon }), L.h('span', null, it.label));
+      const el = L.h('button', { class: 'pm-item' + (i === idx ? ' act' : '') }, L.h('span', { class: L.icClass(it.icon, it.fam), text: it.icon }), L.h('span', null, it.label));
       el.onmousedown = e => { e.preventDefault(); pick(i); };
       b.appendChild(el);
     });
@@ -1413,6 +1458,7 @@ App.bindEditor = function () {
     this.syncField(field);
     this.commitSoon();
     this.pagesSoon();
+    if (App.updateWordCount) App.updateWordCount();
     // Le texte vient de déborder en bas d'une page : il passe tout de suite à la suivante
     if (this.pagesStale()) this.layoutSheets();
     const blk = field.closest('.blk');
@@ -1953,28 +1999,30 @@ Object.assign(App, {
     inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); apply(); } });
     return row(label || 'Texte à droite (barème, points…)', inp);
   },
-  listItemRow(b, row, btn, upd) {
+  listItemRow(b, row, btn, upd, sec) {
+    const wrap = (title, ...c) => sec ? sec(title, ...c) : row(title, ...c);
     const cr = this.currentRichRange();
     const fd = cr && cr.field.dataset.b === b.id ? cr.field.dataset.f : null;
     const i = fd && /^items\.(\d+)\./.test(fd) ? +fd.split('.')[1] : null;
-    if (i === null || !b.items[i]) return L.h('div', { class: 'pp-help', text: 'Cliquez dans une question pour choisir son numéro, la déplacer ou la supprimer.' });
+    const bullets = L.BULLET_STYLES.includes(b.style);
+    if (i === null || !b.items[i]) return wrap(bullets ? 'Élément' : 'Question', L.h('div', { class: 'pp-help', text: 'Cliquez dans ' + (bullets ? 'un élément' : 'une question') + ' pour ' + (bullets ? 'le' : 'choisir son numéro, la') + ' déplacer ou ' + (bullets ? 'le' : 'la') + ' supprimer.' }));
     const it = b.items[i];
-    const box = L.h('div', { class: 'pp-sub' });
-    const numIn = L.h('input', { type: 'number', value: it.num ?? '', placeholder: 'auto', style: { width: '80px' } });
+    const numIn = L.h('input', { type: 'number', value: it.num ?? '', placeholder: 'auto', class: 'num-in' });
     numIn.onchange = () => upd(() => { if (numIn.value === '') delete it.num; else it.num = Math.trunc(+numIn.value); });
     const keep = n => { this.focusAfter = { id: b.id, f: 'items.' + n + '.html', where: 'end' }; };
-    box.appendChild(this.rightTextRow(b, 'items.' + i + '.html', row, upd, 'Texte à droite (barème de la question)'));
-    if (!L.BULLET_STYLES.includes(b.style)) box.appendChild(row('Numéro de cette question', L.h('div', { class: 'btn-row', style: { alignItems: 'center' } }, numIn, L.h('span', { class: 'pp-help', text: 'vide = automatique ; les suivantes continuent.' }))));
-    box.appendChild(L.h('div', { class: 'btn-row' },
-      btn('↑', () => { if (i > 0) upd(() => { b.items.splice(i - 1, 0, b.items.splice(i, 1)[0]); keep(i - 1); }); }),
-      btn('↓', () => { if (i < b.items.length - 1) upd(() => { b.items.splice(i + 1, 0, b.items.splice(i, 1)[0]); keep(i + 1); }); }),
-      btn('→ Décaler', () => upd(() => { it.level = Math.min(2, (it.level || 0) + 1); keep(i); })),
-      btn('← Ramener', () => upd(() => { it.level = Math.max(0, (it.level || 0) - 1); keep(i); })),
-      btn('Supprimer cette question', () => {
-        if (b.items.length === 1) { this.removeBlock(b.id); return; }
-        upd(() => { b.items.splice(i, 1); this.lastRange = null; keep(Math.max(0, i - 1)); });
-      }, 'danger')));
-    return row('Question ' + (i + 1) + ' (où se trouve le curseur)', box);
+    const ib = (text, title, on, cls = '') => L.h('button', { class: 'btn ' + cls, text, title, onclick: on });
+    return wrap((bullets ? 'Élément ' : 'Question ') + (i + 1) + ' (curseur)',
+      L.h('div', { class: 'icon-row' },
+        ib('↑', 'Monter', () => { if (i > 0) upd(() => { b.items.splice(i - 1, 0, b.items.splice(i, 1)[0]); keep(i - 1); }); }),
+        ib('↓', 'Descendre', () => { if (i < b.items.length - 1) upd(() => { b.items.splice(i + 1, 0, b.items.splice(i, 1)[0]); keep(i + 1); }); }),
+        ib('⇤', 'Ramener vers la gauche (Maj+Tab)', () => upd(() => { it.level = Math.max(0, (it.level || 0) - 1); keep(i); })),
+        ib('⇥', 'Décaler vers la droite (Tab)', () => upd(() => { it.level = Math.min(2, (it.level || 0) + 1); keep(i); })),
+        ib('🗑', 'Supprimer ' + (bullets ? 'cet élément' : 'cette question'), () => {
+          if (b.items.length === 1) { this.removeBlock(b.id); return; }
+          upd(() => { b.items.splice(i, 1); this.lastRange = null; keep(Math.max(0, i - 1)); });
+        }, 'danger')),
+      this.rightTextRow(b, 'items.' + i + '.html', row, upd, 'Texte à droite (barème)'),
+      !bullets ? row('Numéro', L.h('div', { class: 'inline' }, numIn, L.h('span', { class: 'pp-help', text: 'Vide = automatique ; les suivantes continuent.' }))) : null);
   },
   /* Modifier une note depuis le bas de la feuille */
   editNote(nt) {

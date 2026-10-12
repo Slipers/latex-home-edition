@@ -256,7 +256,8 @@ L.MathDock = (function () {
     const anchor = t.kind === 'inline' ? t.chip : App.blockEl(t.blockId);
     if (anchor) setTimeout(() => {
       const r = anchor.getBoundingClientRect(), dh = dock().offsetHeight;
-      if (r.bottom > window.innerHeight - dh - 30) L.$('#desk').scrollBy({ top: r.bottom - (window.innerHeight - dh - 60), behavior: 'smooth' });
+      // (l'éditeur est posé au-dessus de la barre d'état : 38 px du bas)
+      if (r.bottom > window.innerHeight - dh - 54) L.$('#desk').scrollBy({ top: r.bottom - (window.innerHeight - dh - 84), behavior: 'smooth' });
     }, 40);
   }
 

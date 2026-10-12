@@ -421,6 +421,8 @@ L.dlgHelp = function () {
       L.h('p', { text: 'Cliquez sur « Formule » (ou tapez $) : un éditeur visuel s\'ouvre en bas. Utilisez les boutons (fractions, racines, intégrales, matrices, lettres grecques…) ou tapez directement : « / » crée une fraction, « ^ » un exposant, « _ » un indice, « sqrt » une racine, « int » une intégrale. L\'onglet « Chimie » écrit les équations de réaction.' }),
       L.h('h4', { text: 'Numérotation et références' }),
       L.h('p', { text: 'Sections, équations, figures, tableaux, théorèmes et exercices sont numérotés automatiquement. Le bouton « Référence » insère un numéro qui reste toujours juste, même si vous déplacez les éléments.' }),
+      L.h('h4', { text: 'Orthographe et grammaire' }),
+      L.h('p', { text: 'Les fautes d\'orthographe sont soulignées en rouge, celles de grammaire et de conjugaison en bleu (si vous l\'avez activé : Préférences, dans le menu du compte). Un clic droit sur un mot souligné — ou un simple survol pour la grammaire — propose les corrections. La barre en bas de la feuille compte les fautes : cliquez dessus pour aller à la suivante.' }),
       L.h('h4', { text: 'Le résultat' }),
       L.h('p', { text: '« Aperçu » montre les pages exactement comme dans le PDF. « PDF » ouvre la fenêtre d\'impression : choisissez « Enregistrer au format PDF ». « LaTeX » produit un vrai fichier .tex (ou un projet .zip avec les images) compilable avec LaTeX ou sur Overleaf.' })),
     L.h('div', { class: 'set-h', text: 'Raccourcis clavier' }),
