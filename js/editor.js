@@ -323,6 +323,10 @@ Object.assign(App, {
     const paper = L.$('#paper');
     const flow = paper.querySelector(':scope > .flow');
     if (!flow) return;
+    // Éditeur caché (aperçu affiché…) : rien ne peut être mesuré ; on garde les feuilles
+    // actuelles, elles seront redessinées au retour (sinon : une seule feuille minuscule,
+    // et la page apparaissait transparente)
+    if (!paper.offsetWidth) return;
     // Point d'ancrage : ce que l'on regarde (le curseur s'il est à l'écran, sinon le texte
     // en haut de l'écran), pour garder l'écran immobile
     const anc = noAnchor ? null : this.viewAnchor();
@@ -398,6 +402,9 @@ Object.assign(App, {
     // 1 bis. Sauts de la mise en page du PDF, tant que l'éditeur affiche la même chose.
     // S'il affiche autre chose (titre vide en attente, texte tapé depuis…), il pagine ce
     // qu'il affiche ; les sauts imposés (saut de page, page de garde) sont toujours gardés.
+    // Une erreur de pagination ne doit jamais empêcher de dessiner les feuilles (sinon la page
+    // apparaît transparente) : on dessine alors les pages trouvées jusque-là
+    try {
     (info ? info.breaks : []).forEach(b => {
       const pos = this.breakPoint(paper, b);
       if (!pos) return;
@@ -408,6 +415,7 @@ Object.assign(App, {
       drifted = false;
     });
     fixOverflow(null);
+    } catch (e) { console.error('Mise en page de l\'éditeur :', e); }
     const end = (flow.getBoundingClientRect().bottom - pTop()) / z + mbot;
     sheets[sheets.length - 1].bottom = Math.max(prevTop + P, end);
     paper.style.minHeight = sheets[sheets.length - 1].bottom + 'px';
@@ -420,7 +428,7 @@ Object.assign(App, {
       const el = L.h('div', { class: 'sheet', style: { top: sh.top + 'px', height: (sh.bottom - sh.top) + 'px' } });
       const n = info ? nums[i] : L.pageStart(m) + i;
       const skip = n === null || n === undefined || (i === firstNum && m.hfFirst === false && m.titleStyle !== 'pagegarde');
-      if (!skip) {
+      if (!skip) try {
         const hf = L.renderHF(m, n, total).filter(x => !(i === firstNum && m.hfFirst === 'foot' && x.classList.contains('page-head')));
         hf.forEach(x => el.appendChild(x));
         // Discret rappel, cliquable, que l'en-tête (et le pied de page) se répètent
@@ -431,7 +439,7 @@ Object.assign(App, {
         if (!hf.some(x => x.classList.contains('page-hfoot'))) {
           el.appendChild(L.h('div', { class: 'page-hfoot hint', text: '+ Pied de page (sur chaque page)' }));
         }
-      }
+      } catch (e) { console.error('En-tête / pied de page :', e); }
       el.addEventListener('click', e => { if (e.target.closest('.page-head.hint, .page-hfoot.hint')) L.dlgSettings('hf'); });
       el.addEventListener('dblclick', e => { if (e.target.closest('.page-head, .page-hfoot')) L.dlgSettings('hf'); });
       const pn = info && info.notes ? info.notes[i] : null;

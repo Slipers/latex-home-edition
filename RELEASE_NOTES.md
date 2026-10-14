@@ -1,18 +1,23 @@
 ## Nouveautés
 
-- **Correcteur d'orthographe et de grammaire** : les fautes d'orthographe sont soulignées en rouge, et — si vous l'activez — les fautes de grammaire et de conjugaison en bleu. Un **clic droit** sur un mot souligné (ou un simple **survol**, quand la grammaire est activée) affiche les corrections proposées : un clic suffit pour remplacer le mot. « Ignorer » et « Ajouter au dictionnaire » sont aussi proposés.
-  - La grammaire est vérifiée par le service en ligne LanguageTool (gratuit, sans compte) : l'application vous demande votre accord avant de lui envoyer le texte du document (rien n'est envoyé sans cet accord, et jamais les informations de la page de titre : auteurs, établissement, groupe, date). Modifiable à tout moment dans Préférences (menu du compte).
-  - La barre en bas de la feuille compte les fautes ; un clic dessus mène à la suivante.
-  - Les soulignements ne modifient jamais le document : rien ne change dans le PDF ni dans le LaTeX.
-- **Éditeur plus clair et plus aéré** :
-  - Colonne « Insérer » rangée par familles (Texte, Formules, Encadrés, Exercices, Figures et tableaux, Mise en page, Importer), avec une **recherche** et des groupes repliables.
-  - Colonne de droite simplifiée : le type du bloc et ses actions (monter, descendre, dupliquer, supprimer) en haut, puis des réglages courts ; les options rares sont rangées dans « Plus d'options ». Interrupteurs à la place des cases à cocher, choix du type d'encadré dans une liste.
-  - Tableaux : lignes et colonnes en un coup d'œil, une ligne de réglages par colonne (alignement, largeur).
-  - **Barre d'état** sous la feuille : page en cours, nombre de mots, fautes, zoom.
-  - Les deux colonnes latérales se **replient** (boutons « « » et « » ») pour laisser toute la place à la feuille.
-  - Le plan surligne la section où vous vous trouvez.
-- **Clic droit** dans le texte : Couper / Copier / Coller.
+- **Correction automatique des fautes** (Préférences, dans le menu du compte — désactivée par défaut) : un mot mal orthographié est corrigé dès que vous passez au suivant, seulement quand la correction est sûre (accent oublié, lettre doublée, une seule proposition possible). Si la grammaire est activée, les fautes de la phrase précédente sont aussi corrigées quand il n'y a qu'une correction possible. **Pour garder votre orthographe, retapez simplement le mot** : il ne sera plus corrigé. Un rappel en bas de la feuille indique chaque correction, avec « Annuler » (ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>).
+- **Orthographe vérifiée sur votre ordinateur** avec le dictionnaire français de référence (celui de LibreOffice et Firefox), sans connexion : survol ou clic droit sur un mot souligné pour le corriger, dans l'application comme dans la version web.
+- **Nouvelle fenêtre « Partager »**, avec deux choix clairs côte à côte :
+  - **Modifier ensemble** (Live Modification) : démarrer la modification en direct, inviter par e-mail en choisissant le rôle (éditeur, commentateur, lecteur), voir qui est en ligne, changer un rôle ou retirer un accès, copier le lien du document ;
+  - **Envoyer une copie** : un lien grâce auquel chacun reçoit sa propre copie, avec mises à jour automatiques ou version figée.
+  Le bouton ⚡ Live et le menu « Partager » ouvrent directement le bon onglet.
+- **Nouvelles fenêtres de compte** : connexion et création de compte plus claires (présentation à gauche, formulaire à droite), bouton pour afficher le mot de passe, critères du mot de passe cochés au fur et à mesure, message d'erreur sous chaque champ. « Mon compte » est aussi simplifié.
+- **Mises à jour obligatoires** : une nouvelle version se télécharge toute seule (vous pouvez continuer à travailler pendant ce temps), puis l'application redémarre pour l'installer après un compte à rebours de 15 secondes (ou tout de suite avec « Redémarrer maintenant »). Votre document est conservé et rouvert automatiquement. Sans connexion, rien n'est bloqué : nouvel essai plus tard. Sur Mac, la nouvelle version est à installer soi-même : un rappel reste affiché tant qu'elle ne l'est pas.
 
 ## Corrections
 
-- **Export LaTeX** : avec l'en-tête recto-verso, les pages du PDF ne sont plus étirées (il pouvait y avoir de grands blancs avant un encadré ou une figure).
+- **Page transparente** : la feuille blanche pouvait disparaître (texte affiché directement sur le fond gris), notamment après être passé par l'aperçu. Les feuilles sont maintenant toujours redessinées, et la page reste blanche dans tous les cas.
+- **Correction d'un mot souligné** : la correction remplace toujours le mot visé (elle pouvait être ajoutée à côté au lieu de remplacer le mot). Les mots en partie en gras ou en italique gardent leur mise en forme, et les mots élidés (« l’exemplle ») sont corrigés sans toucher à « l’ ».
+- **Beaucoup moins de fautes signalées à tort** :
+  - les accords avec une formule ne sont plus signalés (« f est croissante », « la suite est décroissante ») ;
+  - les remarques de style et de typographie ne sont plus affichées : seules les vraies fautes de grammaire et de conjugaison restent ;
+  - les noms propres, sigles, unités (mA, ms, kΩ…), adresses web et mots collés aux formules (« n-ième ») ne sont plus soulignés ;
+  - vocabulaire scientifique complété (trigonaliser, orthonormaliser, autocollimation, coplanarité…) ;
+  - les titres ne sont plus vérifiés en grammaire (« Devoir surveillé » était pris pour le verbe « devoir »).
+- **Confidentialité** : les titres du document et des sections ne sont plus envoyés à LanguageTool (en plus des informations de la page de titre).
+- **Clic droit** dans les autres champs de texte : les suggestions du correcteur de Windows s'appliquent directement depuis le menu.

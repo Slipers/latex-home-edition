@@ -141,16 +141,16 @@
       </div>
       <div class="tb-group g-live">
         <div class="dropdown">
-          <button data-act="share-menu" data-lv="5" title="Partager une copie par lien, ou ouvrir un lien reçu"><i>🔗</i><span>Partager ▾</span></button>
+          <button data-act="share-menu" data-lv="5" title="Partager : modifier ensemble en direct, ou envoyer une copie par lien"><i>🔗</i><span>Partager ▾</span></button>
           <div class="menu" id="shareMenu">
-            <button data-act="collab">⚡ Live Modification : modifier à plusieurs en direct…</button>
+            <button data-act="collab">⚡ Modifier ensemble, en direct…</button>
             <button data-act="drive">☁ Mes fichiers (dont les fichiers partagés)…</button>
             <hr>
-            <button data-act="share">Partager une copie par lien…</button>
+            <button data-act="share">🔗 Envoyer une copie par lien…</button>
             <button data-act="openshare">Ouvrir un lien de partage reçu…</button>
           </div>
         </div>
-        <button data-act="collab" data-lv="5" class="live-btn" title="Live Modification : inviter des personnes par e-mail et modifier à plusieurs en direct"><i>⚡</i><span>Live</span></button>
+        <button data-act="collab" data-lv="5" class="live-btn" title="Modifier ensemble, en direct : inviter des personnes par e-mail"><i>⚡</i><span>Live</span></button>
         <div class="dropdown">
           <button data-act="account-menu" data-lv="6" id="accountBtn" class="account-btn" title="Se connecter ou créer un compte"><i>👤</i><span>Se connecter</span></button>
           <div class="menu" id="accountMenu"></div>
@@ -206,6 +206,7 @@
         <span class="sb-item" id="pageIndicator" hidden></span>
         <span class="sb-item sb-words" id="wordCount"></span>
         <button class="sb-item sb-spell" id="spellStatus" hidden></button>
+        <span class="sb-item sb-fix" id="autofixNote" hidden></span>
         <span class="sb-flex"></span>
         <div class="edit-zoom" id="editZoom" title="Zoom (Ctrl + molette)">
           <button data-ezoom="-" title="Réduire">−</button>
@@ -265,7 +266,8 @@
 </div>
 
 <div id="spellPop" class="spell-pop" hidden></div>
-<div id="updOverlay" hidden><div class="upd-box"><div class="upd-title" id="updTitle">Mise à jour</div><div class="upd-bar"><i id="updBar"></i></div><div class="upd-sub" id="updSub"></div></div></div>
+<div id="updOverlay" hidden><div class="upd-box"><div class="upd-ic" id="updIc"></div><div class="upd-title" id="updTitle">Mise à jour</div><div class="upd-bar"><i id="updBar"></i></div><div class="upd-sub" id="updSub"></div><div class="upd-acts" id="updActs"></div></div></div>
+<div id="updMandatory" class="upd-card" role="status" aria-live="polite" hidden></div>
 <div id="modal" hidden><div class="modal-box" role="dialog" aria-modal="true"></div></div>
 <div id="slashMenu" class="popmenu" hidden></div>
 <input type="file" id="fileOpen" accept=".lhe,.json" hidden>

@@ -1,12 +1,12 @@
 /* Fenêtres de dialogue */
 
-L.modal = function ({ title, body, foot, wide, onClose }) {
+L.modal = function ({ title, body, foot, wide, onClose, cls, bare }) {
   const wrap = L.$('#modal'), box = L.$('.modal-box', wrap);
   // Une fenêtre en remplace une autre (connexion demandée depuis « Mes fichiers »…) :
   // l'ancienne est d'abord fermée proprement. Sans cela, sa touche Échap restait
   // active et refermait plus tard une autre fenêtre.
   if (L._modalCur) L._modalCur.dispose();
-  box.className = 'modal-box' + (wide ? ' wide' : '');
+  box.className = 'modal-box' + (wide ? ' wide' : '') + (cls ? ' ' + cls : '');
   box.innerHTML = '';
   let closed = false;
   const dispose = () => {
@@ -28,7 +28,9 @@ L.modal = function ({ title, body, foot, wide, onClose }) {
     e.stopPropagation(); close();
   };
   document.addEventListener('keydown', onKey, true);
-  box.append(
+  // « bare » : la fenêtre dessine elle-même son en-tête (seul le bouton de fermeture est posé)
+  if (bare) box.append(L.h('button', { class: 'x mb-x', title: 'Fermer', text: '×', onclick: close }), body);
+  else box.append(
     L.h('div', { class: 'mb-head' }, L.h('h2', { text: title }), L.h('button', { class: 'x', title: 'Fermer', text: '×', onclick: close })),
     L.h('div', { class: 'mb-body' }, body));
   if (foot && foot.length) box.appendChild(L.h('div', { class: 'mb-foot' },

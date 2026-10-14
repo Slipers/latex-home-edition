@@ -163,18 +163,20 @@ function createWindow(opts = {}) {
   });
   // Un processus de rendu qui plante : on le recharge au lieu de laisser une fenêtre vide
   w.webContents.on('render-process-gone', (e, d) => { if (d.reason !== 'clean-exit' && !w.isDestroyed()) setTimeout(() => w.reload(), 500); });
-  // Clic droit dans un texte : sur un mot souligné par le correcteur, la page affiche sa bulle
-  // de corrections ; ailleurs, un menu Couper / Copier / Coller
+  // Clic droit dans un texte : suggestions du correcteur du système sur un mot souligné (champs
+  // hors de la feuille, ou si le dictionnaire de l'application n'a pas pu être chargé), puis
+  // Couper / Copier / Coller. Sur la feuille, la page affiche sa propre bulle de corrections.
   w.webContents.on('context-menu', (e, p) => {
     if (!p.isEditable && !p.selectionText) return;
+    const items = [];
     if (p.misspelledWord) {
-      w.webContents.send('lhe:spell-menu', { x: p.x, y: p.y, word: p.misspelledWord, suggestions: (p.dictionarySuggestions || []).slice(0, 6) });
-      return;
+      (p.dictionarySuggestions || []).slice(0, 6).forEach(s => items.push({ label: s, click: () => w.webContents.replaceMisspelling(s) }));
+      if (!items.length) items.push({ label: 'Aucune suggestion', enabled: false });
+      items.push({ type: 'separator' }, { label: 'Ajouter au dictionnaire', click: () => w.webContents.session.addWordToSpellCheckerDictionary(p.misspelledWord) }, { type: 'separator' });
     }
-    const items = p.isEditable
-      ? [{ label: 'Couper', role: 'cut', enabled: p.editFlags.canCut }, { label: 'Copier', role: 'copy', enabled: p.editFlags.canCopy },
-        { label: 'Coller', role: 'paste', enabled: p.editFlags.canPaste }, { type: 'separator' }, { label: 'Tout sélectionner', role: 'selectAll' }]
-      : [{ label: 'Copier', role: 'copy', enabled: p.editFlags.canCopy }];
+    if (p.isEditable) items.push({ label: 'Couper', role: 'cut', enabled: p.editFlags.canCut }, { label: 'Copier', role: 'copy', enabled: p.editFlags.canCopy },
+      { label: 'Coller', role: 'paste', enabled: p.editFlags.canPaste }, { type: 'separator' }, { label: 'Tout sélectionner', role: 'selectAll' });
+    else items.push({ label: 'Copier', role: 'copy', enabled: p.editFlags.canCopy });
     Menu.buildFromTemplate(items).popup({ window: w });
   });
 
@@ -340,16 +342,16 @@ ipcMain.handle('lhe:export', async (e, { name, bytes }) => {
 });
 
 ipcMain.handle('lhe:version', () => app.getVersion());
-// Correcteur : remplacer le mot souligné sous le clic droit, ou l'ajouter au dictionnaire
-ipcMain.handle('lhe:spell-replace', (e, text) => { e.sender.replaceMisspelling(String(text || '')); });
-ipcMain.handle('lhe:spell-add', (e, word) => e.sender.session.addWordToSpellCheckerDictionary(String(word || '')));
 ipcMain.handle('lhe:check-updates', () => checkUpdates(true));
 
-/* ---------- Mises à jour automatiques (GitHub Releases) ----------
-   Au lancement : vérification sur GitHub. Si une version plus récente existe, on propose
-   de l'installer ; si l'utilisateur accepte, téléchargement (barre de progression),
-   installation silencieuse puis relance automatique de l'application à jour. */
-let manualCheck = false, busy = false, declined = null;
+/* ---------- Mises à jour obligatoires (GitHub Releases) ----------
+   Au lancement puis toutes les heures : vérification sur GitHub. Une version plus récente
+   est obligatoire : elle se télécharge aussitôt (on peut continuer à travailler pendant ce
+   temps), puis l'application l'installe et redémarre après un court compte à rebours.
+   Le document en cours est conservé (sauvegarde automatique, rouvert au redémarrage).
+   Sans connexion, rien n'est bloqué : nouvel essai plus tard. */
+const INSTALL_DELAY = 15;   // secondes entre la fin du téléchargement et l'installation
+let manualCheck = false, busy = false, ready = false, installing = false, installTimer = null, retryTimer = null, macWarned = null;
 function send(ch, payload) { for (const w of windows) if (!w.isDestroyed()) w.webContents.send(ch, payload); }
 function sendTo(w, ch, payload) { if (w && !w.isDestroyed()) w.webContents.send(ch, payload); }
 const NL = String.fromCharCode(10);
@@ -385,19 +387,20 @@ function checkUpdatesMac(manual) {
       const tag = info && info.tag_name ? String(info.tag_name).replace(/^v/, '') : '';
       if (!tag) { if (manual) send('lhe:update', { state: 'error', message: 'réponse inattendue de GitHub' }); return; }
       if (!plusRecente(tag, app.getVersion())) { if (manual) send('lhe:update', { state: 'none', version: app.getVersion() }); return; }
-      if (!manual && declined === tag) return;
-      const r = await dialog.showMessageBox(focusedWin(), {
-        type: 'info', buttons: ['Télécharger', 'Plus tard'], defaultId: 0, cancelId: 1, noLink: true,
-        title: 'Mise à jour disponible',
-        message: 'La version ' + tag + ' de LaTeX Home Edition est disponible.',
+      send('lhe:update', { state: 'manual', version: tag, url: info.html_url || RELEASES_URL });
+      // l'avertissement s'affiche une fois par lancement ; la carte de rappel reste dans la fenêtre
+      if (macWarned === tag && !manual) return;
+      macWarned = tag;
+      await dialog.showMessageBox(focusedWin(), {
+        type: 'warning', buttons: ['Télécharger la mise à jour'], defaultId: 0, cancelId: 0, noLink: true,
+        title: 'Mise à jour obligatoire',
+        message: 'La version ' + tag + ' de LaTeX Home Edition est obligatoire.',
         detail: 'Vous utilisez la version ' + app.getVersion() + '.' + NL + NL
           + 'Sur macOS, l’application n’étant pas signée par Apple, la mise à jour se fait à la main :'
           + ' téléchargez le fichier .dmg, ouvrez-le et glissez l’application dans le dossier Applications'
           + ' pour remplacer l’ancienne. Vos documents ne sont pas touchés.',
       });
-      if (r.response !== 0) { declined = tag; return; }
       shell.openExternal(info.html_url || RELEASES_URL);
-      send('lhe:update', { state: 'manual', version: tag });
     });
   });
   req.on('error', err => { if (manual) send('lhe:update', { state: 'error', message: errText(err) }); });
@@ -417,33 +420,42 @@ autoUpdater.autoDownload = false;
 autoUpdater.disableWebInstaller = true;
 autoUpdater.autoInstallOnAppQuit = false;
 autoUpdater.on('update-not-available', () => { if (manualCheck) send('lhe:update', { state: 'none', version: app.getVersion() }); });
-autoUpdater.on('update-available', async info => {
-  if (!manualCheck && declined === info.version) return;
-  const notes = plainNotes(info.releaseNotes);
-  // LHE_UPDATE_AUTO=1 : acceptation automatique (tests)
-  const r = process.env.LHE_UPDATE_AUTO === '1' ? { response: 0 } : await dialog.showMessageBox(focusedWin(), {
-    type: 'info', buttons: ['Mettre à jour maintenant', 'Plus tard'], defaultId: 0, cancelId: 1, noLink: true,
-    title: 'Mise à jour disponible',
-    message: 'Une nouvelle version de LaTeX Home Edition est disponible : ' + info.version,
-    detail: 'Vous utilisez la version ' + app.getVersion() + '.' + NL + NL + (notes ? 'Nouveautés :' + NL + notes + NL + NL : '') +
-      'La mise à jour se télécharge puis s’installe toute seule, et l’application redémarre automatiquement. Votre document en cours est conservé.',
-  });
-  if (r.response !== 0) { declined = info.version; return; }
+// Échec du téléchargement (connexion…) : on ne bloque rien, nouvel essai dans 10 minutes
+function updateFailed(err) {
+  busy = false;
+  send('lhe:update', { state: 'error', mandatory: true, message: errText(err) });
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => checkUpdates(false), 10 * 60 * 1000);
+}
+autoUpdater.on('update-available', info => {
+  if (busy || ready) return;
   busy = true;
-  send('lhe:update', { state: 'downloading', version: info.version, percent: 0 });
-  autoUpdater.downloadUpdate().catch(err => { busy = false; send('lhe:update', { state: 'error', message: errText(err) }); });
+  send('lhe:update', { state: 'downloading', mandatory: true, version: info.version, percent: 0, notes: plainNotes(info.releaseNotes) });
+  autoUpdater.downloadUpdate().catch(updateFailed);
 });
-autoUpdater.on('download-progress', p => send('lhe:update', { state: 'downloading', percent: Math.round(p.percent) }));
-autoUpdater.on('error', err => { if (manualCheck || busy) send('lhe:update', { state: 'error', message: errText(err) }); busy = false; });
-autoUpdater.on('update-downloaded', async info => {
-  send('lhe:update', { state: 'installing', version: info.version });
+autoUpdater.on('download-progress', p => send('lhe:update', { state: 'downloading', mandatory: true, percent: Math.round(p.percent) }));
+autoUpdater.on('error', err => { if (busy) updateFailed(err); else if (manualCheck) send('lhe:update', { state: 'error', message: errText(err) }); });
+autoUpdater.on('update-downloaded', info => {
+  busy = false; ready = true;
+  send('lhe:update', { state: 'ready', version: info.version, seconds: INSTALL_DELAY });
+  clearTimeout(installTimer);
+  installTimer = setTimeout(installUpdate, INSTALL_DELAY * 1000);
+});
+async function installUpdate() {
+  if (!ready || installing) return;
+  installing = true;
+  clearTimeout(installTimer);
+  send('lhe:update', { state: 'installing' });
+  // La frappe des dernières secondes est enregistrée avant de fermer
   for (const w of windows) { try { await w.webContents.executeJavaScript('App.flushPending ? App.flushPending() : (App.autosaveNow && App.autosaveNow())'); } catch (_) {} }
   setTimeout(() => {
     quitting = true;
     // Installation silencieuse (/S) puis relance automatique de la nouvelle version
     autoUpdater.quitAndInstall(true, true);
   }, 1200);
-});
+}
+// « Redémarrer maintenant » (sans attendre la fin du compte à rebours)
+ipcMain.handle('lhe:install-update', () => { installUpdate(); });
 
 /* ---------- Démarrage ---------- */
 if (!app.requestSingleInstanceLock()) {
@@ -494,7 +506,7 @@ if (!app.requestSingleInstanceLock()) {
     createWindow({ file: pendingFile, link: pendingLink });
     pendingFile = pendingLink = null;
     setTimeout(() => checkUpdates(false), 2500);
-    setInterval(() => checkUpdates(false), 4 * 60 * 60 * 1000);
+    setInterval(() => checkUpdates(false), 60 * 60 * 1000);
   });
   app.on('window-all-closed', () => app.quit());
   app.on('activate', () => { if (!windows.size) createWindow(); });

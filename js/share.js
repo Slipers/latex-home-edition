@@ -201,23 +201,28 @@
   const APP_URL = 'https://github.com/Slipers/latex-home-edition/releases/latest';
   const mailto = (subject, body) => window.open('mailto:?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body));
 
-  /* ---------- Envoyer : le lien unique du document ---------- */
-  L.dlgShare = function () {
+  /* ---------- Envoyer une copie : le lien unique du document ----------
+     Volet « Envoyer une copie » de la fenêtre Partager (voir L.dlgShareHub, js/collab-ui.js).
+     Renvoie une fonction qui détache ce volet (abonnements à l'état d'envoi). */
+  function copyPane(host, opts = {}) {
     const nImg = Object.keys(JSON.parse(App.serialize()).assets).length;
-    let dlg = null;
-    const body = L.h('div', { class: 'shr' });
+    const ico = (n, s) => L.svg(n, s || 16);
+    const state = { live: true, light: true };
+    let off = null;
 
+    // Deux façons de partager le lien : mises à jour automatiques, ou version figée
     const modeChoice = (live, onChange) => {
-      const opt = (val, t, d) => {
-        const i = L.h('input', { type: 'radio', name: 'shr-mode', value: val ? '1' : '0' });
+      const opt = (val, icon, t, d) => {
+        const i = L.h('input', { type: 'radio', name: 'sh-mode', value: val ? '1' : '0' });
         i.checked = live === val;
-        i.onchange = () => onChange(val);
-        return L.h('label', { class: 'shr-mode' + (live === val ? ' on' : '') }, i, L.h('span', null, L.h('b', { text: t }), L.h('em', { text: d })));
+        i.onchange = () => { box.querySelectorAll('.sh-mode').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)); onChange(val); };
+        return L.h('label', { class: 'sh-mode' + (live === val ? ' on' : '') }, i,
+          L.h('span', { class: 'sh-mode-ic' }, ico(icon, 17)),
+          L.h('span', { class: 'sh-mode-t' }, L.h('b', { text: t }), L.h('em', { text: d })));
       };
-      const box = L.h('div', { class: 'shr-modes' },
-        opt(true, 'Mises à jour en direct', 'Chaque modification est envoyée automatiquement : ceux qui ont importé le document se voient proposer la nouvelle version.'),
-        opt(false, 'Version figée', 'Le lien donne la version actuelle. Vous envoyez une nouvelle version seulement quand vous le décidez.'));
-      box.addEventListener('change', () => box.querySelectorAll('.shr-mode').forEach(l => l.classList.toggle('on', l.querySelector('input').checked)));
+      const box = L.h('div', { class: 'sh-modes' },
+        opt(true, 'refresh', 'Mises à jour automatiques', 'Vos modifications sont envoyées toutes seules : chacun se voit proposer la nouvelle version.'),
+        opt(false, 'pin', 'Version figée', 'Le lien donne la version actuelle. Vous envoyez une nouvelle version quand vous le décidez.'));
       return box;
     };
     const lightBox = sh => {
@@ -225,9 +230,9 @@
       const i = L.h('input', { type: 'checkbox' });
       i.checked = sh ? !!sh.light : true;
       i.onchange = () => { if (App.doc.meta.share) { App.doc.meta.share.light = i.checked; App.commit(); } else state.light = i.checked; };
-      return L.h('label', { class: 'chk shr-light' }, i, 'Alléger les images (' + nImg + ') : envoi plus rapide, qualité suffisante pour l\'écran et l\'impression');
+      return L.h('label', { class: 'chk sw' }, i, L.h('span', { class: 'sw-t' }),
+        L.h('span', { class: 'sw-l' }, 'Alléger les images (' + nImg + ')', L.h('small', { text: 'Envoi plus rapide ; qualité suffisante pour l\'écran et l\'impression.' })));
     };
-    const state = { live: true, light: true };
 
     /* Lien long, sans connexion */
     const longBox = () => {
@@ -251,13 +256,14 @@
         warn.hidden = link.length < 60000;
         warn.textContent = 'Ce lien est très long : certaines messageries risquent de le couper. Préférez le lien court, ou envoyez le fichier .lhe.';
       };
-      const d = L.h('details', { class: 'shr-more' },
-        L.h('summary', { text: 'Sans connexion : lien long, rien n\'est stocké en ligne (copie figée)' }),
-        L.h('p', { class: 'shr-foot', text: 'Le document entier est compressé dans le lien lui-même. Plus long et pas cliquable, sans mises à jour, mais aucun serveur n\'est utilisé : le destinataire le colle dans l\'application.' }),
-        out, size, warn,
-        L.h('div', { class: 'shr-acts' },
-          L.h('button', { class: 'btn', text: '⧉ Copier le lien long', onclick: () => link && copy(link, 'Lien copié') }),
-          L.h('button', { class: 'btn', text: 'Copier le message', onclick: () => link && copy(msg(), 'Message copié') })));
+      const d = L.h('details', { class: 'sh-more' },
+        L.h('summary', { text: 'Sans connexion : lien long (rien n\'est déposé en ligne)' }),
+        L.h('div', { class: 'sh-more-b' },
+          L.h('p', { class: 'sh-foot', text: 'Le document entier est compressé dans le lien lui-même : plus long et pas cliquable, sans mises à jour, mais aucun serveur n\'est utilisé. Le destinataire le colle dans l\'application.' }),
+          out, size, warn,
+          L.h('div', { class: 'sh-row' },
+            L.h('button', { class: 'btn', onclick: () => link && copy(link, 'Lien copié') }, ico('copy', 15), 'Copier le lien long'),
+            L.h('button', { class: 'btn', onclick: () => link && copy(msg(), 'Message copié') }, 'Copier le message'))));
       d.addEventListener('toggle', () => { if (d.open && !link) refresh(); });
       return d;
     };
@@ -267,98 +273,102 @@
       const list = mine();
       if (!list.length) return null;
       const cur = App.doc.meta.share && App.doc.meta.share.id;
-      return L.h('details', { class: 'shr-more' },
+      return L.h('details', { class: 'sh-more' },
         L.h('summary', { text: 'Tous vos liens (' + list.length + ')' }),
-        L.h('div', { class: 'shr-mine' }, ...list.map(e => L.h('div', { class: 'shr-row' + (e.id === cur ? ' cur' : '') },
-          L.h('span', { class: 'shr-row-t' }, L.h('b', { text: e.title || 'Sans titre' }), L.h('em', { text: (e.id === cur ? ' · ce document' : '') + ' · ' + fmtDate(e.at) })),
-          L.h('button', { class: 'btn small', text: 'Copier', onclick: () => copy(shortUrl(e.id), 'Lien copié') }),
-          L.h('button', { class: 'btn small', text: 'Désactiver', onclick: async () => {
-            if (!confirm('Désactiver le lien de « ' + (e.title || 'Sans titre') + ' » ? Il ne fonctionnera plus pour personne (les copies déjà importées restent chez leurs destinataires).')) return;
-            try { await revoke(e.id); L.toast('Lien désactivé'); build(); } catch (err) { L.toast(err.message, 'err'); }
-          } })))));
+        L.h('div', { class: 'sh-more-b' },
+          L.h('div', { class: 'shr-mine' }, ...list.map(e => L.h('div', { class: 'shr-row' + (e.id === cur ? ' cur' : '') },
+            L.h('span', { class: 'shr-row-t' }, L.h('b', { text: e.title || 'Sans titre' }), L.h('em', { text: (e.id === cur ? ' · ce document' : '') + ' · ' + fmtDate(e.at) })),
+            L.h('button', { class: 'btn small', text: 'Copier', onclick: () => copy(shortUrl(e.id), 'Lien copié') }),
+            L.h('button', { class: 'btn small', text: 'Désactiver', onclick: async () => {
+              if (!confirm('Désactiver le lien de « ' + (e.title || 'Sans titre') + ' » ? Il ne fonctionnera plus pour personne (les copies déjà importées restent chez leurs destinataires).')) return;
+              try { await revoke(e.id); L.toast('Lien désactivé'); build(); } catch (err) { L.toast(err.message, 'err'); }
+            } }))))));
     };
 
     const build = () => {
-      if (dlg && dlg._off) { dlg._off(); dlg._off = null; }
+      if (off) { off(); off = null; }
       const m = App.doc.meta, sh = m.share, e = sh && entryOf(sh.id);
       const title = docTitle(App.doc);
-      const parts = [];
+      const parts = [
+        L.h('p', { class: 'sh-lead', html: 'Chaque personne qui ouvre le lien reçoit <b>sa propre copie</b> du document : ses modifications restent chez elle. '
+ }),
+      ];
+      if (opts.toLive) parts[0].append(L.h('button', { class: 'linkish', text: 'Pour écrire à plusieurs sur le même document : Modifier ensemble', onclick: opts.toLive }));
       if (sh && e) {
         /* Le document a déjà son lien : on le gère */
         const link = shortUrl(sh.id);
         const sMsg = () => 'Je te partage mon document « ' + title + ' » :\n' + link + '\n\n'
           + 'Ouvre le lien : il lance LaTeX Home Edition (ou te propose de l\'installer, c\'est gratuit), et tu obtiendras ta propre copie du document.'
           + (sh.live ? ' Quand je le modifierai, l\'application te proposera de mettre ta copie à jour.' : '') + '\n';
-        const out = L.h('input', { class: 'shr-short', type: 'text', readonly: true, value: link, spellcheck: 'false' });
+        const out = L.h('input', { class: 'sh-input mono', type: 'text', readonly: true, value: link, spellcheck: 'false' });
         out.onfocus = () => out.select();
-        const status = L.h('div', { class: 'shr-status' });
-        const sendBtn = L.h('button', { class: 'btn', text: '⇪ Envoyer la version actuelle' });
+        const status = L.h('div', { class: 'sh-sync' });
+        const sendBtn = L.h('button', { class: 'btn small' }, ico('send', 14), 'Envoyer la version actuelle');
         const paint = () => {
           const st = L.Live.ownerState();
-          status.replaceChildren(
-            L.h('span', { class: 'dot ' + st.kind }),
-            L.h('span', { text: st.text }));
+          status.replaceChildren(L.h('span', { class: 'dot ' + st.kind }), L.h('span', { text: st.text }));
           sendBtn.hidden = sh.live;
           sendBtn.disabled = st.kind === 'ok' || st.kind === 'busy';
         };
         sendBtn.onclick = async () => { await L.Live.publish(true); paint(); };
-        const off = L.Live.onState(paint);
+        off = L.Live.onState(paint);
         paint();
         parts.push(
-          L.h('div', { class: 'shr-box' },
-            L.h('div', { class: 'shr-h', text: 'Lien de ce document' }),
-            out,
-            L.h('div', { class: 'shr-acts' },
-              L.h('button', { class: 'btn primary', text: '⧉ Copier le lien', onclick: () => copy(link, 'Lien copié') }),
-              L.h('button', { class: 'btn', text: 'Copier le message', onclick: () => copy(sMsg(), 'Message copié') }),
-              L.h('button', { class: 'btn', text: '✉ Envoyer par e-mail…', onclick: () => mailto('Document partagé : ' + title, sMsg()) })),
-            L.h('div', { class: 'shr-h2', text: 'Mises à jour' }),
+          L.h('div', { class: 'sh-card' },
+            L.h('div', { class: 'sh-card-h' }, ico('link', 16), L.h('b', { text: 'Lien de ce document' })),
+            L.h('div', { class: 'sh-linkrow' }, out,
+              L.h('button', { class: 'btn primary', onclick: () => copy(link, 'Lien copié') }, ico('copy', 15), 'Copier le lien')),
+            L.h('div', { class: 'sh-row' },
+              L.h('button', { class: 'btn ghost', onclick: () => copy(sMsg(), 'Message copié') }, 'Copier un message prêt à envoyer'),
+              L.h('button', { class: 'btn ghost', onclick: () => mailto('Document partagé : ' + title, sMsg()) }, ico('mail', 15), 'Envoyer par e-mail…')),
+            L.h('div', { class: 'sh-sep' }),
+            L.h('div', { class: 'sh-label', text: 'Mises à jour' }),
             modeChoice(!!sh.live, async live => {
               sh.live = live; App.commit();
               try { await rpc('update_share', { p_id: sh.id, p_token: e.token, p_live: live }); } catch (err) { /* l'information sera renvoyée avec la prochaine version */ }
               if (live) L.Live.publish(false);
               L.Live.refresh(); paint();
             }),
-            L.h('div', { class: 'shr-line' }, status, sendBtn),
-            lightBox(sh),
-            L.h('div', { class: 'shr-acts shr-end' },
-              L.h('button', { class: 'btn danger-soft', text: 'Désactiver le lien', onclick: async () => {
-                if (!confirm('Désactiver ce lien ? Il ne fonctionnera plus pour personne (les copies déjà importées restent chez leurs destinataires, sans mises à jour).')) return;
-                try { await revoke(sh.id); L.toast('Lien désactivé'); off(); build(); } catch (err) { L.toast(err.message, 'err'); }
-              } }))));
-        dlg && (dlg._off = off);
+            L.h('div', { class: 'sh-row sh-between' }, status, sendBtn),
+            lightBox(sh)),
+          L.h('div', { class: 'sh-row sh-end' },
+            L.h('button', { class: 'btn danger-soft', text: 'Désactiver le lien…', onclick: async () => {
+              if (!confirm('Désactiver ce lien ? Il ne fonctionnera plus pour personne (les copies déjà importées restent chez leurs destinataires, sans mises à jour).')) return;
+              try { await revoke(sh.id); L.toast('Lien désactivé'); build(); } catch (err) { L.toast(err.message, 'err'); }
+            } })));
       } else {
         /* Pas encore de lien : on le crée, en choisissant le mode */
         const err = L.h('div', { class: 'note', hidden: true });
-        const btn = L.h('button', { class: 'btn primary', text: '🔗 Créer le lien de ce document' });
+        const btn = L.h('button', { class: 'btn primary big' }, ico('link', 16), 'Créer le lien de ce document');
         btn.onclick = async () => {
-          btn.disabled = true; btn.textContent = 'Envoi du document…'; err.hidden = true;
+          btn.disabled = true; btn.lastChild.textContent = 'Envoi du document…'; err.hidden = true;
           try {
             if (sh && !e) delete m.share;
             await createShort(state.live, nImg ? state.light : false);
             copy(shortUrl(App.doc.meta.share.id), 'Lien créé et copié');
             L.Live.docLoaded();
             build();
-          } catch (x) { err.hidden = false; err.textContent = x.message; btn.disabled = false; btn.textContent = 'Réessayer'; }
+          } catch (x) { err.hidden = false; err.textContent = x.message; btn.disabled = false; btn.lastChild.textContent = 'Réessayer'; }
         };
         parts.push(
-          L.h('div', { class: 'shr-box' },
-            L.h('div', { class: 'shr-h', text: 'Lien court' }),
-            L.h('p', { class: 'shr-foot', text: 'Un seul lien pour ce document. Il est déposé sur le serveur de partage (en Europe) : seules les personnes qui ont le lien peuvent l\'ouvrir, et vous pouvez le désactiver à tout moment.' }),
-            sh && !e ? L.h('div', { class: 'note', text: 'Ce document a déjà un lien, créé depuis un autre ordinateur : il ne peut être mis à jour que depuis celui-ci. Vous pouvez créer un nouveau lien ici (l\'ancien continuera de donner l\'ancienne version).' }) : null,
-            modeChoice(state.live, live => { state.live = live; }),
-            lightBox(null),
-            btn, err));
+          sh && !e ? L.h('div', { class: 'note', text: 'Ce document a déjà un lien, créé depuis un autre ordinateur : il ne peut être mis à jour que depuis celui-ci. Vous pouvez créer un nouveau lien ici (l\'ancien continuera de donner l\'ancienne version).' }) : null,
+          L.h('div', { class: 'sh-label', text: 'Quand vous modifiez le document' }),
+          modeChoice(state.live, live => { state.live = live; }),
+          lightBox(null),
+          L.h('div', { class: 'sh-cta' }, btn,
+            L.h('div', { class: 'sh-foot' }, ico('lock', 13), 'Le lien est déposé sur le serveur de partage (en Europe). Seules les personnes qui l\'ont peuvent ouvrir le document, et vous pouvez le désactiver à tout moment.')),
+          err);
       }
       parts.push(longBox());
       const mb = mineBox();
       if (mb) parts.push(mb);
-      parts.push(L.h('p', { class: 'shr-foot', text: 'Chaque destinataire importe sa propre copie, qu\'il peut modifier librement. Les modifications qu\'il fait de son côté ne vous parviennent pas.' }));
-      body.replaceChildren(L.h('p', { class: 'shr-intro', html: 'Toute personne qui reçoit le lien peut <b>importer sa propre copie</b> de « ' + L.escHtml(title) + ' » dans LaTeX Home Edition, sans que vous ayez à envoyer le fichier.' }), ...parts);
+      host.replaceChildren(...parts.filter(Boolean));
     };
-    dlg = L.modal({ title: 'Partager ce document', body, wide: true, onClose: () => { if (dlg && dlg._off) dlg._off(); } });
     build();
-  };
+    return () => { if (off) { off(); off = null; } };
+  }
+
+  L.dlgShare = () => L.dlgShareHub('copy');
 
   /* ---------- Recevoir : importer une copie ---------- */
   L.dlgOpenShare = function (initial) {
@@ -422,7 +432,7 @@
   };
 
   L.Share = {
-    encode, decode, pack, unpack, rpc, shortUrl, docData, mine, entryOf, setEntry, revoke, ago, fmtDate,
+    encode, decode, pack, unpack, rpc, shortUrl, docData, mine, entryOf, setEntry, revoke, ago, fmtDate, copyPane,
     LINK_RE, SHORT_RE, isLink: t => LINK_RE.test(String(t || '')) || SHORT_RE.test(String(t || '')),
   };
 })();

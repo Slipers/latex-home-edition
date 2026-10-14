@@ -27,10 +27,13 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
     "@supabase/supabase-js": "^2.117.2",
+    "dictionary-en": "^4.0.0",
+    "dictionary-fr": "^3.0.0",
     "electron": "^44.4.3",
     "electron-builder": "^26.15.3",
     "esbuild": "^0.28.2",
     "highlight.js": "^11.12.0",
+    "hunspell-asm": "^4.0.2",
     "yjs": "^13.6.33"
   },
   "build": {

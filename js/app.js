@@ -110,7 +110,9 @@ Object.assign(App, {
     wrap.hidden = !on;
     L.$('#btnPreview').classList.toggle('on', on);
     const ez = L.$('#editZoom'); if (ez) ez.hidden = on;
-    if (!on) return;
+    // Retour à l'édition : les feuilles sont redessinées (une mise en page faite pendant
+    // l'aperçu, éditeur caché, n'avait pas pu les mesurer)
+    if (!on) { requestAnimationFrame(() => this.layoutSheets(true)); return; }
     this.commit();
     const host = L.$('#pages');
     host.style.zoom = 1;
@@ -260,17 +262,60 @@ if (window.lheDesktop) {
     if (App.dirty && !confirm('Le document actuel contient des modifications non enregistrées. Ouvrir « ' + f.name + ' » quand même ?')) return;
     App.openText(f.text, f.name, null, f.path);
   });
+  // Mises à jour obligatoires : téléchargement en arrière-plan (carte en bas à gauche),
+  // puis installation après un compte à rebours (fenêtre bloquante), document conservé
+  let countdown = null;
   lheDesktop.onUpdate(u => {
-    const ov = L.$('#updOverlay');
-    if (u.state === 'downloading' || u.state === 'installing') {
+    const ov = L.$('#updOverlay'), card = L.$('#updMandatory');
+    if (u.version) App._updVersion = u.version;
+    const v = App._updVersion ? ' ' + App._updVersion : '';
+    const showCard = (title, text, pct, acts) => {
+      card.replaceChildren(...[
+        L.h('div', { class: 'uc-h' }, L.h('span', { class: 'uc-dot' }), L.h('span', { text: title })),
+        L.h('div', { class: 'uc-m', text }),
+        pct === null ? null : L.h('div', { class: 'upd-bar small' }, L.h('i', { style: { width: (pct || 0) + '%' } })),
+        acts || null].filter(Boolean));
+      card.hidden = false;
+    };
+    if (u.state === 'downloading') {
+      ov.hidden = true;
+      showCard('Mise à jour obligatoire' + v, 'Téléchargement… ' + (u.percent || 0) + ' %. Vous pouvez continuer à travailler : l\'application redémarrera ensuite pour l\'installer.', u.percent || 0);
+      return;
+    }
+    if (u.state === 'ready' || u.state === 'installing') {
+      card.hidden = true;
       ov.hidden = false;
-      if (u.version) App._updVersion = u.version;
-      const v = App._updVersion ? ' ' + App._updVersion : '';
-      L.$('#updTitle').textContent = u.state === 'installing' ? 'Installation de la version' + v + '…' : 'Téléchargement de la version' + v + '…';
-      L.$('#updBar').style.width = (u.state === 'installing' ? 100 : (u.percent || 0)) + '%';
-      L.$('#updSub').textContent = u.state === 'installing'
-        ? 'L’application va se fermer puis redémarrer automatiquement avec la nouvelle version.'
-        : (u.percent || 0) + ' % — vous pourrez continuer juste après.';
+      L.$('#updIc').replaceChildren(L.svg('download', 26));
+      L.$('#updBar').style.width = '100%';
+      const acts = L.$('#updActs');
+      if (u.state === 'installing') {
+        clearInterval(countdown);
+        L.$('#updTitle').textContent = 'Installation de la version' + v + '…';
+        L.$('#updSub').textContent = 'L\'application va se fermer puis redémarrer automatiquement. Votre document est conservé.';
+        acts.replaceChildren();
+        return;
+      }
+      let left = u.seconds || 15;
+      const paint = () => {
+        L.$('#updTitle').textContent = 'Mise à jour obligatoire' + v;
+        L.$('#updSub').textContent = 'L\'application redémarre dans ' + left + ' s pour installer la nouvelle version. Votre document est conservé et rouvert automatiquement.';
+      };
+      paint();
+      acts.replaceChildren(L.h('button', { class: 'btn primary', text: 'Redémarrer maintenant', onclick: () => lheDesktop.installUpdate() }));
+      clearInterval(countdown);
+      countdown = setInterval(() => { left = Math.max(0, left - 1); paint(); if (!left) clearInterval(countdown); }, 1000);
+      if (App.flushPending) App.flushPending();
+      return;
+    }
+    if (u.state === 'manual') {
+      // macOS : installation à la main (application non signée par Apple), rappel permanent
+      showCard('Mise à jour obligatoire' + v, 'Téléchargez la nouvelle version et remplacez l\'application dans le dossier Applications. Vos documents ne sont pas touchés.', null,
+        L.h('div', { class: 'uc-acts' }, L.h('button', { class: 'btn primary small', text: 'Télécharger', onclick: () => window.open(u.url || 'https://github.com/Slipers/latex-home-edition/releases/latest') })));
+      return;
+    }
+    if (u.state === 'error' && u.mandatory) {
+      showCard('Mise à jour obligatoire' + v, 'Le téléchargement n\'a pas abouti (' + (u.message || 'connexion') + '). Nouvel essai automatique dans 10 minutes.', null,
+        L.h('div', { class: 'uc-acts' }, L.h('button', { class: 'btn small', text: 'Réessayer maintenant', onclick: () => lheDesktop.checkUpdates() })));
       return;
     }
     ov.hidden = true;
@@ -278,7 +323,6 @@ if (window.lheDesktop) {
       checking: 'Recherche de mises à jour…',
       none: 'Vous avez la dernière version (' + u.version + ').',
       dev: 'Mises à jour désactivées en mode développement.',
-      manual: 'Version ' + u.version + ' disponible : la page de téléchargement vient de s\'ouvrir.',
       error: 'Mise à jour impossible (' + (u.message || 'erreur') + ').',
     }[u.state];
     if (msg) L.toast(msg, u.state === 'error' ? 'err' : '');

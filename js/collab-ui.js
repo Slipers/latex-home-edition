@@ -44,103 +44,169 @@
   }
   const unavailable = () => { L.toast('La Live Modification a besoin du module de connexion, qui n\'a pas pu être chargé.', 'err'); };
 
-  /* ================= Connexion / inscription ================= */
+  /* ================= Éléments communs (compte, partage) ================= */
+  const ico = (n, s) => L.svg(n, s || 16);
+  const mailOk = v => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v || '').trim());
+  // Champ avec son libellé, une aide facultative et son propre message d'erreur
+  function afield(label, control, opts = {}) {
+    const msg = L.h('div', { class: 'au-msg', hidden: true });
+    const f = L.h('div', { class: 'au-field' },
+      L.h('div', { class: 'au-lab' }, L.h('label', { text: label }), opts.extra || null),
+      control, opts.hint ? L.h('div', { class: 'fhint', text: opts.hint }) : null, opts.after || null, msg);
+    f.err = t => { msg.hidden = !t; msg.textContent = t || ''; f.classList.toggle('bad', !!t); };
+    return f;
+  }
+  // Mot de passe avec le bouton « afficher / masquer »
+  function pwInput(ph, auto) {
+    const i = input('password', ph, auto);
+    const eye = L.h('button', { type: 'button', class: 'au-eye', title: 'Afficher le mot de passe', tabindex: '-1' }, ico('eye'));
+    eye.onclick = () => {
+      const show = i.type === 'password';
+      i.type = show ? 'text' : 'password';
+      eye.replaceChildren(ico(show ? 'eyeOff' : 'eye'));
+      eye.title = show ? 'Masquer le mot de passe' : 'Afficher le mot de passe';
+    };
+    const w = L.h('div', { class: 'au-pw' }, i, eye);
+    w.input = i;
+    return w;
+  }
+  // Critères du mot de passe, cochés au fur et à mesure de la frappe
+  function pwRules(i) {
+    const rules = [['8 caractères', p => p.length >= 8], ['une lettre', p => /[a-zA-Z]/.test(p)], ['un chiffre', p => /\d/.test(p)]];
+    const box = L.h('div', { class: 'au-rules' });
+    const paint = () => box.replaceChildren(...rules.map(([t, ok]) => L.h('span', { class: 'au-rule' + (ok(i.value) ? ' ok' : '') }, ico(ok(i.value) ? 'check' : 'x', 12), t)));
+    i.addEventListener('input', paint);
+    paint();
+    return box;
+  }
+
+  /* ================= Connexion / inscription =================
+     Fenêtre en deux parties : à gauche ce qu'apporte un compte, à droite le formulaire
+     (se connecter, créer un compte, mot de passe oublié, e-mail envoyé). */
   L.dlgAuth = function (mode, onDone) {
     if (!C().available()) return unavailable();
-    let dlg = null;
-    const body = L.h('div', { class: 'auth' });
-    const tabs = L.h('div', { class: 'seg auth-tabs' });
+    let dlg = null, email = '';
+    const main = L.h('div', { class: 'au-main' });
+    const point = (icon, t) => L.h('li', null, L.h('span', { class: 'au-pt-ic' }, ico(icon, 16)), L.h('span', { text: t }));
+    const side = L.h('div', { class: 'au-side' },
+      L.h('div', { class: 'au-brand' }, L.h('span', { class: 'logo', text: '∑' }), L.h('span', { html: 'LaTeX <b>Home</b> Edition' })),
+      L.h('h3', { text: 'Un compte pour travailler à plusieurs' }),
+      L.h('ul', { class: 'au-points' },
+        point('users', 'Modifier un document à plusieurs, en direct'),
+        point('cloud', 'Retrouver vos fichiers en ligne, sur tous vos ordinateurs'),
+        point('mail', 'Recevoir les invitations de vos camarades et professeurs')),
+      L.h('div', { class: 'au-foot' }, ico('shield', 14), L.h('span', { text: 'Gratuit. Seuls votre adresse e-mail et votre pseudo sont conservés.' })));
     const setMode = m => { mode = m; build(); };
+    const tabs = () => L.h('div', { class: 'seg au-tabs' },
+      L.h('button', { class: mode === 'login' ? 'on' : '', text: 'Se connecter', onclick: () => setMode('login') }),
+      L.h('button', { class: mode === 'signup' ? 'on' : '', text: 'Créer un compte', onclick: () => setMode('signup') }));
+    const title = (t, sub) => L.h('div', { class: 'au-title' }, L.h('h2', { text: t }), sub ? L.h('p', { text: sub }) : null);
+    const switchLine = (t, lab, m) => L.h('div', { class: 'au-switch' }, t + ' ', L.h('button', { class: 'linkish', text: lab, onclick: () => setMode(m) }));
+
     const build = () => {
-      tabs.replaceChildren(
-        L.h('button', { class: mode === 'login' || mode === 'reset' ? 'on' : '', text: 'Se connecter', onclick: () => setMode('login') }),
-        L.h('button', { class: mode === 'signup' || mode === 'sent' ? 'on' : '', text: 'Créer un compte', onclick: () => setMode('signup') }));
       const err = errBox();
-      let form;
       if (mode === 'login') {
-        const em = input('email', 'vous@exemple.fr', 'username'), pw = input('password', 'Mot de passe', 'current-password');
-        em.value = L.Collab && body.dataset.email || '';
-        const go = L.h('button', { class: 'btn primary', text: 'Se connecter' });
+        const em = input('email', 'vous@exemple.fr', 'username'), pw = pwInput('Votre mot de passe', 'current-password');
+        em.value = email;
+        const fEm = afield('Adresse e-mail', em), fPw = afield('Mot de passe', pw, { extra: L.h('button', { class: 'linkish', text: 'Mot de passe oublié ?', onclick: () => { email = em.value; setMode('reset'); } }) });
+        const go = L.h('button', { class: 'btn primary big wide', text: 'Se connecter' });
         const resend = L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail de confirmation', hidden: true });
         mailButton(resend, () => 'confirm:' + em.value.trim().toLowerCase(), 60, async () => {
           try { await C().resend(em.value); L.toast('E-mail de confirmation renvoyé à ' + em.value.trim()); } catch (e) { showErr(err, e); return false; }
         });
         const submit = async () => {
-          err.hidden = true; resend.hidden = true;
-          if (!em.value.trim() || !pw.value) return showErr(err, 'Indiquez votre adresse e-mail et votre mot de passe.');
+          err.hidden = true; resend.hidden = true; fEm.err(''); fPw.err('');
+          if (!mailOk(em.value)) return fEm.err(em.value.trim() ? 'Cette adresse e-mail n\'est pas valide.' : 'Indiquez votre adresse e-mail.');
+          if (!pw.input.value) return fPw.err('Indiquez votre mot de passe.');
           busy(go, true, 'Connexion…');
           try {
-            await C().signIn(em.value, pw.value);
+            await C().signIn(em.value, pw.input.value);
             dlg.close();
             L.toast('Connecté : ' + C().pseudo());
             if (onDone) onDone();
           } catch (e) { showErr(err, e); if (/confirm/i.test(e.message)) { resend.hidden = false; resend.refreshWait(); } busy(go, false, 'Se connecter'); }
         };
-        pw.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+        [em, pw.input].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); }));
         go.onclick = submit;
-        form = L.h('div', { class: 'auth-form' },
-          field('Adresse e-mail', em), field('Mot de passe', pw), err, resend,
-          L.h('div', { class: 'auth-acts' }, go, L.h('button', { class: 'linkish', text: 'Mot de passe oublié ?', onclick: () => { body.dataset.email = em.value; setMode('reset'); } })));
-        setTimeout(() => (em.value ? pw : em).focus(), 30);
-      } else if (mode === 'reset') {
-        const em = input('email', 'vous@exemple.fr', 'username'); em.value = body.dataset.email || '';
-        const go = L.h('button', { class: 'btn primary', text: 'Recevoir un lien pour choisir un nouveau mot de passe' });
-        mailButton(go, () => 'reset:' + em.value.trim().toLowerCase(), 60, async () => {
-          err.hidden = true;
-          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim())) { showErr(err, 'Cette adresse e-mail n\'est pas valide.'); return false; }
-          try { await C().resetPassword(em.value); form.replaceChildren(L.h('div', { class: 'auth-ok' }, L.h('b', { text: '✉ E-mail envoyé' }), L.h('p', { text: 'Si un compte existe pour ' + em.value.trim() + ', un lien vient d\'y être envoyé. Ouvrez-le pour choisir un nouveau mot de passe (pensez aux courriers indésirables).' }))); }
-          catch (e) { showErr(err, e); }
-        });
-        em.addEventListener('input', () => go.refreshWait());
-        form = L.h('div', { class: 'auth-form' }, L.h('p', { class: 'auth-p', text: 'Indiquez l\'adresse de votre compte : vous recevrez un lien pour choisir un nouveau mot de passe.' }), field('Adresse e-mail', em), err, L.h('div', { class: 'auth-acts' }, go, L.h('button', { class: 'linkish', text: 'Retour', onclick: () => setMode('login') })));
+        main.replaceChildren(tabs(), title('Bon retour !', 'Connectez-vous avec l\'adresse e-mail de votre compte.'),
+          L.h('div', { class: 'au-form' }, fEm, fPw, err, resend, go),
+          switchLine('Pas encore de compte ?', 'Créer un compte gratuit', 'signup'));
+        setTimeout(() => (em.value ? pw.input : em).focus(), 30);
       } else if (mode === 'signup') {
-        const nk = input('text', 'Ex. : Marie D.', 'nickname'), em = input('email', 'vous@exemple.fr', 'email'), pw = input('password', 'Au moins 8 caractères, lettres et chiffres', 'new-password'), pw2 = input('password', 'Retapez le mot de passe', 'new-password');
-        nk.maxLength = 40;
-        const go = L.h('button', { class: 'btn primary', text: 'Créer mon compte' });
+        const nk = input('text', 'Ex. : Marie D.', 'nickname'), em = input('email', 'vous@exemple.fr', 'email');
+        const pw = pwInput('Choisissez un mot de passe', 'new-password'), pw2 = pwInput('Retapez le mot de passe', 'new-password');
+        nk.maxLength = 40; em.value = email;
+        const match = L.h('div', { class: 'au-match', hidden: true });
+        const paintMatch = () => { const v = pw2.input.value; match.hidden = !v; match.className = 'au-match' + (v && v === pw.input.value ? ' ok' : ''); match.replaceChildren(ico(v === pw.input.value ? 'check' : 'x', 12), v === pw.input.value ? 'Les mots de passe correspondent' : 'Les mots de passe sont différents'); };
+        pw.input.addEventListener('input', paintMatch); pw2.input.addEventListener('input', paintMatch);
+        const fNk = afield('Pseudo', nk, { hint: 'Affiché à côté de votre curseur et de vos commentaires.' });
+        const fEm = afield('Adresse e-mail', em, { hint: 'Celle avec laquelle on vous invitera à modifier des documents.' });
+        const fPw = afield('Mot de passe', pw, { after: pwRules(pw.input) });
+        const fPw2 = afield('Confirmer le mot de passe', pw2, { after: match });
+        const go = L.h('button', { class: 'btn primary big wide', text: 'Créer mon compte' });
         let signing = false;
         go.onclick = async () => {
           if (signing) return;
-          err.hidden = true;
+          err.hidden = true; [fNk, fEm, fPw, fPw2].forEach(f => f.err(''));
           const wait = waitLeft('signup:' + em.value.trim().toLowerCase());
           if (wait) return showErr(err, 'Un e-mail vient d\'être envoyé à cette adresse : patientez ' + wait + ' s avant de recommencer.');
-          if (!nk.value.trim()) return showErr(err, 'Choisissez un pseudo : c\'est le nom affiché à côté de votre curseur.');
-          if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value.trim())) return showErr(err, 'Cette adresse e-mail n\'est pas valide.');
-          if (!pwOk(pw.value)) return showErr(err, 'Mot de passe trop faible : au moins 8 caractères, avec des lettres et des chiffres.');
-          if (pw.value !== pw2.value) return showErr(err, 'Les deux mots de passe ne correspondent pas.');
+          let bad = false;
+          if (!nk.value.trim()) { fNk.err('Choisissez un pseudo : c\'est le nom affiché à côté de votre curseur.'); bad = true; }
+          if (!mailOk(em.value)) { fEm.err('Cette adresse e-mail n\'est pas valide.'); bad = true; }
+          if (!pwOk(pw.input.value)) { fPw.err('Mot de passe trop faible : au moins 8 caractères, avec des lettres et des chiffres.'); bad = true; }
+          else if (pw.input.value !== pw2.input.value) { fPw2.err('Les deux mots de passe ne correspondent pas.'); bad = true; }
+          if (bad) return;
           busy(go, true, 'Création…'); signing = true;
           try {
-            await C().signUp(em.value, pw.value, nk.value);
+            await C().signUp(em.value, pw.input.value, nk.value);
             startWait('signup:' + em.value.trim().toLowerCase(), 60);
             startWait('confirm:' + em.value.trim().toLowerCase(), 60);
-            body.dataset.email = em.value.trim();
+            email = em.value.trim();
             setMode('sent');
           } catch (e) { showErr(err, e); busy(go, false, 'Créer mon compte'); }
           signing = false;
         };
-        form = L.h('div', { class: 'auth-form' },
-          field('Pseudo', nk, 'Affiché à côté de votre curseur et de vos commentaires.'),
-          field('Adresse e-mail', em, 'C\'est l\'adresse à laquelle on vous invitera à modifier des documents.'),
-          field('Mot de passe', pw), field('Confirmer le mot de passe', pw2), err,
-          L.h('p', { class: 'auth-small', text: 'Un e-mail de confirmation vous sera envoyé : le compte n\'est actif qu\'après un clic sur son lien. C\'est ce qui garantit que personne ne peut utiliser votre adresse — et donc accéder aux documents partagés avec vous. Seuls votre adresse et votre pseudo sont conservés.' }),
-          L.h('div', { class: 'auth-acts' }, go));
+        main.replaceChildren(tabs(), title('Créer un compte', 'Gratuit, en une minute.'),
+          L.h('div', { class: 'au-form' }, fNk, fEm, fPw, fPw2, err,
+            L.h('p', { class: 'au-small', text: 'Un e-mail de confirmation vous sera envoyé : le compte n\'est actif qu\'après un clic sur son lien. C\'est ce qui garantit que personne ne peut utiliser votre adresse — et donc accéder aux documents partagés avec vous.' }),
+            go),
+          switchLine('Déjà un compte ?', 'Se connecter', 'login'));
         setTimeout(() => nk.focus(), 30);
+      } else if (mode === 'reset') {
+        const em = input('email', 'vous@exemple.fr', 'username'); em.value = email;
+        const fEm = afield('Adresse e-mail du compte', em);
+        const go = L.h('button', { class: 'btn primary big wide', text: 'Recevoir un lien' });
+        const form = L.h('div', { class: 'au-form' }, fEm, err, go);
+        mailButton(go, () => 'reset:' + em.value.trim().toLowerCase(), 60, async () => {
+          err.hidden = true; fEm.err('');
+          if (!mailOk(em.value)) { fEm.err('Cette adresse e-mail n\'est pas valide.'); return false; }
+          try {
+            await C().resetPassword(em.value);
+            email = em.value.trim();
+            form.replaceChildren(L.h('div', { class: 'au-done' }, L.h('span', { class: 'au-done-ic' }, ico('mail', 26)),
+              L.h('b', { text: 'E-mail envoyé' }),
+              L.h('p', { text: 'Si un compte existe pour ' + email + ', un lien vient d\'y être envoyé. Ouvrez-le pour choisir un nouveau mot de passe (pensez aux courriers indésirables).' })));
+          } catch (e) { showErr(err, e); }
+        });
+        em.addEventListener('input', () => go.refreshWait());
+        main.replaceChildren(title('Mot de passe oublié', 'Vous recevrez un lien pour choisir un nouveau mot de passe.'), form,
+          L.h('div', { class: 'au-switch' }, L.h('button', { class: 'linkish', text: '← Retour à la connexion', onclick: () => setMode('login') })));
+        setTimeout(() => em.focus(), 30);
       } else {
-        const mail = body.dataset.email || '';
-        form = L.h('div', { class: 'auth-form' },
-          L.h('div', { class: 'auth-ok' },
-            L.h('b', { text: '✉ Vérifiez votre boîte mail' }),
-            L.h('p', { text: 'Un lien de confirmation vient d\'être envoyé à ' + mail + ' (s\'il n\'y avait pas déjà un compte avec cette adresse). Cliquez dessus, puis revenez ici pour vous connecter. Pensez à regarder dans les courriers indésirables.' })),
+        const resend = L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail' });
+        mailButton(resend, 'confirm:' + email.toLowerCase(), 60, async () => { try { await C().resend(email); L.toast('E-mail renvoyé'); } catch (e) { showErr(err, e); return false; } });
+        main.replaceChildren(
+          L.h('div', { class: 'au-done big' }, L.h('span', { class: 'au-done-ic' }, ico('mail', 30)),
+            L.h('h2', { text: 'Vérifiez votre boîte mail' }),
+            L.h('p', null, 'Un lien de confirmation vient d\'être envoyé à ', L.h('b', { text: email }), ' (s\'il n\'y avait pas déjà un compte avec cette adresse). Cliquez dessus, puis revenez ici pour vous connecter.'),
+            L.h('p', { class: 'au-small', text: 'Rien reçu ? Regardez dans les courriers indésirables.' })),
           err,
-          L.h('div', { class: 'auth-acts' },
-            L.h('button', { class: 'btn primary', text: 'J\'ai confirmé : me connecter', onclick: () => setMode('login') }),
-            (b => { mailButton(b, 'confirm:' + mail.toLowerCase(), 60, async () => { try { await C().resend(mail); L.toast('E-mail renvoyé'); } catch (e) { showErr(err, e); return false; } }); return b; })(L.h('button', { class: 'linkish', text: 'Renvoyer l\'e-mail' }))));
+          L.h('div', { class: 'au-form' }, L.h('button', { class: 'btn primary big wide', text: 'J\'ai confirmé : me connecter', onclick: () => setMode('login') })),
+          L.h('div', { class: 'au-switch' }, resend));
       }
-      body.replaceChildren(
-        L.h('p', { class: 'auth-intro', text: 'Un compte permet de modifier des documents à plusieurs en direct (Live Modification) et de recevoir des invitations.' }),
-        tabs, form);
     };
     build();
-    dlg = L.modal({ title: 'Compte LaTeX Home Edition', body });
+    dlg = L.modal({ title: 'Compte', body: L.h('div', { class: 'au' }, side, main), cls: 'auth-modal', bare: true });
   };
 
   /* ================= Mon compte ================= */
@@ -149,33 +215,42 @@
     const err = errBox();
     const nk = input('text', 'Pseudo'); nk.value = C().pseudo(); nk.maxLength = 40;
     const saveNk = L.h('button', { class: 'btn', text: 'Enregistrer', onclick: async () => {
-      try { await C().setPseudo(nk.value); L.toast('Pseudo enregistré'); } catch (e) { showErr(err, e); }
+      err.hidden = true;
+      if (!nk.value.trim()) return showErr(err, 'Le pseudo ne peut pas être vide.');
+      try { await C().setPseudo(nk.value); L.toast('Pseudo enregistré'); paintAccount(); } catch (e) { showErr(err, e); }
     } });
-    const p1 = input('password', 'Nouveau mot de passe', 'new-password'), p2 = input('password', 'Confirmer', 'new-password');
+    const p1 = pwInput('Nouveau mot de passe', 'new-password'), p2 = pwInput('Retapez-le', 'new-password');
     const savePw = L.h('button', { class: 'btn', text: 'Changer le mot de passe', onclick: async () => {
       err.hidden = true;
-      if (!pwOk(p1.value)) return showErr(err, 'Au moins 8 caractères, avec des lettres et des chiffres.');
-      if (p1.value !== p2.value) return showErr(err, 'Les deux mots de passe ne correspondent pas.');
-      try { await C().setPassword(p1.value); p1.value = p2.value = ''; L.toast('Mot de passe changé'); } catch (e) { showErr(err, e); }
+      if (!pwOk(p1.input.value)) return showErr(err, 'Au moins 8 caractères, avec des lettres et des chiffres.');
+      if (p1.input.value !== p2.input.value) return showErr(err, 'Les deux mots de passe ne correspondent pas.');
+      try { await C().setPassword(p1.input.value); p1.input.value = p2.input.value = ''; L.toast('Mot de passe changé'); } catch (e) { showErr(err, e); }
     } });
     let dlg;
-    const body = L.h('div', { class: 'auth' },
-      L.h('div', { class: 'acct-head' }, L.h('span', { class: 'avatar lg', text: K().initials(C().pseudo()), style: { background: K().colorOf(C().uid()) } }),
-        L.h('div', null, L.h('b', { text: C().pseudo() }), L.h('div', { class: 'fhint', text: C().email() }))),
-      field('Pseudo', L.h('div', { class: 'row-in' }, nk, saveNk)),
-      L.h('details', { class: 'shr-more' }, L.h('summary', { text: 'Changer de mot de passe' }), field('Nouveau mot de passe', p1), field('Confirmer', p2), savePw),
+    const sec = (t, ...c) => L.h('section', { class: 'ac-sec' }, L.h('h5', { text: t }), ...c);
+    const body = L.h('div', { class: 'ac' },
+      L.h('div', { class: 'ac-head' },
+        L.h('span', { class: 'avatar lg', text: K().initials(C().pseudo()), style: { background: K().colorOf(C().uid()) } }),
+        L.h('div', { class: 'ac-id' }, L.h('b', { text: C().pseudo() }), L.h('span', { text: C().email() })),
+        L.h('span', { class: 'ac-badge' }, L.h('span', { class: 'dot ok' }), 'Connecté')),
+      sec('Profil', afield('Pseudo', L.h('div', { class: 'row-in' }, nk, saveNk), { hint: 'Affiché à côté de votre curseur et de vos commentaires.' })),
+      L.h('details', { class: 'sh-more ac-sec' }, L.h('summary', { text: 'Changer de mot de passe' }),
+        L.h('div', { class: 'sh-more-b' }, afield('Nouveau mot de passe', p1, { after: pwRules(p1.input) }), afield('Confirmer', p2), savePw)),
       err,
-      L.h('div', { class: 'auth-acts' },
-        L.h('button', { class: 'btn', text: '☁ Mes fichiers…', onclick: () => { dlg.close(); L.Drive.dialog(); } }),
-        L.h('button', { class: 'btn', text: 'Se déconnecter', onclick: async () => { await C().signOut(); dlg.close(); L.toast('Déconnecté'); } })),
-      L.h('details', { class: 'shr-more danger' }, L.h('summary', { text: 'Supprimer mon compte' }),
-        L.h('p', { class: 'auth-small', text: 'Supprime définitivement votre compte, les documents en ligne dont vous êtes propriétaire (pour tous leurs participants) et vos commentaires. Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.' }),
-        L.h('button', { class: 'btn danger-soft', text: 'Supprimer définitivement mon compte…', onclick: async () => {
-          const v = await L.askText({ title: 'Supprimer mon compte', label: 'Pour confirmer, tapez SUPPRIMER', value: '', ok: 'Supprimer définitivement' });
-          if (v !== 'SUPPRIMER') return;
-          try { K().leave(true); await C().deleteAccount(); dlg.close(); L.toast('Compte supprimé'); } catch (e) { showErr(err, e); }
-        } })));
-    dlg = L.modal({ title: 'Mon compte', body });
+      L.h('div', { class: 'ac-acts' },
+        L.h('button', { class: 'btn', onclick: () => { dlg.close(); L.Drive.dialog(); } }, ico('cloud', 15), 'Mes fichiers'),
+        L.h('button', { class: 'btn', onclick: () => { dlg.close(); L.dlgShareHub('live'); } }, ico('users', 15), 'Partager ce document'),
+        L.h('span', { class: 'sb-flex' }),
+        L.h('button', { class: 'btn', onclick: async () => { await C().signOut(); dlg.close(); L.toast('Déconnecté'); } }, ico('logout', 15), 'Se déconnecter')),
+      L.h('details', { class: 'sh-more danger' }, L.h('summary', { text: 'Supprimer mon compte' }),
+        L.h('div', { class: 'sh-more-b' },
+          L.h('p', { class: 'au-small', text: 'Supprime définitivement votre compte, les documents en ligne dont vous êtes propriétaire (pour tous leurs participants) et vos commentaires. Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.' }),
+          L.h('button', { class: 'btn danger-soft', text: 'Supprimer définitivement mon compte…', onclick: async () => {
+            const v = await L.askText({ title: 'Supprimer mon compte', label: 'Pour confirmer, tapez SUPPRIMER', value: '', ok: 'Supprimer définitivement' });
+            if (v !== 'SUPPRIMER') return;
+            try { K().leave(true); await C().deleteAccount(); dlg.close(); L.toast('Compte supprimé'); } catch (e) { showErr(err, e); }
+          } }))));
+    dlg = L.modal({ title: 'Mon compte', body, cls: 'acct-modal' });
   };
 
   /* ================= Documents en ligne =================
@@ -200,92 +275,129 @@
   }
   L.openLiveDoc = openDocUI;
 
-  /* ================= Live Modification (fenêtre principale) ================= */
+  /* ================= Partager (fenêtre unique) =================
+     Deux façons de partager, côte à côte :
+     - « Modifier ensemble » : Live Modification, invitations par e-mail et rôles ;
+     - « Envoyer une copie » : un lien, chacun importe sa propre copie (js/share.js). */
   let collabDlg = null, repaint = null;
-  L.dlgCollab = function () {
-    if (!C().available()) return unavailable();
-    const body = L.h('div', { class: 'collab' });
-    const build = async () => {
+  L.dlgShareHub = function (tab) {
+    const title = L.plain(App.doc.meta.title) || 'Sans titre';
+    const tabs = L.h('div', { class: 'sh-tabs', role: 'tablist' });
+    const pane = L.h('div', { class: 'sh-pane' });
+    let dispose = null;
+    const show = id => {
+      if (dispose) { dispose(); dispose = null; }
+      tabs.querySelectorAll('.sh-tab').forEach(b => { const on = b.dataset.tab === id; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+      pane.replaceChildren();
+      dispose = id === 'live' ? livePane(pane, () => show('copy')) : L.Share.copyPane(pane, { toLive: () => show('live') });
+    };
+    const tabBtn = (id, icon, t, d) => L.h('button', { class: 'sh-tab', 'data-tab': id, role: 'tab', onclick: () => show(id) },
+      L.h('span', { class: 'sh-tab-ic' }, ico(icon, 19)), L.h('span', { class: 'sh-tab-t' }, L.h('b', { text: t }), L.h('small', { text: d })));
+    tabs.append(
+      tabBtn('live', 'users', 'Modifier ensemble', 'En direct, chacun avec son compte'),
+      tabBtn('copy', 'link', 'Envoyer une copie', 'Un lien : chacun reçoit sa copie'));
+    const body = L.h('div', { class: 'sh' },
+      L.h('div', { class: 'sh-head' }, L.h('h2', { text: 'Partager' }), L.h('span', { class: 'sh-doc', text: '« ' + title + ' »', title })),
+      tabs, pane);
+    collabDlg = L.modal({ title: 'Partager', body, cls: 'share-modal', bare: true, onClose: () => { if (dispose) dispose(); dispose = null; collabDlg = null; repaint = null; } });
+    show(tab === 'copy' ? 'copy' : 'live');
+  };
+  L.dlgCollab = () => L.dlgShareHub('live');
+
+  /* Volet « Modifier ensemble » */
+  function livePane(host, toCopy) {
+    let gone = false;
+    const reopen = () => L.dlgShareHub('live');   // après la connexion, retour à cette fenêtre
+    const empty = (cta, note) => L.h('div', { class: 'sh-empty' },
+      L.h('div', { class: 'sh-avs' }, ...[['M', '#e8590c'], ['N', '#1971c2'], ['L', '#2b8a3e']].map(([t, c]) => L.h('span', { class: 'avatar', text: t, style: { background: c } })),
+        L.h('span', { class: 'sh-live-dot' })),
+      L.h('h3', { text: 'Écrivez à plusieurs, en même temps' }),
+      L.h('ul', { class: 'sh-points' },
+        L.h('li', null, ico('check', 15), 'Chacun voit les modifications des autres au moment où elles sont faites, avec leur curseur et leur pseudo.'),
+        L.h('li', null, ico('check', 15), 'Vous invitez par adresse e-mail et choisissez le rôle : éditeur, commentateur ou lecteur.'),
+        L.h('li', null, ico('check', 15), 'Personne d\'autre ne peut ouvrir le document ; vous pouvez retirer un accès à tout moment.')),
+      cta, note || null);
+    const build = () => {
       const s = K().session();
       const live = App.doc.meta.live;
       if (!C().user()) {
-        body.replaceChildren(
-          intro(),
-          L.h('div', { class: 'note info', text: 'Pour modifier à plusieurs, chacun a besoin d\'un compte (gratuit) : une adresse e-mail et un pseudo.' }),
-          L.h('div', { class: 'auth-acts' },
-            L.h('button', { class: 'btn primary', text: 'Créer un compte', onclick: () => { close(); L.dlgAuth('signup', () => L.dlgCollab()); } }),
-            L.h('button', { class: 'btn', text: 'Se connecter', onclick: () => { close(); L.dlgAuth('login', () => L.dlgCollab()); } })));
+        host.replaceChildren(empty(
+          L.h('div', { class: 'sh-cta' },
+            L.h('div', { class: 'sh-row' },
+              L.h('button', { class: 'btn primary big', text: 'Créer un compte gratuit', onclick: () => L.dlgAuth('signup', reopen) }),
+              L.h('button', { class: 'btn big', text: 'J\'ai déjà un compte', onclick: () => L.dlgAuth('login', reopen) })),
+            L.h('div', { class: 'sh-foot' }, ico('user', 13), 'Chaque participant a besoin d\'un compte : une adresse e-mail et un pseudo.'))));
         return;
       }
       if (!s) {
         const err = errBox();
-        const go = L.h('button', { class: 'btn primary', text: live ? 'Se reconnecter au document en direct' : '⚡ Activer la Live Modification pour ce document' });
+        const go = L.h('button', { class: 'btn primary big' }, ico('bolt', 16), L.h('span', { text: live ? 'Se reconnecter au document en direct' : 'Démarrer la modification en direct' }));
         go.onclick = async () => {
-          busy(go, true, 'Mise en ligne…'); err.hidden = true;
+          go.disabled = true; go.lastChild.textContent = 'Mise en ligne…'; err.hidden = true;
           try { if (live) await K().open(live.id, { keepFile: true }); else await K().create(); build(); }
-          catch (e) { showErr(err, e); busy(go, false, 'Réessayer'); }
+          catch (e) { showErr(err, e); go.disabled = false; go.lastChild.textContent = 'Réessayer'; }
         };
-        body.replaceChildren(intro(),
-          L.h('ul', { class: 'collab-points' },
-            L.h('li', { text: 'Le document est enregistré en ligne, et chaque modification apparaît en direct chez tous les participants — avec leur curseur et leur pseudo.' }),
-            L.h('li', { text: 'Vous invitez des personnes par leur adresse e-mail, en choisissant leur rôle : Éditeur, Commentateur ou Lecteur.' }),
-            L.h('li', { text: 'Personne d\'autre ne peut l\'ouvrir. Vous pouvez retirer un accès ou arrêter le partage à tout moment.' })),
-          err, L.h('div', { class: 'auth-acts' }, go));
+        host.replaceChildren(empty(L.h('div', { class: 'sh-cta' }, go,
+          L.h('div', { class: 'sh-foot' }, ico('lock', 13), 'Le document est enregistré en ligne (serveur en Europe) et visible seulement par les personnes que vous invitez.')), err));
         return;
       }
       /* Document en direct */
       const isOwner = s.role === 'owner';
-      const people = L.h('div', { class: 'people' }, L.h('div', { class: 'shr-size', text: 'Chargement…' }));
-      const parts = [
-        L.h('div', { class: 'collab-state' }, L.h('span', { class: 'dot ok' }), L.h('span', { text: 'Document en direct — tout est enregistré en ligne automatiquement. Votre rôle : ' + roleName(s.role) + '.' })),
-      ];
-      if (isOwner) parts.push(inviteForm(s, () => loadPeople()));
-      parts.push(L.h('div', { class: 'set-h', text: 'Personnes ayant accès' }), people);
+      const people = L.h('div', { class: 'sh-people' }, L.h('div', { class: 'shr-size', text: 'Chargement…' }));
+      const count = L.h('span', { class: 'sh-count' });
       const link = C().docLink(s.id);
-      parts.push(
-        L.h('div', { class: 'set-h', text: 'Lien du document' }),
-        L.h('div', { class: 'row-in' },
-          L.h('input', { class: 'shr-short', type: 'text', readonly: true, value: link, onfocus: e => e.target.select() }),
-          L.h('button', { class: 'btn', text: '⧉ Copier', onclick: () => navigator.clipboard.writeText(link).then(() => L.toast('Lien copié')) })),
-        L.h('div', { class: 'fhint', text: 'Réservé aux personnes invitées : les autres verront « accès refusé ».' }),
-        L.h('div', { class: 'auth-acts collab-end' },
+      const linkIn = L.h('input', { class: 'sh-input mono', type: 'text', readonly: true, value: link, onfocus: e => e.target.select() });
+      host.replaceChildren(...[
+        L.h('div', { class: 'sh-status' }, L.h('span', { class: 'dot ok' }),
+          L.h('span', null, L.h('b', { text: 'En direct' }), ' — tout est enregistré en ligne automatiquement.'),
+          L.h('span', { class: 'role-badge ' + s.role, text: 'Vous : ' + roleName(s.role) })),
+        isOwner ? inviteForm(s, () => loadPeople()) : null,
+        L.h('div', { class: 'sh-label' }, 'Personnes ayant accès', count),
+        people,
+        L.h('div', { class: 'sh-label', text: 'Lien du document' }),
+        L.h('div', { class: 'sh-linkrow' }, linkIn,
+          L.h('button', { class: 'btn', onclick: () => navigator.clipboard.writeText(link).then(() => L.toast('Lien copié')) }, ico('copy', 15), 'Copier')),
+        L.h('div', { class: 'sh-foot' }, ico('lock', 13), 'Réservé aux personnes invitées : les autres verront « accès refusé ».'),
+        L.h('div', { class: 'sh-row sh-end' },
           isOwner
-            ? L.h('button', { class: 'btn danger-soft', text: 'Arrêter la Live Modification…', onclick: async () => {
+            ? L.h('button', { class: 'btn danger-soft', text: 'Arrêter la modification en direct…', onclick: async () => {
               if (!confirm('Arrêter la Live Modification ? Le document en ligne sera supprimé pour toutes les personnes invitées. Vous gardez la version actuelle sur votre ordinateur.')) return;
-              try { const id = s.id; K().leave(); await C().deleteDoc(id); App.commit(); L.toast('Live Modification arrêtée : le document est redevenu local'); close(); } catch (e) { L.toast(C().fr(e), 'err'); }
+              try { const id = s.id; K().leave(); await C().deleteDoc(id); App.commit(); L.toast('Live Modification arrêtée : le document est redevenu local'); build(); } catch (e) { L.toast(C().fr(e), 'err'); }
             } })
-            : L.h('button', { class: 'btn danger-soft', text: 'Quitter ce document', onclick: async () => {
+            : L.h('button', { class: 'btn danger-soft', text: 'Quitter ce document…', onclick: async () => {
               if (!confirm('Quitter ce document ? Vous n\'y aurez plus accès (la version affichée reste sur votre ordinateur).')) return;
-              try { const id = s.id; K().leave(); await C().removeMember(id, C().email()); App.commit(); close(); } catch (e) { L.toast(C().fr(e), 'err'); }
-            } })));
-      body.replaceChildren(...parts);
+              try { const id = s.id; K().leave(); await C().removeMember(id, C().email()); App.commit(); build(); } catch (e) { L.toast(C().fr(e), 'err'); }
+            } }))].filter(Boolean));
       async function loadPeople() {
+        if (gone) return;
         let list;
         try { list = await C().people(s.id); } catch (e) { people.replaceChildren(L.h('div', { class: 'note', text: C().fr(e) })); return; }
+        if (gone) return;
         const online = new Set(Array.from((K().session() || s).people.values()).map(p => p.uid));
+        count.textContent = String(list.length);
         people.replaceChildren(...list.map(p => personRow(s, p, online.has(p.user_id), isOwner, loadPeople)));
       }
       repaint = loadPeople;
       loadPeople();
     };
-    const close = () => { if (collabDlg) collabDlg.close(); };
-    collabDlg = L.modal({ title: 'Live Modification', body, wide: true, onClose: () => { collabDlg = null; repaint = null; } });
     build();
-  };
-  const intro = () => L.h('p', { class: 'shr-intro', html: 'Modifiez ce document <b>à plusieurs, en direct</b>, comme sur Google Docs : chacun voit les modifications des autres au moment où elles sont faites, et l\'endroit où ils écrivent.' });
+    return () => { gone = true; repaint = null; };
+  }
 
   function inviteForm(s, done) {
-    const em = input('email', 'Adresse e-mail de la personne', 'off');
-    const role = L.h('select', null, ...ROLES.map(([v, t]) => L.h('option', { value: v, text: t })));
+    const em = input('email', 'Adresse e-mail de la personne à inviter', 'off');
+    const role = L.h('select', { class: 'sh-select' }, ...ROLES.map(([v, t]) => L.h('option', { value: v, text: t })));
     const notify = L.h('input', { type: 'checkbox' }); notify.checked = true;
     const err = errBox();
     const after = L.h('div', { class: 'invite-after', hidden: true });
     const go = L.h('button', { class: 'btn primary', text: 'Inviter' });
-    const legend = L.h('div', { class: 'fhint roles-legend' }, ...ROLES.map(([, t, d]) => L.h('span', null, L.h('b', { text: t }), ' : ' + d + '. ')));
+    const desc = L.h('span', { class: 'sh-roledesc' });
+    const paintDesc = () => { const r = ROLES.find(x => x[0] === role.value); desc.textContent = r ? r[1] + ' : ' + r[2] + '.' : ''; };
+    role.onchange = paintDesc; paintDesc();
     const submit = mailButton(go, 'invite', 3, async () => {
       err.hidden = true; after.hidden = true;
       const mail = em.value.trim().toLowerCase();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail)) { showErr(err, 'Cette adresse e-mail n\'est pas valide.'); return false; }
+      if (!mailOk(mail)) { showErr(err, 'Cette adresse e-mail n\'est pas valide.'); return false; }
       try {
         await C().invite(s.id, mail, role.value);
         em.value = '';
@@ -305,11 +417,13 @@
       }
     });
     em.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
-    return L.h('div', { class: 'invite' },
-      L.h('div', { class: 'set-h', text: 'Inviter quelqu\'un' }),
-      L.h('div', { class: 'invite-row' }, em, role, go),
-      L.h('label', { class: 'chk' }, notify, 'Prévenir la personne par e-mail'),
-      legend, err, after);
+    return L.h('div', { class: 'sh-invite' },
+      L.h('div', { class: 'sh-label', text: 'Inviter quelqu\'un' }),
+      L.h('div', { class: 'sh-invrow' }, L.h('div', { class: 'sh-inwrap' }, ico('mail', 16), em), role, go),
+      L.h('div', { class: 'sh-invsub' },
+        L.h('label', { class: 'chk sw' }, notify, L.h('span', { class: 'sw-t' }), L.h('span', { class: 'sw-l', text: 'Prévenir par e-mail' })),
+        desc),
+      err, after);
   }
   /* L'e-mail automatique n'est pas disponible : on prépare l'e-mail dans la messagerie de l'utilisateur */
   function offerMail(box, s, mail, role) {
@@ -330,22 +444,24 @@
     const name = p.pseudo || (p.email ? p.email.split('@')[0] : 'Invité');
     const roleCell = isOwner && p.role !== 'owner'
       ? (() => {
-        const sel = L.h('select', { class: 'role-sel' }, ...ROLES.map(([v, t]) => L.h('option', { value: v, text: t })));
+        const sel = L.h('select', { class: 'sh-select small' }, ...ROLES.map(([v, t]) => L.h('option', { value: v, text: t })));
         sel.value = p.role;
         sel.onchange = async () => { try { await C().invite(s.id, p.email, sel.value); L.toast(name + ' : ' + roleName(sel.value)); } catch (e) { L.toast(C().fr(e), 'err'); reload(); } };
         return sel;
       })()
       : L.h('span', { class: 'role-badge ' + p.role, text: roleName(p.role) });
-    return L.h('div', { class: 'person' },
+    const state = p.pending ? L.h('span', { class: 'sh-pending', title: 'Pas encore de compte avec cette adresse, ou adresse pas encore confirmée', text: 'Invitation en attente' })
+      : online ? L.h('span', { class: 'sh-online' }, L.h('span', { class: 'dot ok' }), 'en ligne') : null;
+    return L.h('div', { class: 'sh-person' + (p.pending ? ' pending' : '') },
       L.h('span', { class: 'avatar', text: K().initials(name), style: { background: p.pending ? '#adb5bd' : K().colorOf(p.user_id) } }),
-      L.h('div', { class: 'person-t' },
-        L.h('b', { text: name + (me ? ' (vous)' : '') }),
-        L.h('span', { class: 'fhint', text: [p.email, p.pending ? 'invitation en attente (pas encore de compte, ou adresse pas encore confirmée)' : online ? '● en ligne' : ''].filter(Boolean).join(' · ') })),
+      L.h('div', { class: 'sh-person-t' },
+        L.h('b', null, name + (me ? ' (vous)' : ''), state),
+        L.h('span', { text: p.email || '' })),
       roleCell,
-      isOwner && p.role !== 'owner' ? L.h('button', { class: 'uc-x', title: 'Retirer l\'accès', text: '×', onclick: async () => {
+      isOwner && p.role !== 'owner' ? L.h('button', { class: 'sh-x', title: 'Retirer l\'accès', onclick: async () => {
         if (!confirm('Retirer l\'accès de ' + (p.email || name) + ' ?')) return;
         try { await C().removeMember(s.id, p.email); reload(); } catch (e) { L.toast(C().fr(e), 'err'); }
-      } }) : null);
+      } }, ico('x', 14)) : L.h('span', { class: 'sh-x-sp' }));
   }
 
   /* ================= Préférences de l'application ================= */
@@ -408,5 +524,5 @@
     c.hidden = false;
   }
 
-  L.CollabUI = { askLogin, peopleChanged: () => { if (repaint) repaint(); }, paintAccount, accountMenu, openDocUI };
+  L.CollabUI = { askLogin, peopleChanged: () => { if (repaint) repaint(); }, paintAccount, accountMenu, openDocUI, pwInput, pwRules };
 })();

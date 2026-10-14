@@ -28,3 +28,23 @@ require('esbuild').buildSync({
   banner: { js: '/* highlight.js ' + require(root + '/node_modules/highlight.js/package.json').version + ' — BSD-3-Clause — https://highlightjs.org */' },
 });
 for (const f of ['vendor/yjs/yjs.js', 'vendor/supabase/supabase.js', 'vendor/highlight/highlight.js']) console.log(f, Math.round(fs.statSync(path.join(root, f)).size / 1024) + ' Ko');
+
+// Correcteur d'orthographe local : Hunspell (WebAssembly) dans un worker + dictionnaires
+// français (Dicollecte / Grammalecte, MPL-2.0) et anglais (SCOWL, MIT/BSD)
+fs.mkdirSync(path.join(root, 'vendor/hunspell'), { recursive: true });
+require('esbuild').buildSync({
+  entryPoints: [path.join(root, 'scripts/hunspell-worker.src.js')],
+  bundle: true, format: 'iife', minify: true, target: 'es2019', platform: 'browser', mainFields: ['browser', 'main'],
+  outfile: path.join(root, 'vendor/hunspell/hunspell-worker.js'),
+  banner: { js: '/* Hunspell ' + require(root + '/node_modules/hunspell-asm/package.json').version + ' (hunspell-asm, MIT) — correcteur local de LaTeX Home Edition */' },
+});
+for (const lang of ['fr', 'en']) {
+  const dir = path.join(root, 'node_modules/dictionary-' + lang);
+  const d = { aff: fs.readFileSync(path.join(dir, 'index.aff'), 'utf8'), dic: fs.readFileSync(path.join(dir, 'index.dic'), 'utf8') };
+  fs.writeFileSync(path.join(root, 'vendor/hunspell/' + lang + '.js'),
+    '/* Dictionnaire ' + lang + ' (dictionary-' + lang + ' ' + require(dir + '/package.json').version + ', licence dans LICENSE-' + lang + ') */\n'
+    + 'self.LHE_DIC = self.LHE_DIC || {};\nself.LHE_DIC.' + lang + ' = ' + JSON.stringify(d) + ';\n');
+  fs.copyFileSync(path.join(dir, 'license'), path.join(root, 'vendor/hunspell/LICENSE-' + lang));
+}
+for (const lic of ['LICENSE', 'license', 'LICENSE.md']) if (fs.existsSync(path.join(root, 'node_modules/hunspell-asm', lic))) { fs.copyFileSync(path.join(root, 'node_modules/hunspell-asm', lic), path.join(root, 'vendor/hunspell/LICENSE-hunspell-asm')); break; }
+for (const f of ['vendor/hunspell/hunspell-worker.js', 'vendor/hunspell/fr.js', 'vendor/hunspell/en.js']) console.log(f, Math.round(fs.statSync(path.join(root, f)).size / 1024) + ' Ko');
