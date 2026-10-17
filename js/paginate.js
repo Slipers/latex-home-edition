@@ -139,7 +139,8 @@ L.paginate = async function (doc, host) {
     while (n < kids.length && test(build(n + 1))) n++;
     if (n >= kids.length) return null;
     let partA = null, partB = null;
-    const sub = L._split(kids[n], x => test(build(n, x)));
+    // (sur une copie : la découpe d'un paragraphe le déplace pour le mesurer, ce qui viderait l'encadré)
+    const sub = L._split(kids[n].cloneNode(true), x => test(build(n, x)));
     if (sub) { [partA, partB] = sub; }
     if (n === 0 && !partA) return null;
     const a = build(n, partA);
@@ -199,8 +200,16 @@ L.paginate = async function (doc, host) {
       if (sp) { place(sp[0]); sp[1]._splitOffset = sp[0].offsetHeight; newPage(); queue.unshift(sp[1]); continue; }
     }
     if (empty()) { place(el); newPage(); continue; }   // élément plus grand qu'une page
+    // Un titre ne reste pas seul en bas de page : il passe à la page suivante avec ce qui le suit
+    const keep = [];
+    while (content.children.length > keep.length + 1) {
+      const last = content.children[content.children.length - 1 - keep.length];
+      if (!last.matches('.sec') || last.querySelector('.fn, .pnote-src')) break;
+      keep.unshift(last);
+    }
+    keep.forEach(k => k.remove());
     newPage();
-    queue.unshift(el);
+    queue.unshift(...keep, el);
   }
   if (empty() && pages.length > 1) { page.remove(); pages.pop(); }
 

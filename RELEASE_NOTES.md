@@ -1,23 +1,24 @@
 ## Nouveautés
 
-- **Correction automatique des fautes** (Préférences, dans le menu du compte — désactivée par défaut) : un mot mal orthographié est corrigé dès que vous passez au suivant, seulement quand la correction est sûre (accent oublié, lettre doublée, une seule proposition possible). Si la grammaire est activée, les fautes de la phrase précédente sont aussi corrigées quand il n'y a qu'une correction possible. **Pour garder votre orthographe, retapez simplement le mot** : il ne sera plus corrigé. Un rappel en bas de la feuille indique chaque correction, avec « Annuler » (ou <kbd>Ctrl</kbd>+<kbd>Z</kbd>).
-- **Orthographe vérifiée sur votre ordinateur** avec le dictionnaire français de référence (celui de LibreOffice et Firefox), sans connexion : survol ou clic droit sur un mot souligné pour le corriger, dans l'application comme dans la version web.
-- **Nouvelle fenêtre « Partager »**, avec deux choix clairs côte à côte :
-  - **Modifier ensemble** (Live Modification) : démarrer la modification en direct, inviter par e-mail en choisissant le rôle (éditeur, commentateur, lecteur), voir qui est en ligne, changer un rôle ou retirer un accès, copier le lien du document ;
-  - **Envoyer une copie** : un lien grâce auquel chacun reçoit sa propre copie, avec mises à jour automatiques ou version figée.
-  Le bouton ⚡ Live et le menu « Partager » ouvrent directement le bon onglet.
-- **Nouvelles fenêtres de compte** : connexion et création de compte plus claires (présentation à gauche, formulaire à droite), bouton pour afficher le mot de passe, critères du mot de passe cochés au fur et à mesure, message d'erreur sous chaque champ. « Mon compte » est aussi simplifié.
-- **Mises à jour obligatoires** : une nouvelle version se télécharge toute seule (vous pouvez continuer à travailler pendant ce temps), puis l'application redémarre pour l'installer après un compte à rebours de 15 secondes (ou tout de suite avec « Redémarrer maintenant »). Votre document est conservé et rouvert automatiquement. Sans connexion, rien n'est bloqué : nouvel essai plus tard. Sur Mac, la nouvelle version est à installer soi-même : un rappel reste affiché tant qu'elle ne l'est pas.
+- **Copier-coller entre documents** : Ctrl+C / Ctrl+V gardent la mise en forme (gras, italique, couleurs, encadrés), les **formules**, les références, les notes et les images, d'un fichier à un autre et même d'une fenêtre de LaTeX Home Edition à une autre. Collé dans Word ou ailleurs, le texte reste lisible (formules écrites en LaTeX).
+- **Copier des blocs entiers** : cliquez sur un bloc, puis **Maj + clic** sur un autre pour sélectionner tous les blocs entre les deux (paragraphes, équations, tableaux, figures, encadrés…). **Ctrl+C** les copie, **Ctrl+X** les coupe, **Suppr** les efface ; collés, ils se placent après le bloc sélectionné, avec leurs images et leurs références bibliographiques.
+- **Matrices de toutes tailles** : dans l'éditeur de formules, onglet *Matrices & systèmes*, le bouton **Matrice n × p…** ouvre un quadrillage (survolez puis cliquez) ou des cases « Lignes » et « Colonnes » pour aller jusqu'à 40 × 40. Choix des délimiteurs (parenthèses, crochets, barres, doubles barres, accolades ou aucun) et du contenu (cases vides, coefficients aᵢⱼ, zéros ou identité).
+- **Agrandir ou réduire une matrice** : cliquez dans une case puis sur **+ Ligne**, **+ Colonne**, **− Ligne** ou **− Colonne**. Les nouvelles cases apparaissent prêtes à remplir et le curseur s'y place directement. Cela fonctionne aussi pour les systèmes d'équations (le « = » est repris dans la nouvelle ligne).
+- **Beaucoup plus de symboles mathématiques**, dans l'éditeur de formules et dans la recherche de symboles (<kbd>Tab</kbd>) :
+  - **partie entière** ⌊x⌋, E(x) et partie entière supérieure ⌈x⌉ ;
+  - intervalles d'entiers ⟦1, n⟧ et intervalles semi-ouverts [a, b[ et ]a, b] ;
+  - ⩽ et ⩾ (inclinés, à la française), « ne divise pas », égal par définition, isomorphe, non congru ;
+  - analyse : limites à gauche et à droite, séries, intégrales généralisées, dérivée n-ième f⁽ⁿ⁾, « évalué en », composée, réciproque, classe 𝒞ᵏ, ch, sh, th, arcsin, arccos, lim sup, lim inf, grand O, flèche annotée ;
+  - nouvel onglet **Algèbre & probas** : 𝓜ₙ(𝕂), GL, 𝕂[X], rang, Vect, noyau, image, trace, spectre, polynôme caractéristique, somme directe ⊕, produit scalaire ⟨u, v⟩, orthogonal, PGCD, PPCM, argument, e^{iθ}, 𝕌, ℤ/nℤ, probabilité, probabilité conditionnelle, espérance, variance, covariance, lois binomiale, normale, uniforme, géométrique et de Poisson ;
+  - ensembles : ℕ*, ℝ₊, ℝⁿ, ∄, ⌀, grandes unions et intersections, cardinal, ensemble des parties ;
+  - flèches ⟹, ⟺, ⇏, ↪ (injection), ↠ (surjection), ⟼ ; matrice générale, matrice diagonale, vecteur ligne, système de 3 équations, ⋮ et ⋱ ;
+  - lettres grecques manquantes (ι, κ, ϖ, ϱ, ς, υ, ϑ, Υ), ∴, ∵, ■.
+- Le code LaTeX exporté charge automatiquement ce qu'il faut (intervalles d'entiers, matrices de plus de 10 colonnes).
 
 ## Corrections
 
-- **Page transparente** : la feuille blanche pouvait disparaître (texte affiché directement sur le fond gris), notamment après être passé par l'aperçu. Les feuilles sont maintenant toujours redessinées, et la page reste blanche dans tous les cas.
-- **Correction d'un mot souligné** : la correction remplace toujours le mot visé (elle pouvait être ajoutée à côté au lieu de remplacer le mot). Les mots en partie en gras ou en italique gardent leur mise en forme, et les mots élidés (« l’exemplle ») sont corrigés sans toucher à « l’ ».
-- **Beaucoup moins de fautes signalées à tort** :
-  - les accords avec une formule ne sont plus signalés (« f est croissante », « la suite est décroissante ») ;
-  - les remarques de style et de typographie ne sont plus affichées : seules les vraies fautes de grammaire et de conjugaison restent ;
-  - les noms propres, sigles, unités (mA, ms, kΩ…), adresses web et mots collés aux formules (« n-ième ») ne sont plus soulignés ;
-  - vocabulaire scientifique complété (trigonaliser, orthonormaliser, autocollimation, coplanarité…) ;
-  - les titres ne sont plus vérifiés en grammaire (« Devoir surveillé » était pris pour le verbe « devoir »).
-- **Confidentialité** : les titres du document et des sections ne sont plus envoyés à LanguageTool (en plus des informations de la page de titre).
-- **Clic droit** dans les autres champs de texte : les suggestions du correcteur de Windows s'appliquent directement depuis le menu.
+- **Fenêtre « Code LaTeX généré »** : elle s'ouvrait décalée, en partie hors de l'écran. Elle est maintenant centrée, avec une barre de défilement pour les lignes longues.
+- **Encadrés vides dans le PDF** : un encadré (question, définition, exercice…) qui tombait en bas de page pouvait perdre son texte dans l'aperçu et dans le PDF. C'est corrigé.
+- **Titre seul en bas de page** : un titre de section passe maintenant sur la page suivante avec le contenu qui le suit.
+- **Dérivée seconde f''** : insérée depuis la palette, elle pouvait s'afficher en rouge (formule non reconnue). Elle s'affiche maintenant normalement, y compris dans les documents existants et dans le code LaTeX exporté.
+- Le symbole « Texte dans une formule » s'affiche correctement dans la recherche de symboles.

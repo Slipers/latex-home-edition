@@ -34,6 +34,8 @@ L.KATEX_MACROS = {
   '\\differentialD': '\\mathrm{d}',
   '\\capitalDifferentialD': '\\mathrm{D}',
   '\\placeholder': '\\square',
+  '\\doubleprime': '\\prime\\prime',
+  '\\tripleprime': '\\prime\\prime\\prime',
 };
 
 /* Un même document redessine souvent les mêmes formules (repagination
@@ -64,6 +66,9 @@ L.katex = function (latex, display = false) {
 /* Nettoie le LaTeX renvoyé par l'éditeur visuel */
 L.cleanLatex = s => String(s || '')
   .replace(/\\placeholder(\[[^\]]*\])?\{\}/g, '')
+  // Primes et opérateurs tels que MathLive les écrit : f^{\doubleprime} → f'', \operatorname{\mathrm{Vect}} → \operatorname{Vect}
+  .replace(/\^\{\\(prime|doubleprime|tripleprime)\}/g, (m, p) => "'".repeat(p === 'prime' ? 1 : p === 'doubleprime' ? 2 : 3))
+  .replace(/\\operatorname\{\\mathrm\{([^{}]*)\}\}/g, '\\operatorname{$1}')
   .replace(/^\s+|\s+$/g, '');
 
 /* Équation multi-lignes : on enveloppe dans aligned si besoin */
@@ -92,6 +97,7 @@ L.ICONS = {
   sliders: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/>',
   check: '<path d="M5 12l5 5 9-10"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
+  grid: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.3h16M4 14.7h16M9.3 4v16M14.7 4v16"/>',
   users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 20a6.5 6.5 0 0 0-2.5-5.1"/>',
   link: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M4 7l8 6 8-6"/>',

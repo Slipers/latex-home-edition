@@ -544,6 +544,11 @@ L.docToLatex = function (doc) {
   if (/\\coloneqq/.test(body)) P.push('\\usepackage{mathtools}');
   if (/\\cancel\{/.test(body)) P.push('\\usepackage{cancel}');
   if (/\\mathscr\{/.test(body)) P.push('\\usepackage{mathrsfs}');
+  if (/\\[lr]{2}bracket/.test(body)) P.push('\\usepackage{stmaryrd}');
+  // amsmath limite les matrices à 10 colonnes
+  const cols = Math.max(0, ...[...body.matchAll(/\\begin\{([pbBvV]?matrix)\}([\s\S]*?)\\end\{\1\}/g)]
+    .flatMap(x => x[2].split('\\\\').map(r => r.split('&').length)));
+  if (cols > 10) P.push('\\setcounter{MaxMatrixCols}{' + cols + '}');
   // footskip : pied de page à ~12 mm du bord (mêmes valeurs que l'éditeur)
   if (m.margins === 'normales') P.push('\\usepackage[a4paper,margin=2.5cm,footskip=13mm]{geometry}');
   else if (m.margins === 'etroites') P.push('\\usepackage[a4paper,margin=1.5cm,bottom=2.2cm,footskip=10mm]{geometry}');
@@ -572,6 +577,10 @@ L.docToLatex = function (doc) {
   P.push('\\providecommand{\\imaginaryJ}{\\mathrm{j}}');
   P.push('\\providecommand{\\differentialD}{\\mathrm{d}}');
   P.push('\\providecommand{\\capitalDifferentialD}{\\mathrm{D}}');
+  if (/\\(double|triple)prime/.test(body)) {
+    P.push('\\providecommand{\\doubleprime}{\\prime\\prime}');
+    P.push('\\providecommand{\\tripleprime}{\\prime\\prime\\prime}');
+  }
 
   if (X.envs.size) {
     P.push('');

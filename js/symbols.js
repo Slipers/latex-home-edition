@@ -13,7 +13,7 @@
     ['\\pm', 'Plus ou moins', 'incertitude'], ['\\mp', 'Moins ou plus', ''], ['\\%', 'Pourcentage', 'pourcent'],
     ['\\infty', 'Infini', 'infinity inf'], ['+\\infty', 'Plus l\'infini', 'infini positif'], ['-\\infty', 'Moins l\'infini', 'infini negatif'],
     ['\\pi', 'Pi', 'nombre pi cercle'], ['\\mathrm{e}', 'Nombre e', 'euler exponentielle'], ['\\mathrm{i}', 'Nombre i', 'imaginaire complexe'],
-    ['\\text{#?}', 'Texte dans une formule', 'mot phrase'], ['\\ldots', 'Points de suspension', 'etc trois points'], ['\\cdots', 'Points centrés', 'suspension'],
+    ['\\text{#?}', 'Texte dans une formule', 'mot phrase', '\\text{abc}'], ['\\ldots', 'Points de suspension', 'etc trois points'], ['\\cdots', 'Points centrés', 'suspension'],
   ]);
   add('Analyse', [
     ['\\lim_{#?\\to#?}', 'Limite', 'tend limite lim', '\\lim_{x\\to a}'], ['\\lim_{x\\to+\\infty}', 'Limite en +∞', 'limite infini'],
@@ -85,6 +85,24 @@
     ['#@^{\\mathsf{T}}', 'Transposée', 'transpose', 'A^{\\mathsf{T}}'], ['#@^{-1}', 'Inverse', 'inverse', 'A^{-1}'], ['I_{#?}', 'Matrice identité', 'identite', 'I_n'],
     ['\\det', 'Déterminant (fonction)', 'det'], ['\\operatorname{tr}', 'Trace', 'trace'], ['\\ker', 'Noyau', 'ker'], ['\\operatorname{Im}', 'Image', 'im'],
   ]);
+  add('Algèbre & probas', [
+    ['\\mathcal{M}_{#?}\\left(\\mathbb{K}\\right)', 'Matrices carrées', 'ensemble matrices mn', '\\mathcal{M}_{n}(\\mathbb{K})'],
+    ['\\mathcal{M}_{#?,#?}\\left(\\mathbb{K}\\right)', 'Matrices n×p', 'ensemble matrices mnp', '\\mathcal{M}_{n,p}(\\mathbb{K})'],
+    ['\\mathrm{GL}_{#?}\\left(\\mathbb{K}\\right)', 'Groupe linéaire', 'inversibles gl', '\\mathrm{GL}_{n}(\\mathbb{K})'], ['\\mathcal{L}\\left(#?\\right)', 'Endomorphismes', 'applications lineaires', '\\mathcal{L}(E)'],
+    ['\\mathbb{K}\\left[X\\right]', 'Polynômes', 'polynome kx', '\\mathbb{K}[X]'], ['\\mathbb{K}_{#?}\\left[X\\right]', 'Polynômes de degré ≤ n', 'polynome', '\\mathbb{K}_{n}[X]'],
+    ['\\operatorname{rg}', 'Rang', 'rang rg rank'], ['\\dim', 'Dimension', 'dim'], ['\\operatorname{Vect}\\left(#?\\right)', 'Sous-espace engendré', 'vect engendre', '\\operatorname{Vect}(u)'],
+    ['\\operatorname{Sp}', 'Spectre', 'valeurs propres sp'], ['\\chi_{#?}', 'Polynôme caractéristique', 'chi caracteristique', '\\chi_{A}'], ['\\operatorname{id}', 'Identité', 'id application'],
+    ['\\deg', 'Degré', 'polynome deg'], ['\\oplus', 'Somme directe', 'supplementaire plus rond'], ['\\otimes', 'Produit tensoriel', 'fois rond'],
+    ['\\left\\langle #?,#?\\right\\rangle', 'Produit scalaire ⟨·,·⟩', 'scalaire crochets', '\\langle u,v\\rangle'], ['#@^{\\perp}', 'Orthogonal', 'orthogonal perp', 'F^{\\perp}'],
+    ['\\operatorname{pgcd}', 'PGCD', 'pgcd diviseur commun'], ['\\operatorname{ppcm}', 'PPCM', 'ppcm multiple commun'], ['\\wedge', 'PGCD (∧) / et', 'pgcd'], ['\\vee', 'PPCM (∨) / ou', 'ppcm'],
+    ['\\arg', 'Argument', 'complexe arg'], ['\\mathrm{e}^{\\mathrm{i}#?}', 'Exponentielle complexe', 'euler complexe', '\\mathrm{e}^{\\mathrm{i}\\theta}'],
+    ['\\mathbb{U}', 'Complexes de module 1', 'u cercle unite'], ['\\mathbb{Z}/#?\\mathbb{Z}', 'Entiers modulo n', 'congruence anneau', '\\mathbb{Z}/n\\mathbb{Z}'],
+    ['\\mathbb{P}\\left(#?\\right)', 'Probabilité', 'proba p', '\\mathbb{P}(A)'], ['\\mathbb{P}_{#?}\\left(#?\\right)', 'Probabilité conditionnelle', 'proba sachant', '\\mathbb{P}_{B}(A)'],
+    ['\\mathbb{E}\\left(#?\\right)', 'Espérance', 'esperance moyenne e', '\\mathbb{E}(X)'], ['\\mathbb{V}\\left(#?\\right)', 'Variance', 'variance v', '\\mathbb{V}(X)'],
+    ['\\operatorname{Cov}\\left(#?,#?\\right)', 'Covariance', 'cov', '\\operatorname{Cov}(X,Y)'], ['\\mathcal{B}\\left(#?,#?\\right)', 'Loi binomiale', 'binomiale bernoulli', '\\mathcal{B}(n,p)'],
+    ['\\mathcal{N}\\left(#?,#?\\right)', 'Loi normale', 'gauss normale', '\\mathcal{N}(\\mu,\\sigma^2)'], ['\\mathcal{U}\\left(#?\\right)', 'Loi uniforme', 'uniforme', '\\mathcal{U}(E)'],
+    ['\\mathcal{G}\\left(#?\\right)', 'Loi géométrique', 'geometrique', '\\mathcal{G}(p)'], ['\\mathcal{P}\\left(#?\\right)', 'Loi de Poisson / parties', 'poisson parties', '\\mathcal{P}(\\lambda)'],
+  ]);
   add('Physique & unités', [
     ['#@\\times 10^{#?}', 'Notation scientifique', 'puissance de dix', 'a\\times10^{n}'], ['\\,\\mathrm{#?}', 'Unité (texte droit)', 'unite', '\\mathrm{u}'],
     ['\\,\\mathrm{m}', 'Mètre', 'longueur m'], ['\\,\\mathrm{cm}', 'Centimètre', 'longueur'], ['\\,\\mathrm{mm}', 'Millimètre', 'longueur'], ['\\,\\mathrm{km}', 'Kilomètre', 'longueur'],
@@ -138,6 +156,59 @@
     ['\\checkmark', 'Coche', 'valide'], ['\\star', 'Étoile', ''], ['\\dagger', 'Croix', 'dague'], ['\\square', 'Carré', 'fin'], ['\\circ', 'Rond / composition', 'rond'],
     ['\\bullet', 'Puce', 'point'], ['\\aleph', 'Aleph', 'hebreu'], ['\\Re', 'Partie réelle', 're'], ['\\Im', 'Partie imaginaire', 'im'],
     ['\\hbar', 'Constante de Planck réduite', 'h'], ['\\wp', 'Weierstrass', 'p'], ['\\S', 'Paragraphe', 'section'],
+  ]);
+
+  // Compléments (ajoutés à la fin de chaque catégorie, sans doublon)
+  const more = (cat, list) => list.forEach(e => { if (!C[cat].some(x => x[0] === e[0])) C[cat].push(e); });
+  more('Courant', [
+    ['\\left\\lfloor #0\\right\\rfloor', 'Partie entière', 'partie entiere floor plancher e', '\\lfloor x\\rfloor'],
+    ['E\\left(#0\\right)', 'Partie entière E(x)', 'partie entiere e', 'E(x)'],
+    ['\\left\\lceil #0\\right\\rceil', 'Partie entière supérieure', 'plafond ceil arrondi superieur', '\\lceil x\\rceil'],
+    ['\\lfloor', 'Crochet partie entière gauche', 'floor'], ['\\rfloor', 'Crochet partie entière droit', 'floor'],
+    ['#@!', 'Factorielle', 'factorielle', 'n!'], ['\\binom{#?}{#?}', 'Coefficient binomial', 'parmi combinaison k parmi n'],
+  ]);
+  more('Analyse', [
+    ['\\lim_{#?\\to#?^{+}}', 'Limite à droite', 'limite droite', '\\lim_{x\\to a^{+}}'], ['\\lim_{#?\\to#?^{-}}', 'Limite à gauche', 'limite gauche', '\\lim_{x\\to a^{-}}'],
+    ['\\sum_{#?=#?}^{+\\infty}', 'Série', 'serie somme infinie', '\\sum_{n=0}^{+\\infty}'],
+    ['\\int_{#?}^{+\\infty}#?\\,\\mathrm{d}#?', 'Intégrale généralisée', 'integrale impropre infini', '\\int_a^{+\\infty}'],
+    ['#@^{(#?)}', 'Dérivée n-ième', 'derivee n ieme ordre', 'f^{(n)}'], ['\\left.#0\\right|_{#?}', 'Évalué en', 'barre evaluation', 'f\\big|_{x=a}'],
+    ['#@\\circ #?', 'Composée', 'rond composition', 'f\\circ g'], ['#@^{-1}', 'Réciproque', 'bijection inverse', 'f^{-1}'],
+    ['\\mathcal{C}^{#?}', 'Classe C^k', 'classe continue derivable', '\\mathcal{C}^{k}'],
+    ['\\operatorname{ch}', 'ch (cosinus hyperbolique)', 'cosh hyperbolique'], ['\\operatorname{sh}', 'sh (sinus hyperbolique)', 'sinh hyperbolique'],
+    ['\\operatorname{th}', 'th (tangente hyperbolique)', 'tanh hyperbolique'], ['\\tanh', 'Tangente hyperbolique', 'th'],
+    ['\\limsup', 'Limite supérieure', 'limsup'], ['\\liminf', 'Limite inférieure', 'liminf'],
+    ['\\xrightarrow[#?]{#?}', 'Flèche annotée (convergence)', 'converge tend fleche', '\\xrightarrow[n\\to\\infty]{}'],
+  ]);
+  more('Ensembles & logique', [
+    ['\\mathbb{N}^{*}', 'Entiers non nuls', 'ensemble n etoile'], ['\\mathbb{R}_{+}', 'Réels positifs', 'ensemble'], ['\\mathbb{R}^{#?}', 'R puissance n', 'espace rn', '\\mathbb{R}^{n}'],
+    ['\\varnothing', 'Ensemble vide (variante)', 'vide'], ['\\nexists', 'Il n\'existe pas', 'aucun'], ['\\not\\subset', 'Non inclus', 'inclusion'],
+    ['\\bigcup_{#?}', 'Grande union', 'reunion', '\\bigcup_{i}'], ['\\bigcap_{#?}', 'Grande intersection', 'inter', '\\bigcap_{i}'],
+    ['\\left[#?,#?\\right[', 'Intervalle semi-ouvert à droite', 'intervalle', '[a,b['], ['\\left]#?,#?\\right]', 'Intervalle semi-ouvert à gauche', 'intervalle', ']a,b]'],
+    ['\\llbracket #?,#?\\rrbracket', 'Intervalle d\'entiers', 'entiers crochets doubles 1 n', '\\llbracket 1,n\\rrbracket'],
+    ['\\mathrm{card}\\left(#?\\right)', 'Cardinal', 'card nombre elements', '\\mathrm{card}(E)'], ['\\mathcal{P}\\left(#?\\right)', 'Ensemble des parties', 'parties', '\\mathcal{P}(E)'],
+  ]);
+  more('Relations', [
+    ['\\leqslant', 'Inférieur ou égal (incliné)', 'plus petit ou egal francais'], ['\\geqslant', 'Supérieur ou égal (incliné)', 'plus grand ou egal francais'],
+    ['\\nmid', 'Ne divise pas', 'divisibilite'], ['\\cong', 'Isomorphe / congru', 'isomorphe'], ['\\overset{\\text{déf}}{=}', 'Égal par définition', 'definition', '\\overset{\\text{déf}}{=}'],
+    ['\\not\\equiv', 'Non congru', 'congruence'], ['\\asymp', 'Du même ordre', 'comparable'],
+  ]);
+  more('Flèches', [
+    ['\\Longrightarrow', 'Implique (long)', 'implication donc'], ['\\Longleftrightarrow', 'Équivalent (long)', 'equivalence ssi'], ['\\Leftarrow', 'Est impliqué par', 'reciproque'],
+    ['\\nRightarrow', 'N\'implique pas', 'implication'], ['\\hookrightarrow', 'Injection', 'injective'], ['\\twoheadrightarrow', 'Surjection', 'surjective'],
+    ['\\longmapsto', 'Associe à (long)', 'fonction'], ['\\leftrightarrows', 'Flèches opposées', 'fleche'], ['\\curvearrowright', 'Flèche courbe', 'fleche'],
+  ]);
+  more('Grec', 'varpi varrho varsigma Upsilon'.split(' ').map(g => ['\\' + g, g[0].toUpperCase() === g[0] ? g + ' (majuscule)' : g, 'grec lettre ' + g]));
+  more('Matrices & systèmes', [
+    ['\\begin{pmatrix}a_{11}&\\cdots&a_{1p}\\\\\\vdots&\\ddots&\\vdots\\\\a_{n1}&\\cdots&a_{np}\\end{pmatrix}', 'Matrice n×p générale', 'matrice generale coefficients', '\\begin{pmatrix}a_{11}&\\cdots&a_{1p}\\\\\\vdots&\\ddots&\\vdots\\\\a_{n1}&\\cdots&a_{np}\\end{pmatrix}'],
+    ['\\begin{pmatrix}#?&&0\\\\&\\ddots&\\\\0&&#?\\end{pmatrix}', 'Matrice diagonale', 'diagonale', '\\begin{pmatrix}\\lambda_1&&0\\\\&\\ddots&\\\\0&&\\lambda_n\\end{pmatrix}'],
+    ['\\begin{bmatrix}#?&#?\\\\#?&#?\\end{bmatrix}', 'Matrice entre crochets', 'matrice crochets', '\\begin{bmatrix}a&b\\\\c&d\\end{bmatrix}'],
+    ['\\begin{pmatrix}#?&#?&#?\\end{pmatrix}', 'Vecteur ligne', 'ligne', '\\begin{pmatrix}x&y&z\\end{pmatrix}'],
+    ['\\left\\{\\begin{aligned}#?&=#?\\\\#?&=#?\\\\#?&=#?\\end{aligned}\\right.', 'Système de 3 équations', 'systeme', '\\left\\{\\begin{aligned}x&=1\\\\y&=2\\\\z&=3\\end{aligned}\\right.'],
+    ['\\vdots', 'Points verticaux', 'suspension'], ['\\ddots', 'Points diagonaux', 'suspension'], ['\\mathrm{I}_{#?}', 'Matrice identité (droite)', 'identite', '\\mathrm{I}_{n}'],
+  ]);
+  more('Divers', [
+    ['\\therefore', 'Donc (∴)', 'donc'], ['\\because', 'Car (∵)', 'parce que'], ['\\blacksquare', 'Fin de démonstration', 'cqfd qed carre noir'],
+    ['\\Box', 'Carré vide', 'cqfd'], ['\\ell', 'l cursif', 'longueur'], ['\\dagger', 'Adjoint', 'dague'],
   ]);
 
   L.SYMBOLS = [];

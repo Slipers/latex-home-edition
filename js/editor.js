@@ -1679,6 +1679,8 @@ App.bindEditor = function () {
   paper.addEventListener('paste', e => {
     const field = e.target.closest && e.target.closest('[data-f]');
     const cd = e.clipboardData;
+    // Contenu copié depuis LaTeX Home Edition : mise en forme, formules et blocs conservés
+    if (field && L.Clip && L.Clip.pasteInField(e, field)) return;
     const img = cd && Array.from(cd.files || []).find(x => /^image\//.test(x.type));
     if (img && field && field.tagName === 'TD') {
       e.preventDefault();

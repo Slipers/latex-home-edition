@@ -257,6 +257,7 @@ L.sanitizeNode = function (node) {
   node.childNodes.forEach(n => {
     if (n.nodeType === 3) { out += L.escHtml(n.nodeValue.replace(/\u200b/g, '')); return; }
     if (n.nodeType !== 1) return;
+    if (/^(SCRIPT|STYLE|TEMPLATE|NOSCRIPT|TITLE|META)$/.test(n.tagName)) return;   // ni le code ni son texte
     const cls = n.classList;
     const chip = CHIPS.find(c => cls && cls.contains(c));
     if (chip) {

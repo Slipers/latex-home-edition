@@ -165,6 +165,9 @@ body.fold-left #left > .side-rail, body.fold-right #right > .side-rail { display
 .paper .blk { position: relative; border-radius: 2px; }
 .paper .blk::before { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; width: 3px; border-radius: 2px; background: transparent; }
 .paper .blk.sel::before { background: var(--sel); }
+/* Plusieurs blocs sélectionnés (Maj + clic) : prêts à être copiés, coupés ou supprimés */
+.paper .blk.msel { background: color-mix(in srgb, var(--acc) 9%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc) 35%, transparent); border-radius: 4px; }
+.paper .blk.msel::before { background: var(--sel); }
 .paper .blk.sel > .fig .fig-drop, .paper .blk.sel > .tbl table { outline: 1px dashed #9fb6dc; outline-offset: 3px; }
 .gutter { position: absolute; left: -52px; top: 0; display: flex; gap: 1px; opacity: 0; transition: opacity .1s; user-select: none; font-family: var(--ui); }
 .paper .blk:hover > .gutter, .paper .blk.sel > .gutter { opacity: 1; }
@@ -370,10 +373,31 @@ input[type=range] { width: 100%; accent-color: var(--acc); }
 .md-cats button { border: none; background: none; padding: 4px 9px; border-radius: 12px; color: var(--mut); font-size: 12px; }
 .md-cats button.on { background: var(--acc); color: #fff; }
 .md-palette { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; max-height: 118px; overflow-y: auto; }
-.md-palette button { min-width: 40px; height: 38px; padding: 0 6px; border: 1px solid transparent; background: var(--soft); border-radius: 8px; display: grid; place-items: center; font-size: 13px; }
+.md-palette button { min-width: 40px; min-height: 38px; padding: 3px 6px; border: 1px solid transparent; background: var(--soft); border-radius: 8px; display: grid; place-items: center; font-size: 13px; }
 .md-palette button:hover { border-color: var(--acc2); background: var(--acc-bg); }
 .md-palette button .katex { font-size: 1.05em; }
+.md-palette button:has(.mtable) .katex { font-size: .78em; }
 .md-palette button.txt { font: 12px var(--ui); }
+.md-palette button.act { display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--acc-bg); color: var(--acc); font-weight: 600; border-color: var(--acc-line); }
+.md-palette button.act:hover { border-color: var(--acc); }
+.mxpick { position: fixed; z-index: 97; width: 268px; padding: 12px; background: var(--panel); border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 16px 44px rgba(20, 30, 50, .24); font-size: 12.5px; }
+.mx-title { font-weight: 700; margin-bottom: 8px; }
+.mx-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; cursor: pointer; }
+.mx-grid span { aspect-ratio: 1; border: 1px solid var(--line2); border-radius: 3px; background: var(--soft); }
+.mx-grid span.on { background: var(--acc-bg); border-color: var(--acc); }
+.mx-size { margin: 6px 0 8px; text-align: center; color: var(--mut); }
+.mx-nums { display: flex; align-items: flex-end; gap: 6px; }
+.mx-nums label { display: flex; flex-direction: column; gap: 2px; color: var(--mut); font-size: 11.5px; }
+.mx-nums input { width: 62px; padding: 5px 6px; border: 1px solid var(--line2); border-radius: 7px; background: var(--panel); color: var(--txt); font: inherit; }
+.mx-nums > span { padding-bottom: 6px; color: var(--mut); }
+.mx-nums .btn { margin-left: auto; }
+.mx-lbl { margin: 10px 0 4px; color: var(--mut); font-size: 11.5px; }
+.mx-seg { display: flex; flex-wrap: wrap; gap: 3px; }
+.mx-seg button { padding: 4px 8px; border: 1px solid var(--line2); border-radius: 7px; background: none; color: var(--txt); font: inherit; }
+.mx-seg button.on { background: var(--acc); border-color: var(--acc); color: #fff; }
+.mx-tip { margin-top: 10px; color: var(--mut); font-size: 11.5px; line-height: 1.45; }
+:root[data-theme="dark"] .mxpick { box-shadow: 0 16px 44px rgba(0, 0, 0, .55); }
+:root[data-theme="dark"] .md-palette button.act { color: #a9c4ee; }
 math-field#mf { display: block; width: 100%; font-size: 24px; padding: 8px 12px; border: 1.5px solid #b9c8e0; border-radius: 9px; min-height: 58px; --caret-color: var(--acc); --selection-background-color: #cfe0fb; --contains-highlight-background-color: #f0f5fd; }
 math-field#mf:focus-within { border-color: var(--acc2); outline: 3px solid #d9e6fa; }
 math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { display: none; }
@@ -383,7 +407,8 @@ math-field::part(virtual-keyboard-toggle), math-field::part(menu-toggle) { displ
 .chem-prev { min-height: 44px; font-size: 22px; padding: 8px; text-align: center; font-family: "CMU Serif", serif; }
 
 /* ---------- Fenêtres modales ---------- */
-#modal { position: fixed; inset: 0; background: rgba(25, 32, 45, .38); z-index: 70; display: grid; place-items: center; padding: 20px; }
+/* (colonne bornée à l'écran : un contenu très large, comme le code LaTeX, ne pousse plus la fenêtre hors de l'écran) */
+#modal { position: fixed; inset: 0; background: rgba(25, 32, 45, .38); z-index: 70; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 20px; }
 .modal-box { background: var(--panel); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.28); width: min(640px, 100%); max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
 .modal-box.wide { width: min(980px, 100%); }
 .mb-head { padding: 16px 20px 10px; display: flex; align-items: center; gap: 10px; }

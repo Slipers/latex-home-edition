@@ -416,6 +416,7 @@ App.updateWordCount = L.debounce(() => {
 /* ---------- Démarrage ---------- */
 window.addEventListener('DOMContentLoaded', () => {
   L.MathDock.init();
+  L.Clip.init();
 
   // Icônes vectorielles de l'interface
   L.$$('[data-ico]').forEach(el => el.replaceChildren(L.svg(el.dataset.ico, +el.dataset.size || 16)));
