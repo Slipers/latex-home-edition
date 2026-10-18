@@ -185,6 +185,14 @@ L.adoptImages = function (doc, blocks) {
   return doc;
 };
 
+/* Largeurs des colonnes (en %) : à deux colonnes, le réglage « ratio » (50/50, 60/40…) ;
+   à trois ou quatre colonnes (images côte à côte…), des colonnes égales */
+L.colsWidths = function (b) {
+  const n = (b.children || []).length || 1;
+  if (n === 2) { const r = b.ratio || 50; return [r, 100 - r]; }
+  return b.children.map(() => 100 / n);
+};
+
 L.cloneBlock = function (b) {
   const c = JSON.parse(JSON.stringify(b));
   L.walk([c], x => { x.id = L.uid(); });

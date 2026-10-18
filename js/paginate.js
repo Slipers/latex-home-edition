@@ -166,6 +166,27 @@ L.paginate = async function (doc, host) {
     return [mk(0, n), mk(n, lines.length)];
   };
 
+  /* --- Dessin ou image « gardé à cet endroit » : réduit (jusqu'à 40 %) pour tenir dans la place restante --- */
+  const fit = {};
+  const shrinkToFit = el => {
+    const d = el.querySelector('.tikz-svg, .fig > img');
+    if (!d) return false;
+    content.appendChild(el);
+    const over = used() - avail;
+    const r = d.getBoundingClientRect();
+    const f = (r.height - over - 2) / r.height;
+    let ok = false;
+    if (r.height > 0 && f >= 0.4) {
+      d.style.width = (r.width * f).toFixed(1) + 'px';
+      d.style.height = 'auto';
+      ok = used() <= avail + 0.5;
+      if (ok) fit[el.dataset.id] = +(r.width * f).toFixed(1);
+      else { d.style.width = ''; d.style.height = ''; }
+    }
+    el.remove();
+    return ok;
+  };
+
   L._split = (el, test) => {
     if (el.matches('p.para')) return splitPara(el, test);
     if (el.matches('.lst')) return splitKids(el, null, test);
@@ -195,6 +216,7 @@ L.paginate = async function (doc, host) {
     // Un titre garde de la place pour la suite… sauf s'il est suivi d'un saut de page
     const lastOnPage = !queue.length || queue[0].dataset.role === 'pagebreak';
     if (fits(el, isHead && !lastOnPage ? 2.2 * lh : 0)) { place(el); continue; }
+    if (el.dataset.keep === '1' && !empty() && shrinkToFit(el)) { place(el); continue; }
     if (!isHead) {
       const sp = L._split(el, x => fits(x));
       if (sp) { place(sp[0]); sp[1]._splitOffset = sp[0].offsetHeight; newPage(); queue.unshift(sp[1]); continue; }
@@ -212,6 +234,11 @@ L.paginate = async function (doc, host) {
     queue.unshift(...keep, el);
   }
   if (empty() && pages.length > 1) { page.remove(); pages.pop(); }
+  // Dernières pages sans rien de visible (lignes vides laissées en fin de document) : retirées,
+  // sinon le PDF avait une page blanche en plus et le total des pages était faux (« 7/8 »)
+  const blankPage = pg => !pg.classList.contains('titlepage') && Array.from(pg.querySelectorAll('.page-content > *')).every(x =>
+    !x.textContent.replace(/[​ ]/g, '').trim() && !x.matches('.hrule, .tikz, .fig, .tbl, .eq') && !x.querySelector('img, svg, .katex, table, .hrule'));
+  while (pages.length > 1 && blankPage(pages[pages.length - 1])) pages.pop().remove();
 
   // Débuts de page (pour afficher les changements de page pendant l'édition)
   const breaks = [];
@@ -223,7 +250,7 @@ L.paginate = async function (doc, host) {
   });
   // Notes de chaque page (affichées en bas des feuilles dans l'éditeur)
   const notes = pages.map(pg => Array.from(pg.querySelectorAll('.page-foot .fn')).map(p => ({ html: p.innerHTML, fn: p.dataset.fn || null, pnote: p.dataset.pnote || null })));
-  L.lastPagination = { count: pages.length, breaks, notes };
+  L.lastPagination = { count: pages.length, breaks, notes, fit };
 
   // Numéros de page, en-têtes et pieds (la page de garde n'en a pas, comme titlepage)
   L.fixMeta(m);

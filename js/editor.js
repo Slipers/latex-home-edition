@@ -42,7 +42,9 @@ L.ITEMS = [
   { g: 'Figures et tableaux', fam: 'obj', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
-  { g: 'Figures et tableaux', fam: 'obj', key: 'figures2', label: 'Images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'figures2', label: '2 images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'figures3', label: '3 images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote trois photos 3 colonnes', make: () => L.newCols('figure', 3) },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'figures4', label: '4 images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote quatre photos 4 colonnes', make: () => L.newCols('figure', 4) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'cols2', label: 'Deux colonnes', icon: '▯▯', kw: 'deux colonnes cote a cote texte', make: () => L.newCols('paragraph') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'code', label: 'Code informatique', icon: '{ }', kw: 'code programme python algorithme', make: () => L.newBlock('code') },
   { g: 'Mise en page', fam: 'page', key: 'pagebreak', label: 'Saut de page', icon: '⤓', kw: 'saut page nouvelle', make: () => L.newBlock('pagebreak') },
@@ -187,6 +189,7 @@ Object.assign(App, {
     paper.className = 'paper ' + L.pageClasses(this.doc.meta);
     const flow = L.renderDoc(this.doc, 'edit');
     paper.replaceChildren(flow);
+    this.applyFits();
     if (this.sel) { const el = this.blockEl(this.sel); if (el) el.classList.add('sel'); else this.sel = null; }
     this.updateOutline();
     this.updateProps();
@@ -310,6 +313,7 @@ Object.assign(App, {
       await L.paginate(this.doc, host);
       host.innerHTML = '';
       this.pageInfo = L.lastPagination;
+      this.applyFits();
       this.drawPageMarks();
     } catch (e) { console.warn('Pagination', e); }
     this._paginating = false;
@@ -319,6 +323,19 @@ Object.assign(App, {
      insérés aux endroits exacts où la mise en page du PDF change de page, et les feuilles
      (avec en-tête et pied de page) sont dessinées derrière le texte. */
   drawPageMarks() { this.layoutSheets(); },
+  /* Dessins et images « gardés à cet endroit » : même taille réduite que dans le PDF */
+  applyFits() {
+    const fit = (this.pageInfo && this.pageInfo.fit) || {};
+    L.$$('#paper [data-keep="1"]').forEach(el => {
+      const blk = el.closest('.blk');
+      const d = el.querySelector('.tikz-svg, .fig > img');
+      if (!blk || !d) return;
+      if (d.dataset.w0 === undefined) d.dataset.w0 = d.style.width || '';
+      const w = fit[blk.dataset.id];
+      d.style.width = w ? w + 'px' : d.dataset.w0;
+      d.style.height = w ? 'auto' : '';
+    });
+  },
   layoutSheets(noAnchor) {
     const paper = L.$('#paper');
     const flow = paper.querySelector(':scope > .flow');
@@ -422,11 +439,18 @@ Object.assign(App, {
     // 2. Dessin des feuilles, avec en-têtes et pieds de page
     const m = L.fixMeta(this.doc.meta);
     const nums = info && info.pageNums ? info.pageNums : [];
-    const total = info && info.total !== undefined ? info.total : L.pageStart(m) + sheets.length - 1;
-    const firstNum = nums.findIndex(n => n !== null && n !== undefined);
+    // Numéro de chaque feuille dessinée : celui de la mise en page du PDF ; une feuille en plus
+    // dans l'éditeur (lignes vides en fin de document…) continue la numérotation. Le total est
+    // celui des feuilles affichées : la dernière page indique toujours « N/N ».
+    const shown = sheets.map((sh, i) => info ? (i < nums.length ? nums[i] : undefined) : L.pageStart(m) + i);
+    let lastN = null;
+    shown.forEach((n, i) => { if (typeof n === 'number') lastN = n; else if (n === undefined && lastN !== null) shown[i] = ++lastN; });
+    const maxN = Math.max(0, ...shown.filter(n => typeof n === 'number'));
+    const total = maxN || (info && info.total !== undefined ? info.total : L.pageStart(m) + sheets.length - 1);
+    const firstNum = shown.findIndex(n => n !== null && n !== undefined);
     sheets.forEach((sh, i) => {
       const el = L.h('div', { class: 'sheet', style: { top: sh.top + 'px', height: (sh.bottom - sh.top) + 'px' } });
-      const n = info ? nums[i] : L.pageStart(m) + i;
+      const n = shown[i];
       const skip = n === null || n === undefined || (i === firstNum && m.hfFirst === false && m.titleStyle !== 'pagegarde');
       if (!skip) try {
         const hf = L.renderHF(m, n, total).filter(x => !(i === firstNum && m.hfFirst === 'foot' && x.classList.contains('page-head')));
@@ -1117,7 +1141,27 @@ Object.assign(App, {
   /* ================= Panneau de droite : réglages du bloc sélectionné =================
      En-tête (type du bloc + actions), puis des sections courtes ; les options rares
      sont rangées dans des « Plus d'options » repliables (leur état est mémorisé). */
+  /* Le panneau est reconstruit à chaque rendu : la case en cours de saisie (nom devant le numéro,
+     titre d'encadré…) retrouve son curseur, sinon la frappe était interrompue toutes les 2 secondes */
   updateProps() {
+    const P = L.$('#props');
+    const ae = document.activeElement;
+    let keep = null;
+    if (ae && P.contains(ae) && (ae.tagName === 'TEXTAREA' || (ae.tagName === 'INPUT' && !/^(checkbox|radio|file|button|submit|range|color)$/.test(ae.type)))) {
+      keep = { sel: this.sel, i: Array.from(P.querySelectorAll('input, textarea')).indexOf(ae), tag: ae.tagName, ph: ae.placeholder, s: ae.selectionStart, e: ae.selectionEnd, dir: ae.selectionDirection };
+    }
+    const top = P.scrollTop;
+    this.buildProps();
+    if (keep && keep.sel === this.sel) {
+      const el = P.querySelectorAll('input, textarea')[keep.i];
+      if (el && el.tagName === keep.tag && el.placeholder === keep.ph) {
+        el.focus({ preventScroll: true });
+        try { if (keep.s !== null) el.setSelectionRange(keep.s, keep.e, keep.dir); } catch (e) {}
+      }
+      P.scrollTop = top;
+    }
+  },
+  buildProps() {
     const P = L.$('#props');
     P.innerHTML = '';
     const doc = this.doc;
@@ -1318,10 +1362,15 @@ Object.assign(App, {
     } else if (b.type === 'figure') {
       const rng = L.h('input', { type: 'range', min: 10, max: 100, step: 5, value: b.width || 60 });
       const lab = L.h('span', { class: 'rng-v', text: (b.width || 60) + ' %' });
-      rng.oninput = () => { b.width = +rng.value; lab.textContent = b.width + ' %'; const img = this.blockEl(b.id)?.querySelector('img'); if (img) img.style.width = b.width + '%'; this.commitSoon(); };
+      rng.oninput = () => {
+        b.width = +rng.value; lab.textContent = b.width + ' %';
+        const img = this.blockEl(b.id)?.querySelector('img');
+        if (img) { img.style.width = b.width + '%'; img.style.height = ''; delete img.dataset.w0; }
+        this.commitSoon(); this.pagesSoon();
+      };
       P.append(
         sec(null, btn(b.src ? '🖼  Changer l\'image' : '🖼  Choisir une image', () => this.pickImage(b.id), 'primary wide')),
-        sec('Largeur', L.h('div', { class: 'rng' }, rng, lab), help('En % de la largeur du texte.')),
+        sec('Largeur', L.h('div', { class: 'rng' }, rng, lab), help('En % de la largeur du texte.'), this.keepHereChk(b, chk, upd, 'image')),
         capSec('figure'),
         help('Le texte de la légende se modifie directement sous l\'image, sur la feuille.'));
     } else if (b.type === 'tikz') {
@@ -1337,7 +1386,7 @@ Object.assign(App, {
         upd(() => { b.code = e[1]; });
       };
       P.append(
-        sec('Échelle', L.h('div', { class: 'rng' }, rng, lab)),
+        sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
         sec('Exemples', ex),
         capSec('figure'),
         more('tikzhelp', 'Aide TikZ', help('<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>')));
@@ -1357,10 +1406,30 @@ Object.assign(App, {
       const addTo = (i, lab) => sec('Ajouter dans la colonne ' + lab, L.h('div', { class: 'chips' },
         ...[['Tableau', 'table'], ['Image', 'figure'], ['Paragraphe', 'paragraph'], ['Équation', 'equation'], ['Liste', 'list']].map(([t, ty]) =>
           btn(t, () => this.insertBlock(L.newBlock(ty), { into: b.children[i].id })))));
+      const n = b.children.length;
+      // Nombre de colonnes : une colonne ajoutée reçoit une image si les autres en contiennent (images côte à côte)
+      const setCount = k => {
+        if (k === n) return;
+        if (k < n) {
+          const lost = b.children.slice(k).filter(col => col.children.some(c => c.type !== 'paragraph' || !L.isEmptyHtml(c.html)));
+          if (lost.length && !confirm('Le contenu ' + (lost.length > 1 ? 'des dernières colonnes' : 'de la dernière colonne') + ' sera supprimé. Continuer ?')) return;
+        }
+        upd(() => {
+          const isFig = b.children.every(col => col.children.some(c => c.type === 'figure'));
+          while (b.children.length > k) b.children.pop();
+          while (b.children.length < k) {
+            const col = L.newBlock('col');
+            if (isFig) col.children = [L.newBlock('figure', { width: 90 })];
+            b.children.push(col);
+          }
+        });
+      };
+      const names = n === 2 ? ['de gauche', 'de droite'] : n === 3 ? ['de gauche', 'du milieu', 'de droite'] : b.children.map((c, i) => 'n° ' + (i + 1));
       P.append(
-        sec('Largeurs', seg([[50, '50/50'], [60, '60/40'], [40, '40/60'], [65, '65/35'], [35, '35/65']], b.ratio || 50, v => upd(() => { b.ratio = v; })),
-          btn('⇄ Échanger les deux colonnes', () => upd(() => { b.children.reverse(); }), 'wide')),
-        addTo(0, 'de gauche'), addTo(1, 'de droite'),
+        sec('Nombre de colonnes', seg([[2, '2'], [3, '3'], [4, '4']], n, setCount)),
+        n === 2 ? sec('Largeurs', seg([[50, '50/50'], [60, '60/40'], [40, '40/60'], [65, '65/35'], [35, '35/65']], b.ratio || 50, v => upd(() => { b.ratio = v; })),
+          btn('⇄ Échanger les deux colonnes', () => upd(() => { b.children.reverse(); }), 'wide')) : help('Les ' + n + ' colonnes ont la même largeur.'),
+        ...b.children.map((c, i) => addTo(i, names[i])),
         help('En LaTeX, chaque colonne devient une <i>minipage</i>. Les tableaux et figures gardent leur légende numérotée.'));
     } else if (b.type === 'tabvar') {
       P.append(sec(null, btn('✎  Modifier le tableau', () => L.dlgTabvar(b), 'primary wide')),
@@ -1848,8 +1917,9 @@ App.bindEditor = function () {
 };
 
 /* Deux colonnes préremplies : deux tableaux, deux images ou deux paragraphes */
-L.newCols = function (type) {
+L.newCols = function (type, n = 2) {
   const c = L.newBlock('cols');
+  while (c.children.length < n) c.children.push(L.newBlock('col'));
   c.children.forEach((col, i) => {
     if (type === 'table') col.children = [L.newBlock('table', {
       head: false, style: 'grille', align: ['l', 'c'], colw: ['fill', 'auto'], headColor: 'bleu', capMode: 'none',
@@ -2047,6 +2117,15 @@ Object.assign(App, {
     const f = nt.pnote && L.find(this.doc, nt.pnote);
     if (!f) return;
     L.dlgFootnote(L.pnoteHtml(f.block), v => { f.block.html = v; delete f.block.text; this.commit(); this.render(); }, () => this.removeBlock(f.block.id, false), true);
+  },
+  /* « Garder à cet endroit » : plutôt que de passer à la page suivante, le dessin ou l'image
+     est réduit juste assez pour tenir en bas de la page (jusqu'à 40 % de sa taille) */
+  keepHereChk(b, chk, upd, what) {
+    const f = this.pageInfo && this.pageInfo.fit && this.pageInfo.fit[b.id];
+    return L.h('div', null,
+      chk('Garder à cet endroit', b.keepHere, v => upd(() => { if (v) b.keepHere = true; else delete b.keepHere; }),
+        (what === 'image' ? 'Si l\'image ne tient pas en bas de la page, elle est réduite' : 'Si le dessin ne tient pas en bas de la page, il est réduit') + ' pour y rester au lieu de passer à la page suivante.'),
+      b.keepHere && f ? L.h('div', { class: 'pp-help', text: 'Réduit en ce moment pour tenir sur la page.' }) : null);
   },
   capLabelRow(b, row, kind) {
     const i = L.h('input', { type: 'text', value: b.capLabel || '', placeholder: L.capName(this.doc.meta, kind).text + ' (par défaut)' });

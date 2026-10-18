@@ -263,8 +263,8 @@ L.blockToLatexRaw = function (b, X, indent = '') {
     case 'rule': return '\\par\\noindent\\rule{\\linewidth}{0.4pt}\\par';
     case 'vspace': return '\\par' + (L.VSPACES[b.size || 'moyen'] || L.VSPACES.moyen)[1];
     case 'cols': {
-      const r = (b.ratio || 50) / 100;
-      const ws = [r - 0.02, 1 - r - 0.02];
+      const narrow = b.children.length > 2;
+      const ws = L.colsWidths(b).map(w => w / 100 - (narrow ? 0.015 : 0.02));
       X.inCols = (X.inCols || 0) + 1;   // compteur : colonnes éventuellement imbriquées
       // \linewidth : juste aussi dans un encadré ; \vspace{0pt} : colonnes alignées par le haut (comme l'éditeur)
       const parts = b.children.map((col, i) => '\\begin{minipage}[t]{' + ws[i].toFixed(2) + '\\linewidth}\\vspace{0pt}\n' +

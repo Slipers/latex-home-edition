@@ -171,6 +171,8 @@ L.renderToc = function (ctx, pages) {
 L.renderBlock = function (b, ctx) {
   const fn = L.R[b.type] || L.R.unknown;
   const el = fn(b, ctx);
+  // « Garder à cet endroit » : réduit au besoin pour tenir en bas de la page (voir L.paginate)
+  if (b.keepHere && (b.type === 'tikz' || b.type === 'figure')) el.dataset.keep = '1';
   if (ctx.mode !== 'edit') { el.dataset.id = b.id; return el; }
   const w = L.h('div', { class: 'blk', 'data-id': b.id, 'data-type': b.type });
   w.appendChild(L.h('div', { class: 'gutter', contenteditable: 'false' },
@@ -463,12 +465,13 @@ L.caption = function (b, ctx, kind, ph) {
 
 /* Deux colonnes côte à côte (tableaux, figures, texte…) */
 L.R.cols = function (b, ctx) {
-  const el = L.h('div', { class: 'cols' });
-  const r = b.ratio || 50;
+  const el = L.h('div', { class: 'cols' + (b.children.length > 2 ? ' cols-' + b.children.length : '') });
+  const ws = L.colsWidths(b);
+  const narrow = b.children.length > 2;
   b.children.forEach((col, i) => {
-    const cell = L.h('div', { class: 'col-cell', 'data-col': col.id, style: { flexBasis: ((i ? 100 - r : r) - 2) + '%' } });
+    const cell = L.h('div', { class: 'col-cell', 'data-col': col.id, style: { flexBasis: (ws[i] - (narrow ? 1.5 : 2)).toFixed(2) + '%' } });
     col.children.forEach(c => cell.appendChild(L.renderBlock(c, ctx)));
-    if (ctx.mode === 'edit') cell.appendChild(L.h('button', { class: 'col-add', contenteditable: 'false', tabindex: '-1', 'data-col': col.id, text: '+ Ajouter dans cette colonne' }));
+    if (ctx.mode === 'edit') cell.appendChild(L.h('button', { class: 'col-add', contenteditable: 'false', tabindex: '-1', 'data-col': col.id, title: 'Ajouter dans cette colonne', text: narrow ? '+ Ajouter' : '+ Ajouter dans cette colonne' }));
     el.appendChild(cell);
   });
   return el;
