@@ -321,14 +321,77 @@
     inlineEdit(el, shownName(), renameCurrent);
   }
 
+  /* ---------- Aperçus : première page du fichier, dessinée quand la ligne devient visible ---------- */
+  const PW = 794;   // largeur d'une page A4 (96 ppp)
+  const previews = new Map();   // clé (id + date de modification) → document (promesse)
+  const docFor = (key, fn) => { if (!previews.has(key)) previews.set(key, Promise.resolve().then(fn).catch(() => null)); return previews.get(key); };
+  function drawPage(box, doc, w) {
+    const pg = L.h('div', { class: 'paper home-page ' + L.pageClasses(doc.meta) });
+    try { pg.appendChild(L.renderDoc(doc, 'view')); } catch (e) { /* aperçu impossible */ }
+    const sc = L.h('div', { class: 'home-scale' }, pg);
+    box.replaceChildren(sc);
+    // On rogne une partie des marges : l'aperçu est plus lisible
+    const cs = getComputedStyle(pg);
+    const cx = (parseFloat(cs.paddingLeft) || 0) * 0.55, cy = (parseFloat(cs.paddingTop) || 0) * 0.45;
+    sc.style.transform = 'scale(' + (w / (PW - 2 * cx)) + ') translate(' + (-cx) + 'px, ' + (-cy) + 'px)';
+    requestAnimationFrame(() => box.classList.add('ready'));
+  }
+  const drawQueue = [];
+  let drawing = false;
+  const pumpDraw = () => {
+    if (drawing || !drawQueue.length) return;
+    drawing = true;
+    Promise.resolve().then(drawQueue.shift()).catch(() => {}).then(() => { drawing = false; (window.requestIdleCallback || setTimeout)(pumpDraw, { timeout: 80 }); });
+  };
+  let peek = null;
+  const hidePeek = () => { if (peek) { peek.remove(); peek = null; } };
+  // Miniature + aperçu agrandi au survol
+  function thumbOf(icon, getDoc) {
+    const box = L.h('div', { class: 'fr-thumb' }, L.h('div', { class: 'fr-thumb-ic' }, L.svg(icon, 19)));
+    if (!getDoc) return box;
+    let doc = null;
+    box._draw = async () => {
+      if (!box.isConnected) return;
+      doc = await getDoc();
+      if (!doc || !box.isConnected) return;
+      drawPage(box, doc, box.clientWidth || 46);
+      box.classList.add('has-doc');
+    };
+    box.addEventListener('mouseenter', () => {
+      if (!doc) return;
+      hidePeek();
+      const W0 = 300, H0 = Math.round(W0 * 297 / 210 * 0.82);
+      const inner = L.h('div', { class: 'fr-peek-page' });
+      peek = L.h('div', { class: 'fr-peek' }, inner);
+      document.body.appendChild(peek);
+      inner.style.height = H0 + 'px';
+      drawPage(inner, doc, W0);
+      const r = box.getBoundingClientRect();
+      const left = r.right + 14 + W0 + 16 < innerWidth ? r.right + 14 : r.left - W0 - 30;
+      peek.style.left = Math.max(8, left) + 'px';
+      peek.style.top = Math.max(8, Math.min(r.top + r.height / 2 - H0 / 2, innerHeight - H0 - 24)) + 'px';
+      requestAnimationFrame(() => peek && peek.classList.add('on'));
+    });
+    box.addEventListener('mouseleave', hidePeek);
+    return box;
+  }
+  const watchThumbs = root => {
+    const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      io.unobserve(e.target);
+      drawQueue.push(e.target._draw); pumpDraw();
+    }), { root, rootMargin: '200px' }) : null;
+    root.querySelectorAll('.fr-thumb').forEach(t => { if (!t._draw) return; if (io) io.observe(t); else { drawQueue.push(t._draw); pumpDraw(); } });
+  };
+
   /* ---------- Fenêtre « Mes fichiers en ligne » ---------- */
   const fmtSize = n => n < 1000 ? n + ' o' : n < 1e6 ? Math.round(n / 1000) + ' Ko' : (n / 1e6).toFixed(1).replace('.', ',') + ' Mo';
   async function dialog() {
     if (!C() || !C().available()) return L.toast('Le stockage en ligne n\'est pas disponible (module de connexion non chargé).', 'err');
     if (!C().user()) return L.dlgAuth('login', () => dialog());
     const body = L.h('div', { class: 'drive' }, L.h('div', { class: 'fhint', text: 'Chargement…' }));
-    const dlg = L.modal({ title: 'Mes fichiers', body, wide: true });
-    let showTrash = false, filter = '';
+    const dlg = L.modal({ title: 'Mes fichiers', body, wide: true, onClose: () => { hidePeek(); try { closeMenu(); } catch (e) {} } });
+    let showTrash = false, filter = '', tab = 'all';
     const search = L.h('input', { type: 'search', class: 'drive-search', placeholder: 'Rechercher un fichier…' });
     search.oninput = () => { filter = search.value.trim().toLowerCase(); paintList(); };
     let files = [], docs = [], use = null;
@@ -339,91 +402,144 @@
       catch (e) { body.replaceChildren(L.h('div', { class: 'note', text: frErr(e) })); return false; }
       paintAll(); return true;
     };
-    const act = (label, fn, cls) => L.h('button', { class: 'btn small' + (cls ? ' ' + cls : ''), text: label, onclick: async ev => { ev.stopPropagation(); try { await fn(); } catch (e) { L.toast(frErr(e), 'err'); } } });
+    const guard = fn => async ev => { if (ev) ev.stopPropagation(); try { await fn(); } catch (e) { L.toast(frErr(e), 'err'); } };
+    const act = (label, fn, cls) => L.h('button', { class: 'btn small' + (cls ? ' ' + cls : ''), text: label, onclick: guard(fn) });
+    /* Menu « ⋯ » des actions secondaires (renommer, télécharger, corbeille…) */
+    let menuEl = null;
+    const closeMenu = () => { if (menuEl) { menuEl.remove(); menuEl = null; document.removeEventListener('mousedown', outside, true); document.removeEventListener('keydown', onEsc, true); } };
+    const outside = e => { if (menuEl && !menuEl.contains(e.target) && !(e.target.closest && e.target.closest('.fr-more'))) closeMenu(); };
+    const onEsc = e => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closeMenu(); } };
+    const moreBtn = items => {
+      const b = L.h('button', { class: 'fr-more', title: 'Plus d\'actions', 'aria-label': 'Plus d\'actions' }, L.svg('dots', 18));
+      b.onclick = ev => {
+        ev.stopPropagation();
+        const wasMine = menuEl && menuEl._for === b;
+        closeMenu();
+        if (wasMine) return;
+        menuEl = L.h('div', { class: 'fr-menu', role: 'menu' }, ...items.filter(Boolean).map(it => it === '-' ? L.h('hr') :
+          L.h('button', { class: 'fr-mi' + (it.danger ? ' danger' : ''), role: 'menuitem', onclick: async ev2 => { closeMenu(); await guard(it.fn)(ev2); } }, L.svg(it.icon, 15), it.label)));
+        menuEl._for = b;
+        document.body.appendChild(menuEl);
+        const r = b.getBoundingClientRect(), mw = menuEl.offsetWidth, mh = menuEl.offsetHeight;
+        menuEl.style.left = Math.max(8, Math.min(r.right - mw, innerWidth - mw - 8)) + 'px';
+        menuEl.style.top = (r.bottom + mh + 6 > innerHeight ? r.top - mh - 4 : r.bottom + 4) + 'px';
+        document.addEventListener('mousedown', outside, true);
+        document.addEventListener('keydown', onEsc, true);
+      };
+      return b;
+    };
+    const listScroll = () => { closeMenu(); hidePeek(); };
+    // Une ligne : icône, nom, informations, « Ouvrir » et menu « ⋯ »
+    const line = ({ icon, thumb, kind, name, badges, meta, isCur, open, menu, extra }) => {
+      const r = L.h('div', { class: 'fr' + (isCur ? ' cur' : '') + ' fr-' + kind },
+        thumb || L.h('div', { class: 'fr-ic' }, L.svg(icon, 19)),
+        L.h('div', { class: 'fr-main' },
+          L.h('div', { class: 'fr-name' }, name, ...(badges || []).filter(Boolean)),
+          L.h('div', { class: 'fr-meta', text: meta })),
+        L.h('div', { class: 'fr-acts' }, ...(extra || []).filter(Boolean), open ? act('Ouvrir', open, 'primary') : null, menu && menu.length ? moreBtn(menu) : null));
+      if (open) r.addEventListener('dblclick', guard(open));
+      return r;
+    };
+    const badge = (text, cls, title) => L.h('span', { class: 'fr-badge ' + cls, text, title: title || null });
     const row = f => {
       const isCur = link && link.id === f.id;
-      const name = L.h('b', { text: f.name });
-      const r = L.h('div', { class: 'cdoc drive-row' + (isCur ? ' cur' : ''), title: f.deleted_at ? '' : 'Ouvrir' },
-        L.h('div', { class: 'cdoc-t' }, name,
-          L.h('span', { class: 'fhint', text: (f.deleted_at ? 'mis à la corbeille ' + L.Share.ago(f.deleted_at) : 'modifié ' + L.Share.ago(f.updated_at)) + ' · ' + fmtSize(f.size) + (isCur ? ' · ouvert' : '') })),
-        ...(f.deleted_at ? [
-          act('Restaurer', async () => { await rpc('lhe_file_trash', { p_id: f.id, p_trash: false }); L.toast('Fichier restauré'); await reload(); }),
+      const name = L.h('b', { text: f.name, title: f.name });
+      if (f.deleted_at) return line({
+        icon: 'trash', kind: 'trash', name, meta: 'Mis à la corbeille ' + L.Share.ago(f.deleted_at) + ' · ' + fmtSize(f.size),
+        extra: [act('Restaurer', async () => { await rpc('lhe_file_trash', { p_id: f.id, p_trash: false }); L.toast('Fichier restauré'); await reload(); }),
           act('Supprimer définitivement', async () => {
             if (!confirm('Supprimer DÉFINITIVEMENT « ' + f.name + ' » ? Cette fois, il ne pourra plus être récupéré.')) return;
             await rpc('lhe_file_purge', { p_id: f.id }); await reload();
-          }, 'danger-soft'),
-        ] : [
-          act('Ouvrir', async () => { if (await openFile(f.id) !== false) dlg.close(); }, 'primary'),
-          act('Renommer', async () => inlineEdit(name, f.name, async n => {
+          }, 'danger-soft')],
+      });
+      return line({
+        icon: 'file', kind: 'file', name, isCur,
+        thumb: thumbOf('file', () => docFor('file:' + f.id + ':' + f.updated_at, async () => unpackDoc((await fetchFile(f.id)).data))),
+        badges: [isCur ? badge('Ouvert', 'open') : null],
+        meta: 'Modifié ' + L.Share.ago(f.updated_at) + ' · ' + fmtSize(f.size),
+        open: async () => { if (await openFile(f.id) !== false) dlg.close(); },
+        menu: [
+          { icon: 'pen', label: 'Renommer', fn: async () => inlineEdit(name, f.name, async n => {
             const r2 = await rpc('lhe_file_rename', { p_id: f.id, p_name: n });
             if (link && link.id === f.id) { link = Object.assign({}, link, { name: r2.name }); saveLink(); App.fileName = r2.name; App.updateName(); }
             if (r2.name !== n) L.toast('Ce nom est déjà pris : renommé « ' + r2.name + ' »');
             await reload();
-          })),
-          act('⬇ PC', async () => { const x = await fetchFile(f.id); const d = await unpackDoc(x.data); L.download(f.name + '.lhe', JSON.stringify({ app: 'LaTeX Home Edition', version: 1, meta: d.meta, blocks: d.blocks, bib: d.bib, assets: d.assets }), 'application/json'); }),
-          f.prev_at ? act('Version précédente', async () => {
+          }) },
+          { icon: 'download', label: 'Télécharger sur le PC (.lhe)', fn: async () => { const x = await fetchFile(f.id); const d = await unpackDoc(x.data); L.download(f.name + '.lhe', JSON.stringify({ app: 'LaTeX Home Edition', version: 1, meta: d.meta, blocks: d.blocks, bib: d.bib, assets: d.assets }), 'application/json'); } },
+          f.prev_at ? { icon: 'history', label: 'Revenir à la version précédente', fn: async () => {
             if (!confirm('Revenir à la version de « ' + f.name + ' » du ' + new Date(f.prev_at).toLocaleString('fr-FR') + ' ?\n\nLa version actuelle n\'est pas perdue : elle devient à son tour la « version précédente ».')) return;
             if (isCur && status !== 'ok') await saveNow(true);
             await rpc('lhe_file_revert', { p_id: f.id });
             if (isCur) { link = null; await openFile(f.id); }
             L.toast('Version précédente rétablie'); await reload();
-          }) : null,
-          act('🗑', async () => {
+          } } : null,
+          '-',
+          { icon: 'trash', label: 'Mettre à la corbeille', danger: true, fn: async () => {
             if (!confirm('Mettre « ' + f.name + ' » à la corbeille ? Vous pourrez le restaurer pendant 30 jours.')) return;
             await rpc('lhe_file_trash', { p_id: f.id, p_trash: true });
             if (isCur) { link = null; saveLink(); paint(); }
             await reload();
-          }, 'danger-soft'),
-        ]).filter(Boolean));
-      if (!f.deleted_at) r.addEventListener('dblclick', async () => { if (await openFile(f.id) !== false) dlg.close(); });
-      return r;
+          } },
+        ],
+      });
     };
-    /* Document Live (modifié à plusieurs) : même liste, marqué « Fichier partagé » */
+    /* Document Live (modifié à plusieurs en direct) */
     const ROLE = { owner: 'Propriétaire', editor: 'Éditeur', commenter: 'Commentateur', viewer: 'Lecteur' };
     const liveRow = d => {
       const s = L.Collab && L.Collab.session();
       const isCur = !!(s && s.id === d.id);
       const title = d.title || 'Sans titre';
-      const open = async () => { dlg.close(); if (!isCur) await L.openLiveDoc(d.id); };
-      const nameEl = L.h('b', { text: title });
+      const nameEl = L.h('b', { text: title, title });
       const canRename = d.role === 'owner' || d.role === 'editor';
-      const r = L.h('div', { class: 'cdoc drive-row' + (isCur ? ' cur' : ''), title: 'Ouvrir' },
-        L.h('div', { class: 'cdoc-t' },
-          L.h('div', { class: 'drive-name' }, nameEl,
-            L.h('span', { class: 'shared-tag', text: 'Fichier partagé', title: d.is_owner ? 'Vous modifiez ce document à plusieurs en direct (Live Modification)' : 'Partagé avec vous par ' + (d.owner_pseudo || '?') + ' — votre rôle : ' + (ROLE[d.role] || d.role) })),
-          L.h('span', { class: 'fhint', text: (d.is_owner ? '' : 'de ' + (d.owner_pseudo || '?') + ' · ' + (ROLE[d.role] || d.role) + ' · ') + 'modifié ' + L.Share.ago(d.updated_at) + (isCur ? ' · ouvert' : '') })),
-        act('Ouvrir', open, 'primary'),
-        canRename ? act('Renommer', async () => inlineEdit(nameEl, title, async n => {
-          await C().renameDoc(d.id, n);
-          if (isCur) { App.fileName = n; App.updateName(); }
-          await reload();
-        })) : null,
-        d.is_owner
-          ? act('Supprimer', async () => {
-            if (!confirm('Supprimer « ' + title + ' » ? Ce document partagé disparaîtra pour toutes les personnes invitées, sans passer par la corbeille. (Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.)')) return;
-            if (isCur) L.Collab.leave();
-            await C().deleteDoc(d.id); await reload();
-          }, 'danger-soft')
-          : act('Quitter', async () => {
-            if (!confirm('Quitter « ' + title + ' » ? Vous n\'y aurez plus accès, sauf nouvelle invitation.')) return;
-            if (isCur) L.Collab.leave();
-            await C().removeMember(d.id, C().email()); await reload();
-          }));
-      r.addEventListener('dblclick', open);
-      return r;
+      const who = d.is_owner ? 'Vous en êtes propriétaire' : 'Partagé par ' + (d.owner_pseudo || '?') + ' · ' + (ROLE[d.role] || d.role);
+      return line({
+        icon: 'users', kind: 'live', name: nameEl, isCur,
+        thumb: thumbOf('users', L.Collab && L.Collab.peekDoc ? () => docFor('live:' + d.id + ':' + d.updated_at, () => L.Collab.peekDoc(d.id)) : null),
+        badges: [badge('Partagé', 'live', 'Modifié à plusieurs en direct (Live Modification)'), isCur ? badge('Ouvert', 'open') : null],
+        meta: who + ' · modifié ' + L.Share.ago(d.updated_at),
+        open: async () => { dlg.close(); if (!isCur) await L.openLiveDoc(d.id); },
+        menu: [
+          canRename ? { icon: 'pen', label: 'Renommer', fn: async () => inlineEdit(nameEl, title, async n => {
+            await C().renameDoc(d.id, n);
+            if (isCur) { App.fileName = n; App.updateName(); }
+            await reload();
+          }) } : null,
+          '-',
+          d.is_owner
+            ? { icon: 'trash', label: 'Supprimer pour tout le monde', danger: true, fn: async () => {
+              if (!confirm('Supprimer « ' + title + ' » ? Ce document partagé disparaîtra pour toutes les personnes invitées, sans passer par la corbeille. (Vos fichiers enregistrés sur l\'ordinateur ne sont pas touchés.)')) return;
+              if (isCur) L.Collab.leave();
+              await C().deleteDoc(d.id); await reload();
+            } }
+            : { icon: 'logout', label: 'Quitter le partage', danger: true, fn: async () => {
+              if (!confirm('Quitter « ' + title + ' » ? Vous n\'y aurez plus accès, sauf nouvelle invitation.')) return;
+              if (isCur) L.Collab.leave();
+              await C().removeMember(d.id, C().email()); await reload();
+            } },
+        ].filter((x, i, a) => x && !(x === '-' && (i === 0 || !a[i - 1]))),
+      });
     };
     const paintList = () => {
+      closeMenu();
       const match = n => !filter || n.toLowerCase().includes(filter);
-      const items = [
-        ...files.filter(f => !f.deleted_at && match(f.name)).map(f => ({ t: f.updated_at, el: () => row(f) })),
-        ...docs.filter(d => match(d.title || 'Sans titre')).map(d => ({ t: d.updated_at, el: () => liveRow(d) })),
-      ].sort((a, b) => String(b.t).localeCompare(String(a.t)));
+      const own = files.filter(f => !f.deleted_at && match(f.name)).map(f => ({ t: f.updated_at, el: () => row(f) }));
+      const shared = docs.filter(d => match(d.title || 'Sans titre')).map(d => ({ t: d.updated_at, el: () => liveRow(d) }));
+      const items = (tab === 'own' ? own : tab === 'shared' ? shared : own.concat(shared))
+        .sort((a, b) => String(b.t).localeCompare(String(a.t)));
       const trash = files.filter(f => f.deleted_at);
+      const tabBtn = (id, label, n) => L.h('button', { class: 'fr-tab' + (tab === id ? ' on' : ''), onclick: () => { tab = id; paintList(); } }, label, L.h('span', { class: 'fr-count', text: String(n) }));
+      const empty = filter ? 'Aucun fichier ne correspond à « ' + search.value + ' ».'
+        : tab === 'shared' ? 'Aucun fichier partagé. Pour modifier un document à plusieurs : bouton ⚡ Live, puis inviter par e-mail.'
+          : 'Aucun fichier en ligne pour le moment. Enregistrez le document actuel, ou copiez des fichiers de votre PC.';
+      const list = items.length ? L.h('div', { class: 'fr-list' }, ...items.map(i => i.el())) : L.h('div', { class: 'fhint drive-empty', text: empty });
+      list.addEventListener('scroll', listScroll, { passive: true });
+      hidePeek();
       listBox.replaceChildren(...[
-        items.length ? L.h('div', { class: 'cdoc-list' }, ...items.map(i => i.el()))
-          : L.h('div', { class: 'fhint drive-empty', text: filter ? 'Aucun fichier ne correspond à « ' + search.value + ' ».' : 'Aucun fichier en ligne pour le moment. Enregistrez le document actuel, ou copiez des fichiers de votre PC.' }),
-        trash.length ? L.h('button', { class: 'linkish drive-trash-btn', text: (showTrash ? '▾ ' : '▸ ') + 'Corbeille (' + trash.length + ')', onclick: () => { showTrash = !showTrash; paintList(); } }) : null,
-        showTrash && trash.length ? L.h('div', null, L.h('div', { class: 'fhint', text: 'Les fichiers de la corbeille sont supprimés automatiquement au bout de 30 jours.' }), L.h('div', { class: 'cdoc-list' }, ...trash.map(row))) : null].filter(Boolean));
+        L.h('div', { class: 'fr-tabs' }, tabBtn('all', 'Tous', own.length + shared.length), tabBtn('own', 'Mes fichiers', own.length), tabBtn('shared', 'Partagés', shared.length)),
+        list,
+        trash.length && tab !== 'shared' ? L.h('button', { class: 'linkish drive-trash-btn', text: (showTrash ? '▾ ' : '▸ ') + 'Corbeille (' + trash.length + ')', onclick: () => { showTrash = !showTrash; paintList(); } }) : null,
+        showTrash && trash.length && tab !== 'shared' ? L.h('div', null, L.h('div', { class: 'fhint', text: 'Les fichiers de la corbeille sont supprimés automatiquement au bout de 30 jours.' }), L.h('div', { class: 'fr-list' }, ...trash.map(row))) : null].filter(Boolean));
+      if (items.length) watchThumbs(list);
     };
     const paintAll = () => {
       const isLinked = linked();

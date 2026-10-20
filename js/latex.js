@@ -450,7 +450,7 @@ L.coursPreamble = function (m, X) {
       if (e.g === 'exo') {
         P.push('\\NewDocumentEnvironment{' + e.env + '}{O{}}{\\par\\addvspace{8pt}' + (e.numbered ? '\\refstepcounter{' + e.env + '}' : '') +
           '\\noindent\\makebox[22.4pt][l]{\\raisebox{-2pt}{\\resizebox{!}{11pt}{\\bcplume}}}\\textit{' + name + num + '\\ :\\if\\relax\\detokenize{#1}\\relax\\else\\ #1\\fi}\\par\\nobreak\\vspace{2.5pt}' +
-          '\\begin{lheexobarre}\\itshape}{\\end{lheexobarre}\\par\\addvspace{32pt}}');
+          '\\begin{lheexobarre}\\itshape}{\\end{lheexobarre}\\par\\addvspace{11pt}}');
       } else {
         P.push('\\newtcolorbox{' + e.env + '}[1][]{lhecours, colframe=lhe' + e.g + 'a, colback=lhe' + e.g + 'b, boxed title style={colback=lhe' + e.g + 'c}, coltitle=lhe' + e.g + 'd,' +
           (e.numbered ? ' code={\\refstepcounter{' + e.env + '}},' : '') + ' title={' + name + num + '\\lhesoustitre{#1}}}');

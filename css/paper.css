@@ -341,7 +341,7 @@
 .env.cours .env-body > .blk:first-child > *, .env.cours .env-body > :first-child { margin-top: 0; }
 .env.cours .env-body > .blk:last-child > *, .env.cours .env-body > :last-child { margin-bottom: 0; }
 /* Exercices : plume, titre en italique, contenu en italique avec une barre grise à gauche */
-.env.cours.cg-exo { margin: calc(var(--fs) * .75) 0 calc(var(--fs) * 2.9); }
+.env.cours.cg-exo { margin: calc(var(--fs) * .75) 0 calc(var(--fs) * 1.05); }
 .env.cours.cg-exo .exo-head { display: flex; align-items: baseline; font-style: italic; margin-bottom: 2.5pt; }
 .env.cours.cg-exo .plume { flex: none; width: 22.4pt; line-height: 0; }
 .env.cours.cg-exo .plume-svg { width: 11pt; height: 11pt; transform: translateY(1.5pt); }

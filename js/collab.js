@@ -747,8 +747,23 @@
   window.addEventListener('online', () => { if (S) { S.offline = false; schedulePersist(0); catchUp(); } });
   window.addEventListener('beforeunload', () => { if (S) { flushOutbox(S); savePending(S); } });
 
+  /* Contenu d'un document partagé, en lecture seule (aperçu dans « Mes fichiers ») :
+     aucune connexion à la session en direct, rien n'est écrit sur le serveur */
+  async function peekDoc(id) {
+    const info = await C().openDoc(id);
+    const tmp = new Y.Doc();
+    try {
+      if (info.snapshot) Y.applyUpdate(tmp, unb64(info.snapshot));
+      const rows = await C().fetchUpdates(id, info.snapshot_upto || 0);
+      rows.forEach(r => { try { Y.applyUpdate(tmp, unb64(r.data)); } catch (e) { /* ignoré */ } });
+      const j = tmp.getMap('doc').toJSON();
+      if (!j.blocks || !j.blocks.length) return null;
+      return L.sanitizeDoc({ meta: Object.assign(L.defaultMeta(), j.meta || {}), blocks: j.blocks, bib: j.bib || [], assets: j.assets || {} });
+    } finally { tmp.destroy(); }
+  }
+
   L.Collab = {
-    open, create, leave, active, docLoaded, afterRender, redraw, localChanged, pushLocal, undo, redo, hasPending,
+    open, create, leave, active, docLoaded, afterRender, redraw, localChanged, pushLocal, undo, redo, hasPending, peekDoc,
     session: () => S, role: () => S && S.role, canEdit, canComment, colorOf, initials, ROLE_NAMES,
     textOf, offsetOf, rangeAt, selOffsets, fieldEl, pull,
     _int: { toY, syncMap, syncArray, syncText, skeleton, mapOffset, appJson, b64, unb64 },
