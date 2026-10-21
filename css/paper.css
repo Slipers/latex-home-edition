@@ -229,7 +229,12 @@
 .bib-empty { color: #888; font-style: italic; font-family: system-ui, sans-serif; font-size: 10pt; }
 
 /* --------- Éléments en ligne --------- */
-.imath { white-space: nowrap; }
+/* Une formule trop longue pour la fin de ligne se coupe après « = », « + », « × »… comme en LaTeX
+   (KaTeX y place les points de coupure), au lieu de partir entière à la ligne suivante et
+   d'étirer tous les espaces de la ligne justifiée au-dessus */
+.imath { white-space: normal; }
+/* Formule dans du gras : affichée en gras elle aussi (comme \boldmath en LaTeX) */
+b .imath .katex, strong .imath .katex { font-weight: 700; }
 .xref, .cite { white-space: nowrap; }
 .fn-mark { font-size: .7em; vertical-align: .6em; line-height: 0; }
 .rt sub, .rt sup, .para sub, .para sup { line-height: 0; }

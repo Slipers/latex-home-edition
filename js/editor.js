@@ -1112,9 +1112,52 @@ Object.assign(App, {
       const c = document.createElement('code');
       c.appendChild(r.extractContents());
       r.insertNode(c);
-    } else document.execCommand(cmd, false, null);
+    } else {
+      const r0 = s.getRangeAt(0).cloneRange();
+      // Seulement des formules sélectionnées (aucun texte autour) : le gras du navigateur ne les
+      // atteint pas ; on les bascule directement
+      const frag = r0.cloneContents();
+      frag.querySelectorAll('.imath').forEach(x => x.remove());
+      const onlyChips = cmd === 'bold' && !frag.textContent.trim() && r0.cloneContents().querySelector('.imath');
+      if (onlyChips) this.boldChips(cr.field, r0);
+      else {
+        document.execCommand(cmd, false, null);
+        if (cmd === 'bold') this.boldChips(cr.field, s.rangeCount && !s.getRangeAt(0).collapsed ? s.getRangeAt(0) : r0);
+      }
+    }
     this.syncField(cr.field);
     this.commitSoon();
+  },
+  /* Gras sur une sélection qui contient des formules : le navigateur saute les formules
+     (éléments non modifiables) ; elles suivent ici le texte autour, ou passent seules en gras */
+  boldChips(field, range) {
+    if (!range || !field) return;
+    const chips = Array.from(field.querySelectorAll('.imath')).filter(c => range.intersectsNode(c));
+    if (!chips.length) return;
+    const boldOf = n => { const e = n.nodeType === 1 ? n : n.parentElement; const b = e && e.closest('b, strong'); return !!(b && field.contains(b)); };
+    // Du texte est sélectionné : les formules prennent l'état du texte ; sinon (formules seules) on inverse
+    const tw = document.createTreeWalker(field, NodeFilter.SHOW_TEXT, { acceptNode: t => t.nodeValue.trim() && range.intersectsNode(t) && !t.parentElement.closest('.imath') ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+    const texts = []; while (tw.nextNode()) texts.push(tw.currentNode);
+    const want = texts.length ? texts.every(boldOf) : !chips.every(boldOf);
+    chips.forEach(c => {
+      const b = c.parentElement.closest('b, strong');
+      const inB = !!(b && field.contains(b));
+      if (want && !inB) { const w = document.createElement('b'); c.replaceWith(w); w.appendChild(c); }
+      else if (!want && inB) {
+        // On sort la formule du gras : le gras est coupé en deux autour d'elle
+        const r1 = document.createRange(); r1.setStartBefore(b); r1.setEndBefore(c);
+        const left = r1.extractContents();
+        const r2 = document.createRange(); r2.setStartAfter(c); r2.setEndAfter(b);
+        const right = r2.extractContents();
+        b.before(left); b.after(right);
+        b.replaceWith(...Array.from(b.childNodes));
+      }
+    });
+    // <b>texte</b><b>formule</b><b>texte</b> → un seul <b>
+    field.querySelectorAll('b').forEach(x => {
+      while (x.nextSibling && x.nextSibling.nodeType === 1 && x.nextSibling.tagName === 'B') { const n = x.nextSibling; while (n.firstChild) x.appendChild(n.firstChild); n.remove(); }
+      if (!x.textContent && !x.querySelector('.imath, .timg')) x.remove();
+    });
   },
 
   /* ================= Plan & propriétés ================= */
@@ -1744,6 +1787,17 @@ App.bindEditor = function () {
       if (nx) { e.preventDefault(); this.focusField(nx, fwd ? 'start' : 'end'); }
     }
   });
+
+  // Ctrl+B : même traitement que le bouton Gras (les formules sélectionnées passent aussi en gras)
+  paper.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'b') return;
+    const field = e.target.closest && e.target.closest('[data-f]');
+    const s = window.getSelection();
+    if (!field || field.dataset.f === 'code' || !s.rangeCount || s.getRangeAt(0).collapsed) return;
+    e.preventDefault();
+    this.lastRange = s.getRangeAt(0).cloneRange();
+    this.format('bold');
+  }, true);
 
   paper.addEventListener('paste', e => {
     const field = e.target.closest && e.target.closest('[data-f]');

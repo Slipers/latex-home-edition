@@ -81,7 +81,8 @@ L.paginate = async function (doc, host) {
     const visit = node => {
       for (const n of Array.from(node.childNodes)) {
         if (n.nodeType === 1 && atomic(n)) {
-          const r = n.getBoundingClientRect();
+          // (formule coupée sur deux lignes : on retient sa première ligne)
+          const r = n.getClientRects()[0] || n.getBoundingClientRect();
           if (r.height) see(r.top + r.height / 2 - lh / 2, { before: n });
           continue;
         }

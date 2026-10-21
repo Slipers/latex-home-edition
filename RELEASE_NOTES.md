@@ -1,11 +1,7 @@
 ## Nouveautés
 
-- **Nouvelle fenêtre « Mes fichiers »** :
-  - des onglets **Tous**, **Mes fichiers** et **Partagés**, avec le nombre de fichiers de chacun ;
-  - une **miniature de la première page** de chaque fichier, y compris pour les documents partagés en Live ; **au survol, un aperçu agrandi** s'affiche à côté ;
-  - pour chaque fichier, un bouton **Ouvrir** et un menu **⋯** (Renommer, Télécharger sur le PC, Revenir à la version précédente, Corbeille / Supprimer pour tout le monde / Quitter le partage) ;
-  - les fichiers partagés indiquent qui les partage et votre rôle (« Partagé par Noah · Éditeur », « Vous en êtes propriétaire »).
+- **Formules en gras** : en mettant en gras une phrase qui contient des formules (Ctrl+B ou bouton **G**), les formules passent aussi en gras. Une formule seule sélectionnée peut aussi être mise en gras, et re-cliquer sur Gras retire le gras. Dans l'aperçu et le PDF, elles s'affichent en gras ; dans l'export LaTeX, elles utilisent `\boldmath`.
 
 ## Corrections
 
-- **Encadrés « Question » (style cours)** : il y avait presque trois lignes vides sous chaque question. L'espace est réduit à environ une ligne, dans l'éditeur comme dans le PDF et l'export LaTeX.
+- **Formules longues dans le texte** : une formule trop longue pour la fin de ligne partait entière à la ligne suivante, et les mots de la ligne du dessus se retrouvaient très espacés. Elle se coupe maintenant après « = », « + », « × »… comme en LaTeX, et les espaces restent normaux.

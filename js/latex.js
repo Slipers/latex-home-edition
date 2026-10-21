@@ -37,7 +37,12 @@ L.htmlToLatex = function (html, X) {
       if (n.nodeType === 3) { out += L.texEsc(n.nodeValue); return; }
       if (n.nodeType !== 1) return;
       const c = n.classList;
-      if (c.contains('imath')) { const s = L.cleanLatex(n.dataset.latex); if (s) out += '$' + s + '$'; return; }
+      if (c.contains('imath')) {
+        const s = L.cleanLatex(n.dataset.latex);
+        // Formule dans du gras : \textbf ne la met pas en gras, \boldmath oui
+        if (s) out += n.parentElement && n.parentElement.closest('b, strong') ? '{\\boldmath$' + s + '$}' : '$' + s + '$';
+        return;
+      }
       if (c.contains('xref')) {
         const t = L.find(X.doc, n.dataset.ref);
         if (!t) { out += '??'; return; }
