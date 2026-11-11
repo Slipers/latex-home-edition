@@ -349,10 +349,15 @@ L.R = {
       fig.replaceChildren();
       if (r.svg && !r.empty) fig.appendChild(r.svg);
       else if (r.error && ctx.mode !== 'edit') fig.appendChild(L.h('div', { class: 'tikz-error', text: 'Dessin TikZ : ' + r.error }));
-      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode === 'edit' ? (r.error ? 'Le dessin contient une erreur (voir sous le code)' : 'Dessin vide : écrivez du code TikZ ci-dessous') : '' }));
+      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode !== 'edit' ? '' : b.sb ? 'Schéma-bloc vide : cliquez pour le construire' : r.error ? 'Le dessin contient une erreur (voir sous le code)' : 'Dessin vide : écrivez du code TikZ ci-dessous' }));
       return r;
     };
-    if (ctx.mode === 'edit') {
+    if (ctx.mode === 'edit' && b.sb) {
+      // Schéma-bloc : pas de code à écrire, un clic ouvre l'éditeur graphique (js/schemabloc-ui.js)
+      el.classList.add('is-sb');
+      draw(b.code);
+      fig.appendChild(L.h('div', { class: 'sb-hint', contenteditable: 'false', text: 'Cliquez pour modifier le schéma' }));
+    } else if (ctx.mode === 'edit') {
       const pre = L.h('pre', { class: 'code-edit', contenteditable: 'plaintext-only', spellcheck: 'false', 'data-b': b.id, 'data-f': 'code', 'data-ph': '\\draw (0,0) -- (2,1);' });
       pre.textContent = b.code || '';
       if (!b.code) pre.classList.add('is-empty');

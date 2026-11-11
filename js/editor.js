@@ -19,7 +19,7 @@ L.ITEMS = [
   { g: 'Formules', fam: 'math', key: 'imath', label: 'Formule dans le texte', icon: '∑', kw: 'formule inline math', action: () => App.insertInlineMath() },
   { g: 'Formules', fam: 'math', key: 'tabvar', label: 'Tableau de variations', icon: '↗↘', kw: 'tableau variations fonction derivee tkz', make: () => L.newTabvar('variations') },
   { g: 'Formules', fam: 'math', key: 'tabsign', label: 'Tableau de signes', icon: '+ −', kw: 'tableau signes produit quotient', make: () => L.newTabvar('signes') },
-  { g: 'Formules', fam: 'math', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: () => L.dlgAvancement(b => App.insertBlock(b)) },
+  { g: 'Formules', fam: 'math', key: 'avancement', label: 'Tableau d\'avancement', icon: 'x', kw: 'tableau avancement chimie reaction xmax reactif limitant', action: o => L.dlgAvancement(b => App.insertBlock(b, o)) },
   { g: 'Encadrés', fam: 'box', key: 'theoreme', label: 'Théorème', icon: 'Th', kw: 'theoreme', make: () => L.newBlock('box', { kind: 'theoreme' }) },
   { g: 'Encadrés', fam: 'box', key: 'definition', label: 'Définition', icon: 'Déf', kw: 'definition', make: () => L.newBlock('box', { kind: 'definition' }) },
   { g: 'Encadrés', fam: 'box', key: 'proposition', label: 'Proposition', icon: 'Pr', kw: 'proposition', make: () => L.newBlock('box', { kind: 'proposition' }) },
@@ -40,6 +40,7 @@ L.ITEMS = [
   { g: 'Exercices', fam: 'exo', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'schemabloc', label: 'Schéma-bloc', icon: '▭→', kw: 'schema bloc blocs asservissement si sii sciences ingenieur boucle fermee comparateur sommateur fonction transfert chaine energie information diagramme fonctionnel', action: o => L.dlgSchemaBloc(null, b => App.insertBlock(b, o)) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'figures2', label: '2 images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
@@ -1265,7 +1266,7 @@ Object.assign(App, {
       return;
     }
     const b = f.block;
-    const [ic, name] = TYPE_INFO[b.type] || ['?', b.type];
+    const [ic, name] = (b.type === 'tikz' && b.sb) ? ['▭→', 'Schéma-bloc'] : (TYPE_INFO[b.type] || ['?', b.type]);
     const fam = b.type === 'box' ? (['exercice', 'question', 'correction', 'solution'].includes(b.kind) ? 'exo' : 'box') : (TYPE_FAM[b.type] || 'txt');
     const boxIc = b.type === 'box' ? ((L.ITEMS.find(it => it.key === b.kind) || {}).icon || '▢') : ic;
     const sub = f.parent ? (f.parent.type === 'col' ? 'Dans une colonne' : 'Dans l\'encadré « ' + L.kindName(f.parent.kind, doc.meta.lang) + ' »') : null;
@@ -1428,7 +1429,13 @@ Object.assign(App, {
         if ((b.code || '').trim() && !confirm('Remplacer le code du dessin par l\'exemple « ' + e[0] + ' » ? (Ctrl+Z pour revenir en arrière)')) { ex.value = ''; return; }
         upd(() => { b.code = e[1]; });
       };
-      P.append(
+      if (b.sb) P.append(
+        sec(null, btn('✎  Modifier le schéma-bloc', () => L.dlgSchemaBloc(b), 'primary wide')),
+        sec('Écartement des éléments', L.h('div', { class: 'rng' }, rng, lab), help('Resserre ou écarte les éléments du schéma (les blocs et les textes gardent leur taille).'), this.keepHereChk(b, chk, upd, 'schéma')),
+        capSec('figure'),
+        more('sbcode', 'Code TikZ', help('Le schéma est exporté en LaTeX sous forme de code TikZ. Pour le retoucher à la main, convertissez-le en dessin TikZ : il ne sera alors plus modifiable à la souris.'),
+          btn('Convertir en dessin TikZ', () => { if (confirm('Convertir ce schéma en dessin TikZ ? Il se modifiera ensuite par son code, plus à la souris. (Ctrl+Z pour revenir en arrière)')) upd(() => { delete b.sb; }); }, 'wide')));
+      else P.append(
         sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
         sec('Exemples', ex),
         capSec('figure'),
@@ -1542,7 +1549,8 @@ L.InsertMenu = (function () {
 
 App.runItem = function (it, afterId, into) {
   if (into && !it.action) { this.insertBlock(it.make(), { into }); return; }
-  if (it.action) { it.action(); return; }
+  // une action qui insère plus tard (fenêtre de réglages) reçoit l'endroit demandé : après tel bloc, ou dans telle colonne
+  if (it.action) { it.action(into ? { into } : afterId ? { after: afterId } : {}); return; }
   this.insertBlock(it.make(), { after: afterId });
 };
 
@@ -1884,6 +1892,8 @@ App.bindEditor = function () {
       L.InsertMenu.show(r.right + 6, r.top, '', it => this.runItem(it, blk.dataset.id));
       return;
     }
+    const sbf = t.closest('.tikz.is-sb .tikz-fig');
+    if (sbf && paper.contains(sbf) && !document.body.classList.contains('ro')) { const f = L.find(this.doc, sbf.closest('.blk').dataset.id); if (f) L.dlgSchemaBloc(f.block); return; }
     const tv = t.closest('.tvwrap');
     if (tv) { const f = L.find(this.doc, tv.closest('.blk').dataset.id); if (f) L.dlgTabvar(f.block); return; }
     const eq = t.closest('.eq');

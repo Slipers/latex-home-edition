@@ -1,6 +1,6 @@
 /* Fenêtres de dialogue */
 
-L.modal = function ({ title, body, foot, wide, onClose, cls, bare }) {
+L.modal = function ({ title, body, foot, wide, onClose, cls, bare, guard, onEscape }) {
   const wrap = L.$('#modal'), box = L.$('.modal-box', wrap);
   // Une fenêtre en remplace une autre (connexion demandée depuis « Mes fichiers »…) :
   // l'ancienne est d'abord fermée proprement. Sans cela, sa touche Échap restait
@@ -17,7 +17,9 @@ L.modal = function ({ title, body, foot, wide, onClose, cls, bare }) {
     if (onClose) onClose();
     return true;
   };
+  // guard : la fenêtre peut refuser de se fermer (travail non gardé) ; onEscape : Échap sert d'abord à autre chose
   const close = () => {
+    if (!closed && guard && !guard()) return;
     if (!dispose()) return;
     wrap.hidden = true; box.innerHTML = '';
   };
@@ -25,7 +27,9 @@ L.modal = function ({ title, body, foot, wide, onClose, cls, bare }) {
     if (e.key !== 'Escape') return;
     if ((L.MathDock && L.MathDock.isOpen()) || (L.SymbolPicker && L.SymbolPicker.isOpen())) return;
     if (e.target && e.target.classList && e.target.classList.contains('inline-name')) return;   // Échap annule seulement le renommage
-    e.stopPropagation(); close();
+    e.stopPropagation();
+    if (onEscape && onEscape(e) === true) { e.preventDefault(); return; }
+    close();
   };
   document.addEventListener('keydown', onKey, true);
   // « bare » : la fenêtre dessine elle-même son en-tête (seul le bouton de fermeture est posé)

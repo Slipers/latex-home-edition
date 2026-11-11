@@ -1405,7 +1405,7 @@
   }
 
   /* ================= API ================= */
-  const FONT_PT = { 8: 8, 9: 9, 10: 10, 11: 10.95, 12: 12, 14: 14.4, 17: 17.28 };
+  const FONT_PT = { 8: 8, 9: 9, 10: 10, 11: 10.95, 12: 12, 14: 14.4, 17: 17.28, 20: 20.74 };
   // Dessine le code ; renvoie { svg, error, warnings }
   function render(code, opts) {
     opts = opts || {};
@@ -1484,5 +1484,7 @@
   \draw[red, very thick] (0,0) circle (2);
 \end{tikzpicture}`],
   ];
-  L.TikZ = { render, evalExpr, EXAMPLES, parseColor: s => parseColor(s, { colors: {} }) };
+  // Taille (cm) du texte d'un nœud, mesurée comme au dessin : sert au schéma-bloc pour dimensionner ses blocs
+  const textSize = (text, fontPt, scale) => { const html = nodeHtml(text); return html ? measure(html, { font: scale || 1, bold: false, italic: false }, {}, fontPt || 10.95) : { w: 0, h: 0 }; };
+  L.TikZ = { render, evalExpr, EXAMPLES, textSize, fontPt: fs => FONT_PT[fs] || 10.95, parseColor: s => parseColor(s, { colors: {} }) };
 })();

@@ -45,6 +45,7 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Code informatique | Bloc « Code » (Python, C, Java, Matlab…) |
 | Symboles (maths, physique, chimie…) | Touche **Tab** : menu avec recherche |
 | Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
+| Schéma-bloc (sciences de l'ingénieur) | Colonne « Insérer » → Schéma-bloc : blocs, comparateurs, flèches tirées à la souris, formules — exporté en TikZ |
 | Tableau d'avancement (chimie) | Colonne « Insérer » — construit depuis l'équation, calcule x_max |
 | Fusionner des cases de tableau | Panneau de droite du tableau |
 | Tableaux / images côte à côte | Colonne « Insérer » → Objets |
@@ -75,6 +76,19 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Thème sombre | **Document** → Apparence de l'application (Clair / Sombre / Comme le système) |
 
 Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
+
+## Schémas-blocs (sciences de l'ingénieur)
+
+**Insérer → Schéma-bloc** ouvre un éditeur à la souris pour les schémas d'asservissement et les chaînes fonctionnelles :
+
+- **Modèles prêts** : boucle fermée (retour unitaire ou avec capteur), perturbation, blocs en série, boucles imbriquées, chaîne d'information / d'énergie. Tout reste modifiable.
+- **Éléments** : bloc, comparateur / sommateur (signe + ou − sur chaque entrée, signes à côté ou croix ⊗), point de prélèvement, entrée, sortie, texte libre, cadre en pointillés avec titre.
+- **Flèches** : survolez un élément et tirez depuis un de ses points bleus jusqu'à un autre élément ; le tracé à angles droits se fait tout seul. Lâchée dans le vide, la flèche devient une entrée ou une sortie. Un double-clic sur une flèche y pose un point de prélèvement (boucle de retour).
+- **Formules** : le contenu d'un bloc et le nom d'un signal se saisissent comme une formule (fractions, indices, lettres grecques, touche **Tab** pour les symboles) ou comme du texte.
+- **Construire vite** : avec un élément sélectionné, le suivant se place à sa droite, déjà relié ; avec une flèche sélectionnée, il s'insère dessus.
+- Annuler / rétablir, dupliquer, copier-coller, alignement, zoom ; la barre du bas prévient si le schéma dépasse la largeur de la page.
+
+Dans le document, un clic sur le schéma rouvre l'éditeur. L'export LaTeX produit du code TikZ ordinaire (aucun paquet supplémentaire) ; le panneau de droite permet de convertir le schéma en dessin TikZ pour le retoucher à la main.
 
 ## Importer un PDF et le convertir en LaTeX
 
@@ -177,6 +191,10 @@ js/banque.js        banque de sujets : menus, fabrication du sujet et du corrig�
 js/banque-*.js      contenu des sujets (1re, terminale, sup, spé)
 js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
+js/tikz.js          dessins TikZ : interpréteur qui dessine en SVG (éditeur, aperçu, PDF)
+js/sciences.js      tableaux de variations / de signes, tableau d'avancement
+js/schemabloc.js    schémas-blocs : modèle, tracé automatique des flèches, code TikZ, modèles prêts
+js/schemabloc-ui.js schémas-blocs : éditeur à la souris (css/schemabloc.css)
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus
