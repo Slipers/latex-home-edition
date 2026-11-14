@@ -25,6 +25,7 @@ function macMenu() {
     { label: 'LaTeX Home Edition', submenu: [
       { role: 'about', label: 'À propos de LaTeX Home Edition' },
       { label: 'Préférences…', accelerator: 'Cmd+,', click: () => inPage('L.dlgPrefs()') },
+      { label: 'Modules complémentaires…', click: () => inPage('L.Market.show()') },
       { label: 'Mon compte…', click: () => inPage('L.dlgAccount()') },
       { type: 'separator' },
       { role: 'hide', label: 'Masquer LaTeX Home Edition' }, { role: 'hideOthers', label: 'Masquer les autres' }, { role: 'unhide', label: 'Tout afficher' },
@@ -340,6 +341,20 @@ ipcMain.handle('lhe:export', async (e, { name, bytes }) => {
   shell.showItemInFolder(r.filePath);
   return r.filePath;
 });
+
+/* ---------- Module « Exécution Python » (electron/python.js) ----------
+   Le code s'exécute dans un dossier temporaire, ou dans le dossier du document
+   s'il a été ouvert ou enregistré sur ce PC (pour lire un fichier de mesures
+   rangé à côté). Seuls les dossiers de documents récents sont acceptés. */
+const py = require('./python');
+ipcMain.handle('lhe:py-check', (e, force) => py.check(!!force));
+ipcMain.handle('lhe:py-run', (e, o) => {
+  o = o || {};
+  const dir = typeof o.docPath === 'string' && isRecent(o.docPath) ? path.dirname(o.docPath) : null;
+  return py.run({ id: o.id, code: o.code, stdin: o.stdin, timeout: o.timeout, cwd: dir });
+});
+ipcMain.handle('lhe:py-stop', (e, id) => py.stop(id));
+ipcMain.handle('lhe:py-install', () => py.install());
 
 ipcMain.handle('lhe:version', () => app.getVersion());
 ipcMain.handle('lhe:check-updates', () => checkUpdates(true));

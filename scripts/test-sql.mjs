@@ -11,6 +11,7 @@ const root = new URL('..', import.meta.url);
 const SQL = fs.readFileSync(new URL('supabase/collab.sql', root), 'utf8');
 const SHARE_SQL = fs.readFileSync(new URL('supabase/partage.sql', root), 'utf8');
 const FILES_SQL = fs.readFileSync(new URL('supabase/fichiers.sql', root), 'utf8');
+const MODULES_SQL = fs.readFileSync(new URL('supabase/modules.sql', root), 'utf8');
 
 await db.exec(`
   create role anon nologin; create role authenticated nologin;
@@ -33,6 +34,8 @@ await db.exec(SQL);            // le script doit pouvoir être relancé
 if (SHARE_SQL) { await db.exec(SHARE_SQL); }
 await db.exec(FILES_SQL);
 await db.exec(FILES_SQL);      // relançable
+await db.exec(MODULES_SQL);
+await db.exec(MODULES_SQL);    // relançable
 
 const U = {
   alice: '11111111-1111-1111-1111-111111111111',
@@ -305,11 +308,35 @@ await db.exec(SQL);
 const after = (await q('select count(*)::int n, sum(version)::int v from public.lhe_files'))[0];
 check('fichier : relancer les scripts ne perd rien', before.n === after.n && before.v === after.v, [before, after]);
 
+// Notes des modules (supabase/modules.sql)
+const stats = async () => Object.fromEntries((await as(null, () => q('select * from public.lhe_module_stats()'))).map(r => [r.module_id, r]));
+check('module : sans compte, pas de note', await as(null, () => fails(() => q("select public.lhe_module_rate('python', 5)"))));
+check('module : lecture directe interdite', await as('carol', () => fails(() => q('select * from public.lhe_module_ratings'))));
+check('module : écriture directe interdite', await as('carol', () => fails(() => q("insert into public.lhe_module_ratings (module_id, stars) values ('python', 5)"))));
+await as('carol', () => q("select public.lhe_module_rate('python', 5)"));
+await as('bob', () => q("select public.lhe_module_rate('python', 3)"));
+let st = await stats();
+check('module : moyenne et nombre', st.python && st.python.n === 2 && Number(st.python.average) === 4 && st.python.s5 === 1 && st.python.s3 === 1, st.python);
+await as('carol', () => q("select public.lhe_module_rate('python', 4)"));
+st = await stats();
+check('module : une seule note par compte (modifiable)', st.python.n === 2 && Number(st.python.average) === 3.5 && st.python.s4 === 1 && st.python.s5 === 0, st.python);
+check('module : mes notes seulement', JSON.stringify(await as('carol', () => q('select * from public.lhe_module_my_ratings()'))) === JSON.stringify([{ module_id: 'python', stars: 4 }]));
+check('module : sans compte, pas de « mes notes »', await as(null, () => fails(() => q('select * from public.lhe_module_my_ratings()'))));
+check('module : 6 étoiles refusé', await as('carol', () => fails(() => q("select public.lhe_module_rate('python', 6)"), /LHE_STARS/)));
+check('module : identifiant invalide refusé', await as('carol', () => fails(() => q("select public.lhe_module_rate('Py thon!', 3)"), /LHE_MODULE/)));
+await as('bob', () => q("select public.lhe_module_rate('python', 0)"));
+st = await stats();
+check('module : note retirée', st.python.n === 1 && Number(st.python.average) === 4, st.python);
+await as('bob', () => q("select public.lhe_module_rate('python', 2)"));
+await db.exec(MODULES_SQL);
+check('module : relancer le script ne perd rien', (await stats()).python.n === 2);
+
 // Compte supprimé : ses fichiers partent avec lui, pas ceux des autres
 await fsave('carol', null, 'À carol', 'C', null);
 await as('bob', () => q('select public.lhe_delete_account()'));
 check('fichier : supprimés avec le compte', (await q('select count(*)::int n from public.lhe_files where owner=$1', [U.bob]))[0].n === 0);
 check('fichier : ceux de carol intacts', (await q('select count(*)::int n from public.lhe_files where owner=$1', [U.carol]))[0].n === 1);
+check('module : notes supprimées avec le compte', (await q('select count(*)::int n from public.lhe_module_ratings where user_id=$1', [U.bob]))[0].n === 0 && (await q('select count(*)::int n from public.lhe_module_ratings'))[0].n === 1 && (await stats()).python.n === 1);
 
 console.log(ok + ' vérifications réussies, ' + ko + ' échec(s)');
 process.exit(ko ? 1 : 0);

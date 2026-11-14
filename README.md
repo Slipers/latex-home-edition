@@ -43,6 +43,8 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Notes de bas de page | Bouton **Note** |
 | Table des matières | Réglages « Document » |
 | Code informatique | Bloc « Code » (Python, C, Java, Matlab…) |
+| Exécuter du code Python et voir le résultat | Module complémentaire « Exécution Python » : bouton **▶ Exécuter** sur les blocs de code Python |
+| Ajouter ou retirer des fonctions | Bouton **Modules** de l'accueil, ou 🧩 dans la barre d'outils |
 | Symboles (maths, physique, chimie…) | Touche **Tab** : menu avec recherche |
 | Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
 | Schéma-bloc (sciences de l'ingénieur) | Colonne « Insérer » → Schéma-bloc : blocs, comparateurs, flèches tirées à la souris, formules — exporté en TikZ |
@@ -89,6 +91,21 @@ Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 - Annuler / rétablir, dupliquer, copier-coller, alignement, zoom ; la barre du bas prévient si le schéma dépasse la largeur de la page.
 
 Dans le document, un clic sur le schéma rouvre l'éditeur. L'export LaTeX produit du code TikZ ordinaire (aucun paquet supplémentaire) ; le panneau de droite permet de convertir le schéma en dessin TikZ pour le retoucher à la main.
+
+## Modules complémentaires
+
+Le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre la page des modules : des fonctions en plus, à installer quand on veut et à désinstaller quand on veut. Chaque module a sa fiche (présentation, fonctionnalités, prérequis, confidentialité) et une **note sur 5 étoiles** donnée par les utilisateurs connectés. Désinstaller un module ne touche pas aux documents.
+
+### Exécution Python
+
+- Chaque bloc de code Python reçoit un bouton **▶ Exécuter** (ou **Ctrl+Entrée** dans le code) ; le résultat s'affiche dans une **console** en bas de la fenêtre, sans modifier le document.
+- Erreurs expliquées en français, avec un lien vers la ligne fautive ; commande `pip` à copier quand une bibliothèque manque.
+- `input()` : les entrées se saisissent à l'avance dans la console. Bouton **Arrêter**, arrêt automatique après 60 s.
+- Graphiques **matplotlib** affichés dans la console, à insérer dans le document en un clic.
+- Le code s'exécute **sur l'ordinateur**, avec le Python installé (3.6 ou plus récent) : rien n'est envoyé sur Internet. À la première exécution d'un document, une confirmation est demandée (un document reçu pourrait contenir du code malveillant).
+- À l'installation, le module cherche Python ; s'il manque, il propose de l'installer (Windows : Python officiel via winget, sans droits administrateur), d'ouvrir python.org, ou d'annuler.
+
+Notes des modules côté serveur : [supabase/modules.sql](supabase/modules.sql) (voir [supabase/LISEZMOI.md](supabase/LISEZMOI.md)).
 
 ## Importer un PDF et le convertir en LaTeX
 
@@ -195,6 +212,9 @@ js/tikz.js          dessins TikZ : interpréteur qui dessine en SVG (éditeur, a
 js/sciences.js      tableaux de variations / de signes, tableau d'avancement
 js/schemabloc.js    schémas-blocs : modèle, tracé automatique des flèches, code TikZ, modèles prêts
 js/schemabloc-ui.js schémas-blocs : éditeur à la souris (css/schemabloc.css)
+js/modules.js       modules complémentaires : registre, installation, notes ★
+js/marketplace.js   page Modules : liste, fiches, avis, fenêtre d'installation (css/marketplace.css)
+js/mod-python.js    module « Exécution Python » : boutons ▶, console, figures
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus
@@ -211,6 +231,7 @@ js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
 electron/main.js    application de bureau : fenêtre, fichiers, PDF natif, mises à jour
 electron/preload.js pont sécurisé entre la page et Windows
+electron/python.js  exécution de Python (application de bureau et serveur local server.js)
 ```
 
 ## Développement

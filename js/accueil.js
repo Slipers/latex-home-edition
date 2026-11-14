@@ -37,6 +37,7 @@
     hide: '<path d="M3 3l18 18"/><path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4.5 9.5 6a17 17 0 0 1-2.6 3.2M6.6 7.6A16.6 16.6 0 0 0 2.5 12c1 1.5 4.5 6 9.5 6a9.7 9.7 0 0 0 4-.9"/>',
     book: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5Z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/>',
     user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+    puzzle: '<path d="M9.5 4.5a2 2 0 1 1 4 0V6H17a1 1 0 0 1 1 1v3.5h1.5a2 2 0 1 1 0 4H18V18a1 1 0 0 1-1 1h-3.5v-1.5a2 2 0 1 0-4 0V19H6a1 1 0 0 1-1-1v-3.5h1.5a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h3.5z"/>',
   };
   function ico(name, cls) {
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -426,6 +427,7 @@
         L.h('label', { class: 'home-search' }, ico('search'), search, clear),
         L.h('div', { class: 'home-top-r' },
           L.h('button', { class: 'home-back', title: 'Revenir au document ouvert (Échap)', onclick: () => hide() }, ico('back'), L.h('span', { class: 'home-back-l', text: 'Reprendre' }), L.h('span', { class: 'home-back-n' })),
+          L.h('button', { class: 'home-mods', title: 'Modules complémentaires : ajoutez des fonctions à l\'application (exécution de code Python…)', onclick: () => L.Market.show() }, ico('puzzle'), L.h('span', { text: 'Modules' })),
           L.h('button', { class: 'home-acc' }))),
       L.h('div', { class: 'home-scroll' },
         L.h('section', { class: 'home-create' }, L.h('div', { class: 'home-wrap' },

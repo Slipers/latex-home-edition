@@ -328,6 +328,7 @@ L.R = {
       pre.textContent = b.code;
       if (!b.code) pre.classList.add('is-empty');
       el.appendChild(L.codeOverlay(pre, b.lang));   // coloration selon le langage, pendant la frappe
+      if (L.Modules) L.Modules.each('codeBlock', b, el, ctx);   // modules complémentaires (bouton ▶ Exécuter…)
     } else {
       // Une ligne = un morceau coloré autonome, avec son numéro (data-n) : la coupure
       // entre deux pages garde les couleurs et la numérotation continue

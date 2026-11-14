@@ -19,6 +19,13 @@ contextBridge.exposeInMainWorld('lheDesktop', {
   version: () => ipcRenderer.invoke('lhe:version'),
   checkUpdates: () => ipcRenderer.invoke('lhe:check-updates'),
   installUpdate: () => ipcRenderer.invoke('lhe:install-update'),
+  // Module « Exécution Python »
+  py: {
+    check: force => ipcRenderer.invoke('lhe:py-check', force),
+    run: opts => ipcRenderer.invoke('lhe:py-run', opts),
+    stop: id => ipcRenderer.invoke('lhe:py-stop', id),
+    install: () => ipcRenderer.invoke('lhe:py-install'),
+  },
   onUpdate: cb => ipcRenderer.on('lhe:update', (e, info) => cb(info)),
   onOpenFile: cb => ipcRenderer.on('lhe:open-file', (e, f) => cb(f)),
   onOpenLink: cb => ipcRenderer.on('lhe:open-link', (e, url) => cb(url)),

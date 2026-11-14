@@ -1445,6 +1445,7 @@ Object.assign(App, {
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
       s.onchange = () => upd(() => { b.lang = s.value; });
       P.append(sec('Langage', s, chk('Numéroter les lignes', b.numbers, v => upd(() => { b.numbers = v; }))));
+      if (L.Modules) L.Modules.codeProps(b, P, { sec, btn, help });   // modules complémentaires
     } else if (b.type === 'pnote') {
       const prev = L.h('div', { class: 'pnote-prev paper ' + L.pageClasses(doc.meta), html: L.pnoteHtml(b) || '<i style="color:#999">(vide)</i>' });
       L.hydrate(prev, { mode: 'view', nums: {}, bib: {}, fn: 0, doc, meta: doc.meta });
@@ -1639,6 +1640,7 @@ App.bindEditor = function () {
     if (mod && e.shiftKey && (e.key === 'Delete' || e.key === 'Backspace') && b) { e.preventDefault(); this.removeBlock(b.id); return; }
 
     if (fd === 'code') {
+      if (b && b.type === 'code' && L.Modules && L.Modules.each('codeKey', e, b, field)) return;   // Ctrl+Entrée : exécuter (module)
       if (e.key === 'Tab') { e.preventDefault(); document.execCommand('insertText', false, '    '); }
       return;
     }

@@ -49,6 +49,7 @@
 .home-search .h-ico { width: 20px; height: 20px; }
 .home-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: none; outline: none; font: inherit; font-size: 15.5px; color: var(--txt); }
 .home-search input::placeholder { color: var(--mut); }
+:root[data-theme="dark"] .home-search input:not([type=checkbox]):not([type=radio]):not([type=range]) { background: none; }
 .home-search input::-webkit-search-cancel-button { display: none; }
 .home-clear { width: 34px; height: 34px; border: 0; border-radius: 50%; background: none; color: var(--mut); display: grid; place-items: center; cursor: pointer; }
 .home-clear:hover { background: var(--h-hover); color: var(--txt); }
@@ -60,6 +61,19 @@
 .home-back .h-ico { color: var(--acc2); }
 .home-back-l { font-weight: 600; flex: none; }
 .home-back-n { color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.home-mods { flex: none; display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 11px; border: 1px solid var(--h-line); border-radius: 19px; background: var(--panel); color: var(--txt); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .12s, border-color .12s; }
+.home-mods:hover { background: var(--h-hover); border-color: var(--acc-line); }
+.home-mods .h-ico { color: #7a4fd0; }
+:root[data-theme="dark"] .home-mods .h-ico { color: #b796f0; }
+/* Quand la place manque, « Modules » garde seulement son icône (« Reprendre » et « Se connecter » restent entiers) */
+@media (max-width: 1300px) { .home-mods span { display: none; } .home-mods { padding: 0 10px; } }
+@media (max-width: 1380px) { .home-top-r:has(.home-back:not([hidden])) .home-mods span { display: none; } .home-top-r:has(.home-back:not([hidden])) .home-mods { padding: 0 10px; } }
+@media (max-width: 1560px) { .home-top-r:has(.home-back:not([hidden])):has(.home-acc:not(.logged)) .home-mods span { display: none; } .home-top-r:has(.home-back:not([hidden])):has(.home-acc:not(.logged)) .home-mods { padding: 0 10px; } }
+/* Document ouvert, fenêtre moyenne : les côtés prennent la place de leur contenu, la recherche s'adapte */
+@media (min-width: 861px) and (max-width: 1400px) {
+  .home-top:has(.home-back:not([hidden])) { grid-template-columns: minmax(max-content, 1fr) minmax(240px, 720px) minmax(max-content, 1fr); }
+  .home-back-n { display: none; }
+}
 .home-acc { flex: none; border: 0; background: none; padding: 0; cursor: pointer; border-radius: 22px; font: inherit; color: var(--txt); }
 .home-acc.logged { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
 .home-acc.logged:hover { background: var(--h-hover); }

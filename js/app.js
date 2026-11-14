@@ -490,6 +490,7 @@ window.addEventListener('DOMContentLoaded', () => {
     check: () => L.dlgCheck(),
     overleaf: () => L.dlgOverleaf(),
     help: () => L.dlgHelp(),
+    modules: () => L.Market.show(),
     'fold-left': () => App.foldPanel('left', true),
     'fold-right': () => App.foldPanel('right', true),
     'unfold-left': b => { App.foldPanel('left', false); if (b && b.dataset.tab) App.showTab(b.dataset.tab); },

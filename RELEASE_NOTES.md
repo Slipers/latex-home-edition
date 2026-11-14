@@ -1,13 +1,12 @@
 ## Nouveautés
 
-- **Schémas-blocs (sciences de l'ingénieur)** : **Insérer → Schéma-bloc** ouvre un éditeur à la souris pour les schémas d'asservissement et les chaînes fonctionnelles.
-  - Modèles prêts à modifier : boucle fermée, boucle avec capteur, perturbation, blocs en série, boucles imbriquées, chaîne d'information / d'énergie.
-  - Blocs, comparateurs (signes + et −, à côté ou en croix ⊗), points de prélèvement, entrées, sorties, textes et cadres.
-  - Les flèches se tirent d'un élément à l'autre et se tracent toutes seules à angles droits ; un double-clic sur une flèche y pose un point de prélèvement.
-  - Le contenu des blocs et le nom des signaux se saisissent comme des formules (fractions, indices, lettres grecques) ou comme du texte.
-  - Un clic sur le schéma dans le document le rouvre. L'aperçu, le PDF et l'export LaTeX (code TikZ) suivent.
+- **Modules complémentaires** : le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre une page de modules à installer et désinstaller quand on veut, avec une fiche détaillée et une note sur 5 étoiles pour chacun.
+- **Module « Exécution Python »** : un bouton **▶ Exécuter** (ou Ctrl+Entrée) sur chaque bloc de code Python.
+  - Le résultat s'affiche dans une console en bas de la fenêtre, sans toucher au document.
+  - Erreurs expliquées en français avec la ligne fautive, bibliothèques manquantes signalées avec la commande pip.
+  - Entrées pour `input()`, bouton Arrêter, graphiques matplotlib affichés et insérables dans le document.
+  - Le code tourne sur votre ordinateur avec Python ; si Python manque, le module propose de l'installer.
 
 ## Corrections
 
-- **Tableau d'avancement** : inséré avec le « + » d'un bloc ou dans une colonne, il se place maintenant à l'endroit demandé.
-- **Dessins TikZ** : avec un texte de document en 20 pt, les textes des dessins gardaient la taille 11 pt.
+- **Accueil** : sur les écrans moyens, le bouton « Reprendre » n'est plus coupé ; en thème sombre, le champ de recherche n'a plus de fond en trop.
