@@ -177,6 +177,19 @@
 .mk-rev-note { color: var(--mut); font-size: 12.5px; line-height: 1.45; }
 p.mk-rev-note { margin: 0; padding: 16px; border: 1px dashed var(--h-line); border-radius: 12px; text-align: center; }
 .mk-rev-load { display: flex; flex-direction: column; gap: 10px; padding: 20px; border: 1px solid var(--h-line); border-radius: 14px; }
+/* Pas encore le droit de noter : étoiles grisées, progression des utilisations */
+.mk-pick-off { margin: 4px 0 2px; }
+.mk-rev-prog { display: flex; gap: 5px; }
+.mk-rev-prog i { width: 26px; height: 6px; border-radius: 3px; background: var(--h-search); }
+.mk-rev-prog i.on { background: var(--mk-star); }
+
+/* Compte : bandeau de l'en-tête de page, pastille en haut à droite */
+.mk-hero-acc { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 16px; padding: 10px 12px 10px 14px; max-width: 640px; border-radius: 12px; background: color-mix(in srgb, var(--panel) 75%, transparent); border: 1px solid var(--h-line); font-size: 13px; line-height: 1.45; }
+.mk-hero-acc > .h-ico { flex: none; width: 18px; height: 18px; color: var(--acc2); }
+.mk-hero-acc > span { flex: 1 1 260px; min-width: 0; }
+.mk-acc { display: inline-flex; align-items: center; gap: 7px; height: 34px; max-width: 220px; padding: 0 14px 0 10px; border-radius: 17px; background: var(--h-search); color: var(--txt); font-size: 13px; font-weight: 600; }
+.mk-acc .h-ico { flex: none; width: 17px; height: 17px; color: var(--acc2); }
+.mk-acc span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mk-pick { display: flex; gap: 2px; }
 .mk-pick button { width: 34px; height: 34px; padding: 3px; border: 0; border-radius: 8px; background: none; cursor: pointer; transition: transform .12s; }
 .mk-pick button svg { width: 100%; height: 100%; fill: var(--mk-star-off); transition: fill .1s; }
@@ -346,3 +359,10 @@ p.mk-rev-note { margin: 0; padding: 16px; border: 1px dashed var(--h-line); bord
 @media (prefers-reduced-motion: reduce) {
   #market, .mk-card, .mk-detail, .mk-inst-steps li, .mk-inst-ask, .mk-inst-done { animation: none; }
 }
+
+/* Aperçu d'un module de dessin : une figure dans la page */
+.mk-prev-draw { padding: 16px 10px 10px; border-color: #c9d2e0; border-radius: 4px; }
+.mk-prev-fig { display: grid; place-items: center; }
+.mk-prev-fig svg { max-width: 100%; max-height: 230px; width: auto; height: auto; }
+.mk-prev-run.alt { background: #3f6bb0; box-shadow: 0 2px 6px rgba(63, 107, 176, .35); }
+.mk-prev-run.alt svg { width: 12px; height: 12px; }

@@ -44,10 +44,11 @@ Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`L
 | Table des matières | Réglages « Document » |
 | Code informatique | Bloc « Code » (Python, C, Java, Matlab…) |
 | Exécuter du code Python et voir le résultat | Module complémentaire « Exécution Python » : bouton **▶ Exécuter** sur les blocs de code Python |
+| Dessiner à la souris (géométrie, courbes de fonctions, physique) sans code | Module complémentaire « TikZ visuel » : colonne « Insérer » → Dessin à la souris |
 | Ajouter ou retirer des fonctions | Bouton **Modules** de l'accueil, ou 🧩 dans la barre d'outils |
 | Symboles (maths, physique, chimie…) | Touche **Tab** : menu avec recherche |
 | Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
-| Schéma-bloc (sciences de l'ingénieur) | Colonne « Insérer » → Schéma-bloc : blocs, comparateurs, flèches tirées à la souris, formules — exporté en TikZ |
+| Schéma-bloc (sciences de l'ingénieur) | Module complémentaire « Schémas-blocs » : colonne « Insérer » → Schéma-bloc (blocs, comparateurs, flèches tirées à la souris, formules — exporté en TikZ) |
 | Tableau d'avancement (chimie) | Colonne « Insérer » — construit depuis l'équation, calcule x_max |
 | Fusionner des cases de tableau | Panneau de droite du tableau |
 | Tableaux / images côte à côte | Colonne « Insérer » → Objets |
@@ -81,7 +82,7 @@ Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 
 ## Schémas-blocs (sciences de l'ingénieur)
 
-**Insérer → Schéma-bloc** ouvre un éditeur à la souris pour les schémas d'asservissement et les chaînes fonctionnelles :
+Module complémentaire **Schémas-blocs** (page Modules). Une fois installé, **Insérer → Schéma-bloc** ouvre un éditeur à la souris pour les schémas d'asservissement et les chaînes fonctionnelles :
 
 - **Modèles prêts** : boucle fermée (retour unitaire ou avec capteur), perturbation, blocs en série, boucles imbriquées, chaîne d'information / d'énergie. Tout reste modifiable.
 - **Éléments** : bloc, comparateur / sommateur (signe + ou − sur chaque entrée, signes à côté ou croix ⊗), point de prélèvement, entrée, sortie, texte libre, cadre en pointillés avec titre.
@@ -90,11 +91,27 @@ Tapez `/` sur une ligne vide pour chercher n'importe quel élément.
 - **Construire vite** : avec un élément sélectionné, le suivant se place à sa droite, déjà relié ; avec une flèche sélectionnée, il s'insère dessus.
 - Annuler / rétablir, dupliquer, copier-coller, alignement, zoom ; la barre du bas prévient si le schéma dépasse la largeur de la page.
 
-Dans le document, un clic sur le schéma rouvre l'éditeur. L'export LaTeX produit du code TikZ ordinaire (aucun paquet supplémentaire) ; le panneau de droite permet de convertir le schéma en dessin TikZ pour le retoucher à la main.
+Dans le document, un clic sur le schéma rouvre l'éditeur. L'export LaTeX produit du code TikZ ordinaire (aucun paquet supplémentaire) ; le panneau de droite permet de convertir le schéma en dessin TikZ pour le retoucher à la main. Sans le module, les schémas déjà présents dans un document restent affichés et exportés ; le panneau de droite propose le module pour les modifier.
+
+## Dessins à la souris (TikZ visuel)
+
+Module complémentaire **TikZ visuel** (page Modules). Une fois installé, **Insérer → Dessin à la souris** (ou `/dessin`) ouvre une feuille de dessin : aucun code à écrire, tout se règle avec des menus.
+
+- **Outils** : point (nommé A, B, C… automatiquement), segment, flèche / vecteur, ligne brisée, polygone, rectangle, cercle, ellipse, arc, angle (arc ou angle droit), texte ou formule, quadrillage. L'outil reste actif ; **Échap** revient au choix.
+- **Aimants** : la souris s'accroche à la grille (libre, 1 mm, 2,5 mm, 5 mm, 1 cm) et aux points déjà placés ; **Alt** pour placer librement.
+- **Courbes de fonctions** : un **repère** gradué (pas, unités, quadrillage, graduations en multiples de π) et une **courbe** dont on écrit la formule comme en maths : `2x² − 3`, `0,5x`, `sin(x)`, `e^(−x)`, `√x`, `1/x`… La courbe est coupée proprement aux valeurs interdites et aux asymptotes, et suit son repère quand on le déplace.
+- **Réglages** dans le panneau de droite : couleur, remplissage, épaisseur, tirets ou pointillés, pointes de flèche, nom et place du nom, coordonnées exactes au clavier. Les petits carrés de l'élément choisi le déforment (bouts d'un segment, rayon d'un cercle, sommets, bouts des axes…).
+- **Modèles prêts** : repère et parabole, sinus et cosinus, triangle ABC, triangle rectangle, cercle trigonométrique, forces sur un objet, plan incliné, lentille convergente.
+- Annuler / rétablir, dupliquer, copier-coller, premier plan / arrière-plan, zoom ; la barre du bas donne la position de la souris et prévient si le dessin dépasse la largeur de la page.
+
+Le dessin est un bloc TikZ ordinaire : même rendu dans l'éditeur et le PDF, code TikZ standard dans l'export LaTeX (aucun paquet supplémentaire). Un clic sur le dessin le rouvre ; le panneau de droite permet de le convertir en code TikZ pour le retoucher à la main.
 
 ## Modules complémentaires
 
-Le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre la page des modules : des fonctions en plus, à installer quand on veut et à désinstaller quand on veut. Chaque module a sa fiche (présentation, fonctionnalités, prérequis, confidentialité) et une **note sur 5 étoiles** donnée par les utilisateurs connectés. Désinstaller un module ne touche pas aux documents.
+Le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre la page des modules : des fonctions en plus, à installer quand on veut et à désinstaller quand on veut. Trois modules sont disponibles : **Exécution Python**, **TikZ visuel** et **Schémas-blocs**. Chaque module a sa fiche (présentation, fonctionnalités, prérequis, confidentialité, nombre d'installations) et une **note sur 5 étoiles**. Désinstaller un module ne touche pas aux documents.
+
+- **Compte nécessaire** : les modules s'installent avec un compte LaTeX Home Edition (gratuit) et sont rangés avec lui ; déconnecté, ou avec un autre compte, ils sont en pause.
+- **Noter un module** : il faut l'avoir installé et s'en être servi au moins 3 fois (3 exécutions de code, 3 dessins ou 3 schémas créés ou modifiés) ; la fiche montre où l'on en est. Une note par compte, modifiable ou retirée. Cette règle est aussi vérifiée par le serveur.
 
 ### Exécution Python
 
@@ -212,9 +229,13 @@ js/tikz.js          dessins TikZ : interpréteur qui dessine en SVG (éditeur, a
 js/sciences.js      tableaux de variations / de signes, tableau d'avancement
 js/schemabloc.js    schémas-blocs : modèle, tracé automatique des flèches, code TikZ, modèles prêts
 js/schemabloc-ui.js schémas-blocs : éditeur à la souris (css/schemabloc.css)
+js/tikzdraw.js      TikZ visuel : modèle d'un dessin, formules des courbes, code TikZ, modèles prêts
+js/tikzdraw-ui.js   TikZ visuel : éditeur à la souris (css/tikzdraw.css)
 js/modules.js       modules complémentaires : registre, installation, notes ★
 js/marketplace.js   page Modules : liste, fiches, avis, fenêtre d'installation (css/marketplace.css)
 js/mod-python.js    module « Exécution Python » : boutons ▶, console, figures
+js/mod-tikzdraw.js  module « TikZ visuel » : fiche, menu Insérer → Dessin à la souris
+js/mod-schemabloc.js module « Schémas-blocs » : fiche, menu Insérer → Schéma-bloc
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus

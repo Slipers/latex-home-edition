@@ -40,7 +40,8 @@ L.ITEMS = [
   { g: 'Exercices', fam: 'exo', key: 'solution', label: 'Solution / corrigé', icon: '✓', kw: 'solution corrige correction', make: () => L.newBlock('box', { kind: 'solution' }) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'table', label: 'Tableau', icon: '▦', kw: 'tableau table mesures donnees', make: () => L.newBlock('table') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
-  { g: 'Figures et tableaux', fam: 'obj', key: 'schemabloc', label: 'Schéma-bloc', icon: '▭→', kw: 'schema bloc blocs asservissement si sii sciences ingenieur boucle fermee comparateur sommateur fonction transfert chaine energie information diagramme fonctionnel', action: o => L.dlgSchemaBloc(null, b => App.insertBlock(b, o)) },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'tikzdraw', mod: 'tikzdraw', label: 'Dessin à la souris', icon: '✎△', kw: 'dessin souris tikz visuel geometrie figure repere courbe fonction graphe triangle cercle angle vecteur force physique optique tracer', action: o => L.dlgTikzDraw(null, b => App.insertBlock(b, o)) },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'schemabloc', mod: 'schemabloc', label: 'Schéma-bloc', icon: '▭→', kw: 'schema bloc blocs asservissement si sii sciences ingenieur boucle fermee comparateur sommateur fonction transfert chaine energie information diagramme fonctionnel', action: o => L.dlgSchemaBloc(null, b => App.insertBlock(b, o)) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'figures2', label: '2 images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
@@ -59,6 +60,8 @@ L.ITEMS = [
   { g: 'Importer', fam: 'imp', key: 'importtex', label: 'Importer du code LaTeX', icon: 'TeX', kw: 'importer coller code latex convertir', action: () => L.dlgImportLatex() },
   { g: 'Importer', fam: 'imp', key: 'importpdf', label: 'Importer un PDF ou un .tex', icon: 'PDF', kw: 'importer pdf convertir fichier tex', action: () => L.dlgImportPdf() },
 ];
+// Un élément fourni par un module complémentaire (champ mod) n'apparaît que si le module est installé
+L.itemOn = it => !it.mod || !!(L.Modules && L.Modules.installed(it.mod));
 
 const TYPE_INFO = {
   paragraph: ['¶', 'Paragraphe'], heading: ['§', 'Titre'], equation: ['(1)', 'Équation'], list: ['1.', 'Liste'],
@@ -1266,7 +1269,7 @@ Object.assign(App, {
       return;
     }
     const b = f.block;
-    const [ic, name] = (b.type === 'tikz' && b.sb) ? ['▭→', 'Schéma-bloc'] : (TYPE_INFO[b.type] || ['?', b.type]);
+    const [ic, name] = (b.type === 'tikz' && b.sb) ? ['▭→', 'Schéma-bloc'] : (b.type === 'tikz' && b.td) ? ['✎△', 'Dessin à la souris'] : (TYPE_INFO[b.type] || ['?', b.type]);
     const fam = b.type === 'box' ? (['exercice', 'question', 'correction', 'solution'].includes(b.kind) ? 'exo' : 'box') : (TYPE_FAM[b.type] || 'txt');
     const boxIc = b.type === 'box' ? ((L.ITEMS.find(it => it.key === b.kind) || {}).icon || '▢') : ic;
     const sub = f.parent ? (f.parent.type === 'col' ? 'Dans une colonne' : 'Dans l\'encadré « ' + L.kindName(f.parent.kind, doc.meta.lang) + ' »') : null;
@@ -1429,17 +1432,26 @@ Object.assign(App, {
         if ((b.code || '').trim() && !confirm('Remplacer le code du dessin par l\'exemple « ' + e[0] + ' » ? (Ctrl+Z pour revenir en arrière)')) { ex.value = ''; return; }
         upd(() => { b.code = e[1]; });
       };
-      if (b.sb) P.append(
-        sec(null, btn('✎  Modifier le schéma-bloc', () => L.dlgSchemaBloc(b), 'primary wide')),
-        sec('Écartement des éléments', L.h('div', { class: 'rng' }, rng, lab), help('Resserre ou écarte les éléments du schéma (les blocs et les textes gardent leur taille).'), this.keepHereChk(b, chk, upd, 'schéma')),
-        capSec('figure'),
-        more('sbcode', 'Code TikZ', help('Le schéma est exporté en LaTeX sous forme de code TikZ. Pour le retoucher à la main, convertissez-le en dessin TikZ : il ne sera alors plus modifiable à la souris.'),
-          btn('Convertir en dessin TikZ', () => { if (confirm('Convertir ce schéma en dessin TikZ ? Il se modifiera ensuite par son code, plus à la souris. (Ctrl+Z pour revenir en arrière)')) upd(() => { delete b.sb; }); }, 'wide')));
-      else P.append(
+      // Schéma-bloc / dessin à la souris : construits avec un module complémentaire, modifiables
+      // à la souris tant que le module est installé (sinon : le dessin reste, une carte propose le module)
+      const mod = b.sb ? 'schemabloc' : b.td ? 'tikzdraw' : null;
+      if (mod) {
+        const on = !!(L.Modules && L.Modules.installed(mod)), what = b.sb ? 'schéma' : 'dessin';
+        P.append(...[
+          on ? sec(null, btn(b.sb ? '✎  Modifier le schéma-bloc' : '✎  Modifier le dessin', () => this.editDrawing(b), 'primary wide'))
+            : L.Modules ? L.Modules.card(mod, { sec }, null, 'Ce ' + what + ' a été construit avec ce module. Installez-le (gratuit) pour le modifier à la souris ; sans lui, il reste affiché et exporté tel quel.') : null,
+          b.sb ? sec('Écartement des éléments', L.h('div', { class: 'rng' }, rng, lab), help('Resserre ou écarte les éléments du schéma (les blocs et les textes gardent leur taille).'), this.keepHereChk(b, chk, upd, 'schéma'))
+            : sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
+          capSec('figure'),
+          more('sbcode', 'Code TikZ', help('Le ' + what + ' est exporté en LaTeX sous forme de code TikZ. Pour le retoucher à la main, convertissez-le en dessin TikZ : il ne sera alors plus modifiable à la souris.'),
+            btn('Convertir en dessin TikZ', () => { if (confirm('Convertir ce ' + what + ' en dessin TikZ ? Il se modifiera ensuite par son code, plus à la souris. (Ctrl+Z pour revenir en arrière)')) upd(() => { delete b.sb; delete b.td; }); }, 'wide'))].filter(Boolean));
+      } else P.append(...[
         sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
         sec('Exemples', ex),
         capSec('figure'),
-        more('tikzhelp', 'Aide TikZ', help('<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>')));
+        more('tikzhelp', 'Aide TikZ', help('<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>')),
+        // sans code : le module « TikZ visuel », s'il n'est pas encore installé
+        L.Modules && !L.Modules.installed('tikzdraw') ? L.Modules.card('tikzdraw', { sec }, 'Dessiner sans écrire de code', 'Avec le module « TikZ visuel », points, cercles, angles et courbes de fonctions se dessinent à la souris.') : null].filter(Boolean));
     } else if (b.type === 'code') {
       const s = L.h('select', null, ...L.CODE_LANGS
         .map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (b.lang === v) o.selected = true; return o; }));
@@ -1493,6 +1505,12 @@ Object.assign(App, {
     }
   },
   renderSoon: L.debounce(() => App.render(), 250),
+  /* Schéma-bloc ou dessin à la souris : l'éditeur de son module, ou la fiche du module s'il n'est pas installé */
+  editDrawing(b) {
+    const id = b.sb ? 'schemabloc' : 'tikzdraw';
+    if (!L.Modules || !L.Modules.installed(id)) { if (L.Market) L.Market.show(id); return; }
+    if (b.sb) L.dlgSchemaBloc(b); else L.dlgTikzDraw(b);
+  },
 });
 
 /* ================= Menus d'insertion ================= */
@@ -1509,7 +1527,7 @@ L.InsertMenu = (function () {
       if ((norm(it.label) + ' ' + it.kw).split(/[\s/-]+/).some(w => w.startsWith(q))) return 2;
       return 0;
     };
-    items = L.ITEMS.filter(it => score(it) > 0);
+    items = L.ITEMS.filter(it => L.itemOn(it) && score(it) > 0);
     if (q) items.sort((a, b) => score(b) - score(a));
     groups = !q;
     idx = 0;
@@ -1894,8 +1912,9 @@ App.bindEditor = function () {
       L.InsertMenu.show(r.right + 6, r.top, '', it => this.runItem(it, blk.dataset.id));
       return;
     }
-    const sbf = t.closest('.tikz.is-sb .tikz-fig');
-    if (sbf && paper.contains(sbf) && !document.body.classList.contains('ro')) { const f = L.find(this.doc, sbf.closest('.blk').dataset.id); if (f) L.dlgSchemaBloc(f.block); return; }
+    // Schéma-bloc ou dessin à la souris : un clic ouvre l'éditeur de son module (s'il est installé)
+    const sbf = t.closest('.tikz.is-sb:not(.mod-off) .tikz-fig, .tikz.is-td:not(.mod-off) .tikz-fig');
+    if (sbf && paper.contains(sbf) && !document.body.classList.contains('ro')) { const f = L.find(this.doc, sbf.closest('.blk').dataset.id); if (f) this.editDrawing(f.block); return; }
     const tv = t.closest('.tvwrap');
     if (tv) { const f = L.find(this.doc, tv.closest('.blk').dataset.id); if (f) L.dlgTabvar(f.block); return; }
     const eq = t.closest('.eq');

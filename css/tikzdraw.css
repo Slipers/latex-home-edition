@@ -1,0 +1,65 @@
+/* TikZ visuel : le bloc dans la feuille et la fenêtre de dessin (js/tikzdraw-ui.js).
+   La fenêtre reprend la mise en page des schémas-blocs (css/schemabloc.css : .sbe-*) */
+
+/* ---------- Dans le document ---------- */
+.paper .tikz.is-td .tikz-fig { position: relative; cursor: pointer; border-radius: 4px; }
+.paper .tikz.is-td .tikz-fig:hover { background: #f3f6fb; }
+.paper .tikz.is-td .tikz-fig:hover .sb-hint, .paper .blk.sel .tikz.is-td .sb-hint { opacity: 1; }
+.paper .tikz.mod-off .tikz-fig { cursor: default; }
+.paper .tikz.mod-off .tikz-fig:hover { background: none; }
+
+/* ---------- Fenêtre ---------- */
+.tde-world { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; -webkit-user-select: none; background-color: #fff;
+  background-image: linear-gradient(to right, #dfe5ee 1px, transparent 1px), linear-gradient(to bottom, #dfe5ee 1px, transparent 1px),
+    linear-gradient(to right, #f0f3f7 1px, transparent 1px), linear-gradient(to bottom, #f0f3f7 1px, transparent 1px); }
+.tde-over.creating, .tde-over.creating .tde-hit { cursor: crosshair; }
+.tde-over .tde-hit { fill: none; stroke: transparent; stroke-width: 13; stroke-linecap: round; stroke-linejoin: round; cursor: move; pointer-events: stroke; }
+.tde-over .tde-hit.fill { fill: transparent; pointer-events: all; }
+.tde-over:not(.creating) .tde-hit:hover { stroke: rgba(63, 107, 176, .14); }
+.tde-over .tde-selpath { fill: none; stroke: #3f6bb0; stroke-width: 5; opacity: .32; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.tde-over .tde-selbox { fill: rgba(63, 107, 176, .07); stroke: #3f6bb0; stroke-width: 1.2; stroke-dasharray: 4 3; pointer-events: none; }
+.tde-over .tde-handle { fill: #fff; stroke: #3f6bb0; stroke-width: 1.5; cursor: grab; pointer-events: all; }
+.tde-over .tde-handle:hover { fill: #3f6bb0; }
+.tde-over .tde-draft { fill: rgba(63, 107, 176, .06); stroke: #3f6bb0; stroke-width: 1.7; stroke-dasharray: 5 4; pointer-events: none; }
+.tde-over .tde-draft.thin { stroke-width: 1; opacity: .6; fill: none; }
+.tde-over .tde-draft.vec { fill: none; }
+.tde-over .tde-dot { fill: #3f6bb0; stroke: #fff; stroke-width: 1.2; pointer-events: none; }
+.tde-over .tde-dot.close { fill: #fff; stroke: #3f6bb0; stroke-width: 2; }
+.tde-over .tde-mag { fill: none; stroke: #e07b18; stroke-width: 2; pointer-events: none; }
+
+/* Palette d'outils : deux colonnes */
+.tde-pal { width: 146px; flex: none; border-right: 1px solid var(--line); padding: 8px 6px; display: flex; flex-direction: column; gap: 5px; overflow-y: auto; background: var(--panel); }
+.tde-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 6px; }
+.tde-tool { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px 5px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--txt2); font-size: 11px; line-height: 1.15; }
+.tde-tool:hover { border-color: var(--acc2); color: var(--acc); background: var(--acc-bg); }
+.tde-tool.on { border-color: var(--acc2); color: var(--acc); background: var(--acc-bg); box-shadow: inset 0 0 0 1px var(--acc2); font-weight: 600; }
+
+/* Panneau de droite */
+.tde-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.tde-row-l { width: 52px; flex: none; font-size: 12px; color: var(--txt2); }
+.tde-unit { font-size: 12px; color: var(--mut); }
+.tde-num { width: 58px; font: 12.5px var(--ui); padding: 4px 6px; border: 1px solid var(--line2); border-radius: 6px; background: var(--panel); color: var(--txt); text-align: right; }
+.tde-num:focus, .tde-name:focus, .tde-expr:focus { border-color: var(--acc2); outline: 3px solid var(--acc-bg); }
+.tde-num.bad { border-color: #c0392b; background: #fdf0ee; }
+.tde-name { width: 74px; font: italic 13px "CMU Serif", Georgia, serif; padding: 4px 7px; border: 1px solid var(--line2); border-radius: 6px; background: var(--panel); color: var(--txt); }
+.tde-pos { display: grid; grid-template-columns: repeat(3, 30px); grid-auto-rows: 26px; gap: 3px; }
+.tde-pos button { border: 1px solid var(--line2); border-radius: 6px; background: var(--soft); color: var(--txt2); font-size: 13px; padding: 0; }
+.tde-pos button:hover { border-color: var(--acc2); }
+.tde-pos button.on { background: var(--acc-bg); color: var(--acc); border-color: var(--acc-line); font-weight: 700; }
+.tde .seg.tde-arrows button { font-size: 15px; min-width: 38px; }
+.tde .seg.tde-snap button { padding-left: 6px; padding-right: 6px; }
+
+/* Formule d'une courbe */
+.tde-exprbox { display: flex; flex-direction: column; gap: 6px; }
+.tde-fx { display: flex; align-items: center; gap: 7px; font: 16px "CMU Serif", Georgia, serif; }
+.tde-expr { flex: 1; min-width: 0; font: 15px "CMU Serif", Georgia, serif; padding: 6px 9px; border: 1.5px solid #b9c8e0; border-radius: 8px; background: #fff; color: #000; }
+.tde-expr-msg { font-size: 12px; }
+.tde-expr-msg.ok { color: #2e7d4f; }
+.tde-expr-msg.bad { color: #b23a2a; }
+.tde-keys { display: flex; flex-wrap: wrap; gap: 3px; }
+.tde-keys button { min-width: 30px; height: 26px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); color: var(--txt); font: 13px "CMU Serif", Georgia, serif; }
+.tde-keys button:hover, .tde-ex button:hover { border-color: var(--acc2); background: var(--acc-bg); }
+.tde-ex { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 11.5px; color: var(--mut); }
+.tde-ex button { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--txt2); padding: 2px 8px; font: 12px "CMU Serif", Georgia, serif; }
+
+.tde-coords { flex: none; min-width: 150px; text-align: right; font-variant-numeric: tabular-nums; }

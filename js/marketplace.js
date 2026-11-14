@@ -32,7 +32,7 @@
     s.setAttribute('viewBox', '0 0 24 24');
     s.setAttribute('class', 'h-ico' + (cls ? ' ' + cls : ''));
     s.setAttribute('aria-hidden', 'true');
-    s.innerHTML = ICONS[name] || '';
+    s.innerHTML = ICONS[name] || (/^</.test(name || '') ? name : '');   // nom connu, ou dessin fourni par le module
     return s;
   }
 
@@ -41,7 +41,8 @@
   function stars(value, size) {
     const w = Math.max(0, Math.min(5, value || 0)) / 5 * 100;
     const row = cls => '<svg viewBox="0 0 120 24" class="' + cls + '" aria-hidden="true">' + [0, 1, 2, 3, 4].map(i => '<path transform="translate(' + (i * 24) + ' 0)" d="' + STAR + '"/>').join('') + '</svg>';
-    const el = L.h('span', { class: 'mk-stars', style: { '--sz': (size || 14) + 'px' }, title: value ? String(value).replace('.', ',') + ' sur 5' : 'Pas encore noté' });
+    const el = L.h('span', { class: 'mk-stars', title: value ? String(value).replace('.', ',') + ' sur 5' : 'Pas encore noté' });
+    el.style.setProperty('--sz', (size || 14) + 'px');   // (une variable CSS ne passe pas par un objet style)
     el.innerHTML = row('bg') + '<span class="fg" style="width:' + w + '%">' + row('on') + '</span>';
     return el;
   }
@@ -68,7 +69,7 @@
       return b;
     }
     const can = !d.available || d.available();
-    const b = L.h('button', { class: 'mk-btn primary' + (compact ? ' sm' : ''), title: can ? 'Installer ce module' : d.unavailableText || 'Indisponible ici' }, 'Installer');
+    const b = L.h('button', { class: 'mk-btn primary' + (compact ? ' sm' : ''), title: !can ? d.unavailableText || 'Indisponible ici' : M().account() ? 'Installer ce module' : 'Installer ce module (compte gratuit nécessaire)' }, 'Installer');
     if (!can) b.disabled = true;
     b.onclick = e => { e.stopPropagation(); installFlow(d); };
     return b;
@@ -114,14 +115,21 @@
       }));
     const grid = L.h('div', { class: 'mk-grid' }, ...vis.map(card));
     if (!search.value.trim() && tab === 'all') grid.appendChild(soonCard());
+    const mineTab = tab === 'installed' && !search.value.trim();
     const empty = !vis.length ? L.h('div', { class: 'home-empty' },
-      L.h('b', { text: tab === 'installed' && !search.value.trim() ? 'Aucun module installé' : 'Aucun module trouvé' }),
-      L.h('span', { text: tab === 'installed' && !search.value.trim() ? 'Les modules que vous installez apparaissent ici.' : 'Essayez un autre mot.' })) : null;
+      L.h('b', { text: mineTab ? (M().account() ? 'Aucun module installé' : 'Connectez-vous pour retrouver vos modules') : 'Aucun module trouvé' }),
+      L.h('span', { text: mineTab ? (M().account() ? 'Les modules que vous installez apparaissent ici.' : 'Les modules installés sont rangés avec votre compte.') : 'Essayez un autre mot.' })) : null;
+    const C = L.Cloud;
+    const accNote = C && C.available() && !M().account() ? L.h('div', { class: 'mk-hero-acc' },
+      ico('user'), L.h('span', { html: 'Les modules sont réservés aux comptes LaTeX Home Edition (<b>gratuits</b>) : connectez-vous pour les installer et les noter.' }),
+      L.h('button', { class: 'mk-btn sm', onclick: () => login('login') }, 'Se connecter'),
+      L.h('button', { class: 'mk-link', onclick: () => login('signup') }, 'Créer un compte')) : null;
     scroll.replaceChildren(
       L.h('section', { class: 'mk-hero' }, L.h('div', { class: 'mk-wrap' },
         L.h('div', { class: 'mk-hero-t' },
           L.h('h1', { text: 'Ajoutez des fonctions à LaTeX Home Edition' }),
-          L.h('p', { text: 'Installez seulement ce dont vous avez besoin, désinstallez quand vous voulez. Vos documents ne changent pas.' })),
+          L.h('p', { text: 'Installez seulement ce dont vous avez besoin, désinstallez quand vous voulez. Vos documents ne changent pas.' }),
+          accNote),
         L.h('div', { class: 'mk-hero-art', 'aria-hidden': 'true' }, heroArt()))),
       L.h('section', { class: 'mk-list' }, L.h('div', { class: 'mk-wrap' },
         L.h('div', { class: 'mk-bar' }, seg, cats.length > 1 ? chips : null,
@@ -155,7 +163,8 @@
         inst ? L.h('span', { class: 'mk-installed' }, ico('check'), 'Installé') : null,
         inst ? L.h('button', { class: 'mk-btn danger-o', onclick: () => uninstallFlow(d) }, ico('trash'), 'Désinstaller')
           : L.h('button', { class: 'mk-btn primary lg', disabled: !can, onclick: () => installFlow(d) }, 'Installer'),
-        L.h('small', { text: can ? 'Gratuit · ' + (d.size || '') : d.unavailableText || '' })));
+        L.h('small', { text: !can ? d.unavailableText || '' : inst || M().account() ? 'Gratuit · ' + (d.size || '') : 'Gratuit · compte nécessaire' })));
+    const installs = (M().ratings.stats[id] || {}).installs || 0;
     const main = L.h('div', { class: 'mk-d-main' },
       L.h('section', { class: 'mk-sec' }, L.h('h3', { text: 'Présentation' }), L.h('div', { class: 'mk-prose', html: d.description || '' })),
       d.preview ? L.h('section', { class: 'mk-sec' }, d.preview()) : null,
@@ -166,7 +175,8 @@
     const side = L.h('aside', { class: 'mk-d-side' },
       L.h('div', { class: 'mk-box' }, L.h('h4', { text: 'Informations' }),
         L.h('dl', { class: 'mk-dl' },
-          ...[['Version', d.version], ['Développeur', d.author], ['Catégorie', d.category], ['Mise à jour', d.updated], ['Compatibilité', d.compat], ['Taille', d.size]]
+          ...[['Version', d.version], ['Développeur', d.author], ['Catégorie', d.category], ['Mise à jour', d.updated], ['Compatibilité', d.compat], ['Taille', d.size],
+            ['Installations', installs ? plural(installs, 'compte', 'comptes') : '']]
             .filter(x => x[1]).map(([k, v]) => [L.h('dt', { text: k }), L.h('dd', { text: v })]).flat(),
           inst ? [L.h('dt', { text: 'Installé le' }), L.h('dd', { text: new Date(M().info(id).at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) })] : [])),
       d.requirementsBox ? L.h('div', { class: 'mk-box' }, L.h('h4', { text: 'Prérequis' }), d.requirementsBox()) : null,
@@ -200,11 +210,24 @@
     return box;
   }
   function myRating(d, mine, repaint) {
-    const C = L.Cloud;
     const wrap = L.h('div', { class: 'mk-rev-me' }, L.h('b', { text: mine ? 'Votre note' : 'Donnez votre avis' }));
-    if (!C || !C.available() || !C.uid()) {
-      wrap.append(L.h('span', { class: 'mk-rev-note', text: 'Connectez-vous pour noter ce module (une note par compte).' }),
-        L.h('button', { class: 'mk-btn sm', onclick: () => L.dlgAuth('login', () => M().loadRatings(true)) }, ico('user'), 'Se connecter'));
+    const rs = M().rateState(d.id);
+    const off = () => { const s = stars(0, 22); s.classList.add('mk-pick-off'); return s; };
+    if (rs.why === 'login') {
+      wrap.append(off(), L.h('span', { class: 'mk-rev-note', text: 'Connectez-vous, installez le module et servez-vous-en un peu : vous pourrez ensuite le noter (une note par compte).' }),
+        L.h('button', { class: 'mk-btn sm', onclick: () => login('login') }, ico('user'), 'Se connecter'));
+      return wrap;
+    }
+    if (rs.why === 'install') {
+      wrap.append(off(), L.h('span', { class: 'mk-rev-note', text: 'Installez ce module et servez-vous-en un peu : vous pourrez ensuite le noter.' }));
+      return wrap;
+    }
+    if (rs.why === 'use') {
+      const N = M().RATE_MIN;
+      wrap.append(off(),
+        L.h('div', { class: 'mk-rev-prog', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(N), 'aria-valuenow': String(rs.uses) },
+          ...Array.from({ length: N }, (x, k) => L.h('i', { class: k < rs.uses ? 'on' : '' }))),
+        L.h('span', { class: 'mk-rev-note', text: 'Encore ' + (d.usesLabel ? d.usesLabel(rs.left) : rs.left + ' utilisation' + (rs.left > 1 ? 's' : '')) + ' et vous pourrez noter ce module.' }));
       return wrap;
     }
     const pick = L.h('div', { class: 'mk-pick', role: 'radiogroup', 'aria-label': 'Votre note sur 5' });
@@ -233,9 +256,42 @@
     return wrap;
   }
 
+  /* ---------- Compte ---------- */
+  /* Les modules sont réservés aux comptes : connexion (ou création), puis l'installation reprend */
+  function login(mode, d) {
+    L.dlgAuth(mode, () => setTimeout(() => {
+      if (!M().account()) return;
+      repaint();
+      if (d && !M().installed(d.id)) installFlow(d);
+    }, 60));
+  }
+  function askAccount(d) {
+    L.modal({
+      title: 'Un compte est nécessaire',
+      body: L.h('div', { class: 'mk-uninst' }, M().moduleIcon(d, 44),
+        L.h('p', { html: 'Les modules complémentaires sont réservés aux comptes LaTeX Home Edition. Le compte est <b>gratuit</b> : il garde vos modules installés et vous permet de les noter.' })),
+      foot: [
+        { text: 'Annuler', onClick: c => c() },
+        { text: 'Créer un compte', onClick: c => { c(); login('signup', d); } },
+        { text: 'Se connecter', cls: 'primary', onClick: c => { c(); login('login', d); } },
+      ],
+    });
+  }
+  /* En haut à droite : le compte connecté, ou « Se connecter » */
+  function paintAccount() {
+    const box = root && root.querySelector('.home-top-r');
+    if (!box) return;
+    const C = L.Cloud;
+    if (!C || !C.available()) return box.replaceChildren();
+    box.replaceChildren(M().account()
+      ? L.h('span', { class: 'mk-acc', title: 'Vos modules sont rangés avec ce compte' }, ico('user'), L.h('span', { text: C.pseudo() || 'Connecté' }))
+      : L.h('button', { class: 'mk-btn primary sm', onclick: () => login('login') }, ico('user'), 'Se connecter'));
+  }
+
   /* ---------- Installation (fenêtre à étapes) ---------- */
   function installFlow(d) {
     if (M().installed(d.id)) return openDetail(d.id);
+    if (!M().account()) return askAccount(d);
     const steps = L.h('ol', { class: 'mk-inst-steps' });
     const askBox = L.h('div', { class: 'mk-inst-ask', hidden: true });
     const done = L.h('div', { class: 'mk-inst-done', hidden: true });
@@ -299,7 +355,7 @@
       const canTry = d.sample && window.App && App.doc && !document.body.classList.contains('ro');
       done.replaceChildren(
         L.h('div', { class: 'mk-inst-yay' }, L.h('span', null, ico('check')), L.h('div', null, L.h('b', { text: 'Module installé !' }),
-          L.h('span', { html: d.id === 'python' ? 'Chaque bloc de code Python a maintenant un bouton <b>▶ Exécuter</b> (ou <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> dans le code).' : 'Le module est prêt.' }))),
+          L.h('span', { html: d.installedText || 'Le module est prêt.' }))),
         L.h('div', { class: 'mk-ask-acts row' },
           L.h('button', { class: 'mk-btn', text: 'Terminé', onclick: () => dlg.close() }),
           canTry ? L.h('button', { class: 'mk-btn primary', text: 'Essayer avec un exemple', onclick: () => { dlg.close(); tryIt(d); } }) : null));
@@ -307,13 +363,13 @@
       repaint();
     })();
   }
-  /* Un exemple est ajouté au document ouvert, puis exécuté */
+  /* Un exemple est ajouté au document ouvert, puis le module s'en sert (exécution, éditeur…) */
   function tryIt(d) {
     hide();
     if (L.Home && L.Home.visible()) L.Home.hide();
     const b = d.sample();
     App.insertBlock(b);
-    setTimeout(() => { if (L.PyRun && d.id === 'python') L.PyRun.run(b.id); }, 150);
+    if (d.afterSample) setTimeout(() => d.afterSample(b), 150);
   }
   function uninstallFlow(d) {
     L.modal({
@@ -331,6 +387,7 @@
   function repaint() {
     if (!root || root.hidden) return;
     const top = scroll.scrollTop;
+    paintAccount();
     if (cur) openDetail(cur); else paintList();
     scroll.scrollTop = top;
   }
@@ -367,6 +424,7 @@
     search.value = ''; root.querySelector('.home-clear').hidden = true;
     tab = 'all'; cat = '';
     if (!unsub) unsub = M().onChange(() => repaint());
+    paintAccount();
     if (id && M().get(id)) openDetail(id); else paintList();
     M().loadRatings(true);
     setTimeout(() => { if (!root.hidden && L.$('#modal').hidden && !cur) search.focus({ preventScroll: true }); }, 60);

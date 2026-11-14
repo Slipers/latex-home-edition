@@ -445,7 +445,7 @@
 (function () {
   const TAGS = new Set(['B', 'I', 'U', 'SUB', 'SUP', 'CODE', 'SPAN', 'BR', 'DIV', 'P', 'STRONG', 'EM']);
   const ATTRS = new Set(['class', 'data-latex', 'data-ref', 'data-text', 'data-html', 'data-src', 'data-w']);
-  const PLAIN = new Set(['code', 'latex']);   // texte brut (programme, LaTeX), jamais inséré comme HTML
+  const PLAIN = new Set(['code', 'latex', 'expr']);   // texte brut (programme, LaTeX, formule d'une courbe), jamais inséré comme HTML
   const IMG = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=\s]*$/i;
   const parser = new DOMParser();
 

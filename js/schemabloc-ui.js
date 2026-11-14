@@ -818,6 +818,8 @@
         c();
         if (onDone) onDone(nb);
       }
+      // module « Schémas-blocs » : un schéma créé ou modifié compte comme une utilisation (droit de noter)
+      if ((dirty || !block) && L.Modules && L.Modules.used) L.Modules.used('schemabloc');
     };
     dlg = L.modal({
       title: block ? 'Modifier le schéma-bloc' : 'Nouveau schéma-bloc', body: root, wide: true, cls: 'sbe-modal',

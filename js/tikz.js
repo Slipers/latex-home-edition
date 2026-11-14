@@ -233,7 +233,7 @@
         case 'draw opacity': st.drawOpacity = num(v); break;
         case 'line cap': st.lineCap = v === 'rect' ? 'square' : v; break;
         case 'line join': st.lineJoin = v; break;
-        case 'step': { const p = /^\(([^)]*)\)$/.exec(v); if (p) { const [a, b] = splitTop(p[1], ','); st.step = [len(a), len(b)]; } else st.step = len(v); break; }
+        case 'step': { const p = /^\(([^)]*)\)$/.exec(strip(v)); if (p) { const [a, b] = splitTop(p[1], ','); st.step = [len(a), len(b)]; } else st.step = len(v); break; }
         case 'domain': { const [a, b] = v.split(':'); st.domain = [num(a), num(b)]; break; }
         case 'mark': st.mark = v.trim(); break;
         case 'mark size': st.markSize = len(v, 'pt'); break;

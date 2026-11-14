@@ -7,7 +7,7 @@ Quatre fonctionnalités utilisent le projet Supabase :
 | `partage.sql` | Liens de partage (copie importée, mises à jour de l'auteur) |
 | `collab.sql` | **Live Modification** : comptes, documents en ligne, invitations, commentaires, temps réel |
 | `fichiers.sql` | **Mes fichiers en ligne** : documents rangés avec le compte, privés, versions, corbeille |
-| `modules.sql` | **Modules complémentaires** : notes ★ sur 5 des modules |
+| `modules.sql` | **Modules complémentaires** : installations par compte, notes ★ sur 5 |
 | `functions/send-invite/` | E-mail d'invitation automatique (facultatif) |
 | `emails/*.html` | Modèles d'e-mails en français (confirmation, mot de passe) |
 
@@ -30,9 +30,9 @@ Les scripts SQL peuvent être relancés sans risque : ils mettent la base à jou
 
 *SQL Editor → New query* : coller `fichiers.sql`, **Run**. Il utilise les mêmes comptes que la Live Modification (étapes 2 à 4 ci-dessus). Le script crée seulement la table `lhe_files` et ses fonctions : il ne touche à aucune autre table et n'efface rien.
 
-## Notes des modules complémentaires (une seule fois)
+## Modules complémentaires : installations et notes (une seule fois)
 
-*SQL Editor → New query* : coller `modules.sql`, **Run**. Il utilise les mêmes comptes que la Live Modification. Le script crée seulement la table `lhe_module_ratings` et ses fonctions : il ne touche à aucune autre table et n'efface rien. Sans lui, la page Modules fonctionne normalement mais affiche « Pas encore noté ».
+*SQL Editor → New query* : coller `modules.sql`, **Run**. Il utilise les mêmes comptes que la Live Modification. Le script crée seulement les tables `lhe_module_ratings` et `lhe_module_usage` et leurs fonctions : il ne touche à aucune autre table et n'efface rien (si une version précédente a déjà été lancée, il suffit de relancer celle-ci). Sans lui, les modules s'installent et fonctionnent, mais la page Modules n'affiche pas de notes.
 
 ## Sécurité, en bref
 
@@ -40,6 +40,6 @@ Les scripts SQL peuvent être relancés sans risque : ils mettent la base à jou
 - Le rôle de chacun sur un document (propriétaire, éditeur, commentateur, lecteur) est calculé par le serveur ; une invitation ne donne accès qu'à un compte dont l'adresse est **confirmée**.
 - Les canaux temps réel `doc:<id>` sont privés : seuls les membres les reçoivent, seuls propriétaire et éditeurs y diffusent des modifications.
 - « Mes fichiers en ligne » : un fichier n'est lisible que par son propriétaire, et toutes les écritures passent par des fonctions qui le vérifient. Un enregistrement depuis un autre ordinateur ne peut pas écraser sans le savoir une version plus récente, la version précédente est gardée, et « Supprimer » met à la corbeille (vidée après 30 jours). Limite : 500 fichiers et environ 45 Mo par compte.
-- Notes des modules : tout le monde voit la moyenne et le nombre de notes, seul un compte connecté peut noter (une note par module, modifiable ou retirée), et personne ne voit qui a mis quelle note.
+- Modules : tout le monde voit la moyenne, le nombre de notes et le nombre d'installations ; pour noter, il faut un compte qui a installé le module et s'en est servi au moins 3 fois (une note par module, modifiable ou retirée). Personne ne voit qui a mis quelle note, ni qui a installé quoi.
 - Anti-spam : chaque compte est limité côté serveur à 20 invitations par tranche de 10 minutes et à 15 e-mails d'invitation par heure (en plus d'un e-mail par personne toutes les 10 minutes), même en contournant l'application. Les e-mails de compte (confirmation, mot de passe oublié) sont limités par Supabase : *Authentication → Rate Limits*. Pour mettre à jour une base déjà installée, relancez simplement `collab.sql`.
-- Les règles sont vérifiées par un banc d'essai (136 vérifications, `npm run test:sql`) exécuté sur un PostgreSQL local avant chaque changement des scripts.
+- Les règles sont vérifiées par un banc d'essai (146 vérifications, `npm run test:sql`) exécuté sur un PostgreSQL local avant chaque changement des scripts.

@@ -134,6 +134,7 @@
     if (res && res.error === 'nopython') py = { ok: false };
     else if (res && res.ok && res.version && (!py || !py.ok)) check(false);
     results.set(id, { res: res || { ok: false, error: 'bridge' }, code, at: Date.now() });
+    if (res && res.ok) L.Modules.used(ID);       // le programme a tourné (même terminé par une erreur)
     run = null;
     paintAll();
     if (App.sel === id) App.updateProps();
@@ -561,6 +562,9 @@
     suggestTitle: 'Exécutez ce code Python',
     suggestText: 'Installez le module « Exécution Python » pour lancer ce code et voir son résultat sans quitter le document.',
     sample: () => Object.assign(L.newBlock('code'), { lang: 'python', code: SAMPLE }),
+    afterSample: b => runBlock(b.id),
+    installedText: 'Chaque bloc de code Python a maintenant un bouton <b>▶ Exécuter</b> (ou <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> dans le code).',
+    usesLabel: n => n > 1 ? n + ' exécutions de code' : n + ' exécution de code',
     install, deactivate, requirementsBox, preview,
     hooks: {
       codeBlock: (b, el) => decorate(b, el),

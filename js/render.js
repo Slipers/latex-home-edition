@@ -350,14 +350,17 @@ L.R = {
       fig.replaceChildren();
       if (r.svg && !r.empty) fig.appendChild(r.svg);
       else if (r.error && ctx.mode !== 'edit') fig.appendChild(L.h('div', { class: 'tikz-error', text: 'Dessin TikZ : ' + r.error }));
-      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode !== 'edit' ? '' : b.sb ? 'Schéma-bloc vide : cliquez pour le construire' : r.error ? 'Le dessin contient une erreur (voir sous le code)' : 'Dessin vide : écrivez du code TikZ ci-dessous' }));
+      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode !== 'edit' ? '' : b.sb ? 'Schéma-bloc vide : cliquez pour le construire' : b.td ? 'Dessin vide : cliquez pour dessiner' : r.error ? 'Le dessin contient une erreur (voir sous le code)' : 'Dessin vide : écrivez du code TikZ ci-dessous' }));
       return r;
     };
-    if (ctx.mode === 'edit' && b.sb) {
-      // Schéma-bloc : pas de code à écrire, un clic ouvre l'éditeur graphique (js/schemabloc-ui.js)
-      el.classList.add('is-sb');
+    if (ctx.mode === 'edit' && (b.sb || b.td)) {
+      // Schéma-bloc, dessin à la souris : pas de code à écrire, un clic ouvre l'éditeur de leur
+      // module complémentaire (js/schemabloc-ui.js, js/tikzdraw-ui.js) ; sans le module, le dessin reste affiché
+      const mod = b.sb ? 'schemabloc' : 'tikzdraw', on = !!(L.Modules && L.Modules.installed(mod));
+      el.classList.add(b.sb ? 'is-sb' : 'is-td');
+      if (!on) el.classList.add('mod-off');
       draw(b.code);
-      fig.appendChild(L.h('div', { class: 'sb-hint', contenteditable: 'false', text: 'Cliquez pour modifier le schéma' }));
+      fig.appendChild(L.h('div', { class: 'sb-hint', contenteditable: 'false', text: !on ? 'Module « ' + (b.sb ? 'Schémas-blocs' : 'TikZ visuel') + ' » nécessaire pour le modifier' : b.sb ? 'Cliquez pour modifier le schéma' : 'Cliquez pour modifier le dessin' }));
     } else if (ctx.mode === 'edit') {
       const pre = L.h('pre', { class: 'code-edit', contenteditable: 'plaintext-only', spellcheck: 'false', 'data-b': b.id, 'data-f': 'code', 'data-ph': '\\draw (0,0) -- (2,1);' });
       pre.textContent = b.code || '';

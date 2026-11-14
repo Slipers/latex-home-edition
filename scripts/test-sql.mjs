@@ -308,35 +308,60 @@ await db.exec(SQL);
 const after = (await q('select count(*)::int n, sum(version)::int v from public.lhe_files'))[0];
 check('fichier : relancer les scripts ne perd rien', before.n === after.n && before.v === after.v, [before, after]);
 
-// Notes des modules (supabase/modules.sql)
+// Modules : installations et notes (supabase/modules.sql)
 const stats = async () => Object.fromEntries((await as(null, () => q('select * from public.lhe_module_stats()'))).map(r => [r.module_id, r]));
+const mine = who => as(who, () => q('select * from public.lhe_module_mine() order by 1'));
+const track = (who, inst, uses, id = 'python') => as(who, () => q('select public.lhe_module_track($1, $2, $3)', [id, inst, uses]));
+check('module : sans compte, pas d\'installation', await as(null, () => fails(() => q("select public.lhe_module_track('python', true, 0)"))));
 check('module : sans compte, pas de note', await as(null, () => fails(() => q("select public.lhe_module_rate('python', 5)"))));
-check('module : lecture directe interdite', await as('carol', () => fails(() => q('select * from public.lhe_module_ratings'))));
-check('module : écriture directe interdite', await as('carol', () => fails(() => q("insert into public.lhe_module_ratings (module_id, stars) values ('python', 5)"))));
+check('module : lecture directe interdite', await as('carol', () => fails(() => q('select * from public.lhe_module_ratings'))) && await as('carol', () => fails(() => q('select * from public.lhe_module_usage'))));
+check('module : écriture directe interdite', await as('carol', () => fails(() => q("insert into public.lhe_module_ratings (module_id, stars) values ('python', 5)"))) && await as('carol', () => fails(() => q("insert into public.lhe_module_usage (module_id, uses) values ('python', 99)"))));
+check('module : pas installé, pas de note', await as('carol', () => fails(() => q("select public.lhe_module_rate('python', 5)"), /LHE_USE/)));
+await track('carol', true, 0);
+check('module : installé mais pas encore utilisé, pas de note', await as('carol', () => fails(() => q("select public.lhe_module_rate('python', 5)"), /LHE_USE/)));
+await track('carol', null, 2);
+check('module : 2 utilisations ne suffisent pas', await as('carol', () => fails(() => q("select public.lhe_module_rate('python', 5)"), /LHE_USE/)));
+await track('carol', null, 3);
+await track('bob', true, 7);
 await as('carol', () => q("select public.lhe_module_rate('python', 5)"));
 await as('bob', () => q("select public.lhe_module_rate('python', 3)"));
 let st = await stats();
-check('module : moyenne et nombre', st.python && st.python.n === 2 && Number(st.python.average) === 4 && st.python.s5 === 1 && st.python.s3 === 1, st.python);
+check('module : moyenne, nombre de notes et d\'installations', st.python && st.python.n === 2 && Number(st.python.average) === 4 && st.python.s5 === 1 && st.python.s3 === 1 && st.python.installs === 2, st.python);
+await track('carol', null, 1);
+check('module : le compteur d\'utilisations ne redescend pas', (await mine('carol'))[0].uses === 3);
 await as('carol', () => q("select public.lhe_module_rate('python', 4)"));
 st = await stats();
 check('module : une seule note par compte (modifiable)', st.python.n === 2 && Number(st.python.average) === 3.5 && st.python.s4 === 1 && st.python.s5 === 0, st.python);
-check('module : mes notes seulement', JSON.stringify(await as('carol', () => q('select * from public.lhe_module_my_ratings()'))) === JSON.stringify([{ module_id: 'python', stars: 4 }]));
-check('module : sans compte, pas de « mes notes »', await as(null, () => fails(() => q('select * from public.lhe_module_my_ratings()'))));
+check('module : mes modules seulement', JSON.stringify(await mine('carol')) === JSON.stringify([{ module_id: 'python', installed: true, uses: 3, stars: 4 }]), await mine('carol'));
+check('module : sans compte, pas de « mes modules »', await as(null, () => fails(() => q('select * from public.lhe_module_mine()'))));
 check('module : 6 étoiles refusé', await as('carol', () => fails(() => q("select public.lhe_module_rate('python', 6)"), /LHE_STARS/)));
-check('module : identifiant invalide refusé', await as('carol', () => fails(() => q("select public.lhe_module_rate('Py thon!', 3)"), /LHE_MODULE/)));
+check('module : identifiant invalide refusé', await as('carol', () => fails(() => q("select public.lhe_module_rate('Py thon!', 3)"), /LHE_MODULE/)) && await as('carol', () => fails(() => q("select public.lhe_module_track('Py thon!', true, 0)"), /LHE_MODULE/)));
+await track('bob', false, 7);
+st = await stats();
+check('module : désinstallé, ne compte plus dans les installations (la note reste)', st.python.installs === 1 && st.python.n === 2, st.python);
 await as('bob', () => q("select public.lhe_module_rate('python', 0)"));
 st = await stats();
 check('module : note retirée', st.python.n === 1 && Number(st.python.average) === 4, st.python);
 await as('bob', () => q("select public.lhe_module_rate('python', 2)"));
+check('module : désinstallé après usage, peut encore noter', (await stats()).python.n === 2);
+// Plusieurs modules (Python, TikZ visuel, Schémas-blocs) : comptés chacun à part
+await track('carol', true, 0, 'tikzdraw');
+await track('carol', true, 0, 'schemabloc');
+await track('carol', null, 3, 'tikzdraw');
+check('module : utilisations comptées par module', await as('carol', () => fails(() => q("select public.lhe_module_rate('schemabloc', 5)"), /LHE_USE/)));
+await as('carol', () => q("select public.lhe_module_rate('tikzdraw', 5)"));
+st = await stats();
+check('module : notes et installations séparées par module', st.tikzdraw && st.tikzdraw.n === 1 && st.tikzdraw.installs === 1 && st.schemabloc && st.schemabloc.n === 0 && st.schemabloc.installs === 1 && st.python.n === 2, [st.tikzdraw, st.schemabloc]);
+check('module : mes modules, un par ligne', (await mine('carol')).map(r => r.module_id + ':' + r.uses + ':' + (r.stars || 0)).join(' ') === 'python:3:4 schemabloc:0:0 tikzdraw:3:5', await mine('carol'));
 await db.exec(MODULES_SQL);
-check('module : relancer le script ne perd rien', (await stats()).python.n === 2);
+check('module : relancer le script ne perd rien', (await stats()).python.n === 2 && (await mine('carol'))[0].uses === 3);
 
 // Compte supprimé : ses fichiers partent avec lui, pas ceux des autres
 await fsave('carol', null, 'À carol', 'C', null);
 await as('bob', () => q('select public.lhe_delete_account()'));
 check('fichier : supprimés avec le compte', (await q('select count(*)::int n from public.lhe_files where owner=$1', [U.bob]))[0].n === 0);
 check('fichier : ceux de carol intacts', (await q('select count(*)::int n from public.lhe_files where owner=$1', [U.carol]))[0].n === 1);
-check('module : notes supprimées avec le compte', (await q('select count(*)::int n from public.lhe_module_ratings where user_id=$1', [U.bob]))[0].n === 0 && (await q('select count(*)::int n from public.lhe_module_ratings'))[0].n === 1 && (await stats()).python.n === 1);
+check('module : notes et installations supprimées avec le compte', (await q('select count(*)::int n from public.lhe_module_ratings where user_id=$1', [U.bob]))[0].n === 0 && (await q('select count(*)::int n from public.lhe_module_usage where user_id=$1', [U.bob]))[0].n === 0 && (await q('select count(*)::int n from public.lhe_module_ratings'))[0].n === 2 && (await stats()).python.n === 1 && (await stats()).python.installs === 1);
 
 console.log(ok + ' vérifications réussies, ' + ko + ' échec(s)');
 process.exit(ko ? 1 : 0);

@@ -354,7 +354,7 @@ App.buildInsertPanel = function () {
   list.replaceChildren();
   const rows = [];
   let sec = null, body = null, g = null;
-  L.ITEMS.forEach(it => {
+  L.ITEMS.filter(L.itemOn).forEach(it => {
     if (it.g !== g) {
       g = it.g;
       const name = g;
@@ -399,6 +399,7 @@ App.buildInsertPanel = function () {
     else if (e.key === 'Enter') { const r = rows.find(x => !x.b.hidden); if (r) { e.preventDefault(); App.runItem(r.it); search.value = ''; filter(); } }
   };
   clear.onclick = () => { search.value = ''; filter(); search.focus(); };
+  if (search.value) filter();
 };
 
 /* Barre d'état : nombre de mots du document */
@@ -420,8 +421,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Icônes vectorielles de l'interface
   L.$$('[data-ico]').forEach(el => el.replaceChildren(L.svg(el.dataset.ico, +el.dataset.size || 16)));
-  // Colonne « Insérer » : liste par familles (repliables) et recherche
+  // Colonne « Insérer » : liste par familles (repliables) et recherche ; les modules
+  // complémentaires installés ou désinstallés y ajoutent ou retirent leurs éléments
   App.buildInsertPanel();
+  if (L.Modules) L.Modules.onChange(() => App.buildInsertPanel());
 
   // Onglets Insérer / Plan
   App.showTab = tab => {

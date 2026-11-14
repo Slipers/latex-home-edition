@@ -1,12 +1,9 @@
 ## Nouveautés
 
-- **Modules complémentaires** : le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre une page de modules à installer et désinstaller quand on veut, avec une fiche détaillée et une note sur 5 étoiles pour chacun.
-- **Module « Exécution Python »** : un bouton **▶ Exécuter** (ou Ctrl+Entrée) sur chaque bloc de code Python.
-  - Le résultat s'affiche dans une console en bas de la fenêtre, sans toucher au document.
-  - Erreurs expliquées en français avec la ligne fautive, bibliothèques manquantes signalées avec la commande pip.
-  - Entrées pour `input()`, bouton Arrêter, graphiques matplotlib affichés et insérables dans le document.
-  - Le code tourne sur votre ordinateur avec Python ; si Python manque, le module propose de l'installer.
-
-## Corrections
-
-- **Accueil** : sur les écrans moyens, le bouton « Reprendre » n'est plus coupé ; en thème sombre, le champ de recherche n'a plus de fond en trop.
+- **Module « TikZ visuel »** : des dessins TikZ entièrement à la souris, sans écrire de code (menu Insérer → **Dessin à la souris**).
+  - Outils : point nommé automatiquement, segment, flèche, ligne brisée, polygone, rectangle, cercle, ellipse, arc, angle (arc ou angle droit), texte ou formule, quadrillage.
+  - La souris s'accroche à la grille et aux points déjà placés ; couleurs, remplissages, épaisseurs, pointillés et noms se règlent dans des menus.
+  - Courbes de fonctions : un repère gradué (même en multiples de π) et une formule écrite comme en maths, par exemple `2x² − 3` ou `sin(x)`.
+  - Modèles prêts : parabole, sinus et cosinus, triangle, cercle trigonométrique, forces, plan incliné, lentille.
+- **Schémas-blocs devient un module** : on l'installe depuis la page Modules. Les schémas déjà présents dans vos documents restent affichés et exportés ; le module sert à les modifier.
+- **Modules et comptes** : les modules s'installent avec un compte (gratuit). On peut noter un module après s'en être servi au moins 3 fois. Chaque fiche indique le nombre d'installations.
