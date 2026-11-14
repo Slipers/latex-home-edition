@@ -176,7 +176,8 @@
      module utile pas encore installé (un bloc Python → « Exécution Python ») */
   function codeProps(b, P, helpers) {
     each('codeProps', b, P, helpers);
-    list().filter(d => !installed(d.id) && d.suggest && safe(d.suggest, 'code', b)).forEach(d => P.append(card(d.id, helpers)));
+    // (pas de suggestion d'un module impossible à installer ici : Python dans la version web)
+    list().filter(d => !installed(d.id) && d.suggest && (!d.available || d.available()) && safe(d.suggest, 'code', b)).forEach(d => P.append(card(d.id, helpers)));
   }
   // Carte « module conseillé » du panneau de droite (ouvre sa fiche sur la page Modules)
   function card(id, helpers, title, text) {

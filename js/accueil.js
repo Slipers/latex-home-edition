@@ -435,7 +435,9 @@
             L.h('div', { class: 'home-chips' },
               chip('folder', 'Ouvrir du PC', async () => { if (await canLeave()) App.open(true); }, 'Ouvrir un fichier .lhe de l\'ordinateur (Ctrl+O)'),
               chip('link', 'Lien reçu', () => L.dlgOpenShare(), 'Ouvrir un lien de partage qu\'on vous a envoyé'),
-              chip('cloud', 'Mes fichiers', () => D().dialog(), 'Tous vos fichiers en ligne, corbeille comprise (Ctrl+Maj+O)'))),
+              chip('cloud', 'Mes fichiers', () => D().dialog(), 'Tous vos fichiers en ligne, corbeille comprise (Ctrl+Maj+O)'),
+              // Version web : lien vers l'application de bureau (hors ligne, exécution Python)
+              L.WEB ? chip('laptop', 'Application de bureau', () => window.open(L.APP_URL, '_blank', 'noopener'), 'Télécharger LaTeX Home Edition pour Windows ou Mac : fonctionne hors ligne, et exécute le code Python') : null)),
           tplRow())),
         L.h('section', { class: 'home-recent' }, L.h('div', { class: 'home-wrap' },
           L.h('div', { class: 'home-h' }, L.h('h2', { text: 'Documents récents' }),

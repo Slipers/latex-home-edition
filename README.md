@@ -24,7 +24,14 @@ Tout fonctionne hors ligne : les bibliothèques et les polices sont incluses dan
 
 ## Version web (sans installation)
 
-Ouvrez **`index.html`** dans Chrome, Edge ou Firefox, ou double-cliquez sur **`Lancer.bat`**.
+L'éditeur s'utilise aussi directement dans le navigateur : **https://slipers.github.io/latex-home-edition/** (Chrome, Edge, Firefox, Safari).
+
+- Le document en cours est sauvegardé automatiquement dans le navigateur ; **Enregistrer** télécharge le fichier `.lhe`, que l'application de bureau ouvre aussi.
+- Compte, Live Modification, fichiers en ligne, liens de partage et modules **TikZ visuel** et **Schémas-blocs** fonctionnent comme dans l'application.
+- Le module **Exécution Python** est réservé à l'application de bureau : un navigateur ne peut pas lancer Python sur l'ordinateur.
+- Les pages des liens de partage et des invitations proposent « Ouvrir dans le navigateur » (`…/?s=<lien>`, `…/?d=<document>`).
+
+Sans connexion, depuis ce dossier : ouvrez **`index.html`** ou double-cliquez sur **`Lancer.bat`** ; `npm run web` (http://localhost:8765) permet en plus d'exécuter le code Python.
 
 ## Ce que l'on peut faire
 
@@ -247,6 +254,7 @@ js/comments.js      commentaires (fils, résoudre, passages surlignés)
 js/collab-ui.js     fenêtres : compte, Live Modification (invitations, rôles), documents en ligne, préférences
 supabase/           schémas SQL, fonction d'e-mail d'invitation, modèles d'e-mails (voir supabase/LISEZMOI.md)
 docs/               pages web (GitHub Pages) : lien de partage, document en ligne, compte
+scripts/build-web.mjs  assemble le site web (_site/) : éditeur à la racine + pages de docs/
 js/check.js         vérification du document (références, formules, statistiques)
 js/find.js          rechercher / remplacer
 vendor/             KaTeX, MathLive, polices Computer Modern (licences libres)
@@ -274,3 +282,7 @@ npm run release
 `npm run release` pousse le tag ; **GitHub Actions** construit alors les deux installateurs — `.exe` sur un runner Windows, `.dmg` (Apple Silicon et Intel) sur un runner macOS, le format `.dmg` ne pouvant être fabriqué que sur macOS — les téléverse dans la Release (notes : `RELEASE_NOTES.md`) avec le fichier `latest.yml`, puis la publie. Le script suit la construction et affiche la liste des fichiers publiés. Au lancement suivant, chaque application Windows installée propose la mise à jour, l'installe et redémarre toute seule ; sur macOS, elle signale la nouvelle version et ouvre la page de téléchargement.
 
 Dépannage : `npm run release -- --local` construit et publie l'installateur Windows depuis ce poste, sans passer par GitHub Actions.
+
+### Version web
+
+Chaque envoi sur `main` qui touche l'éditeur (`index.html`, `css/`, `js/`, `vendor/`) ou `docs/` republie le site https://slipers.github.io/latex-home-edition/ : le workflow `.github/workflows/site.yml` lance `npm run build:web` (dossier `_site/`) puis le déploie sur GitHub Pages (réglage du dépôt : *Settings → Pages → Source : GitHub Actions*). Les fichiers de `index.html` sont versionnés (`?v=<version>-<commit>`) pour que les navigateurs prennent la nouvelle version d'un coup.

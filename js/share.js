@@ -245,7 +245,8 @@
       const msg = () => 'Je te partage mon document « ' + title + ' ».\n\n'
         + 'Pour l\'ouvrir : dans LaTeX Home Edition, clique sur « Partager » puis « Ouvrir un lien reçu » et colle ce lien (ou colle-le directement dans l\'application) — tu obtiendras ta propre copie.\n\n'
         + link + '\n\n'
-        + 'Pas encore l\'application ? Elle est gratuite (Windows et Mac) : ' + APP_URL + '\n';
+        + 'Pas encore l\'application ? Elle est gratuite (Windows et Mac) : ' + APP_URL + '\n'
+        + 'Ou dans le navigateur, sans rien installer : ' + L.SITE + '\n';
       const refresh = async () => {
         out.value = 'Création du lien…'; size.textContent = '';
         const sh = App.doc.meta.share;

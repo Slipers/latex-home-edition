@@ -29,6 +29,7 @@
   .btn:hover { border-color: var(--acc2); }
   .btn.primary { background: #2b4c7e; border-color: #2b4c7e; color: #fff; }
   .btn.primary:hover { background: #3f6bb0; }
+  .btn + .btn { margin-top: 8px; }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   .steps { margin: 22px 0 0; padding: 14px 16px; background: var(--acc-bg); border-radius: 10px; font-size: 13.5px; }
   .steps b { display: block; margin-bottom: 4px; }
@@ -50,9 +51,10 @@
     <h1 id="title"></h1>
     <p class="sub" id="meta"></p>
     <a class="btn primary" id="open">Ouvrir dans LaTeX Home Edition</a>
+    <a class="btn" id="web">Ouvrir dans le navigateur, sans installation</a>
     <div class="steps">
       <b>Vous obtiendrez votre propre copie du document.</b>
-      Si rien ne s'ouvre, l'application n'est peut-être pas installée : téléchargez-la (gratuit), puis revenez sur ce lien.
+      Si rien ne s'ouvre, l'application n'est peut-être pas installée : téléchargez-la (gratuit) puis revenez sur ce lien, ou ouvrez le document dans le navigateur.
       Vous pouvez aussi copier ce lien et le coller dans l'application (Ctrl+V).
       <span id="liveNote" hidden><br><br>L'auteur partage ses mises à jour : quand il modifiera le document, l'application vous proposera la nouvelle version.</span>
     </div>
@@ -70,7 +72,7 @@
   <div id="ko" hidden>
     <h1>Lien indisponible</h1>
     <p class="err" id="why"></p>
-    <a class="btn" href="https://github.com/Slipers/latex-home-edition/releases/latest">Découvrir LaTeX Home Edition</a>
+    <a class="btn" href="../">Découvrir LaTeX Home Edition</a>
   </div>
 
   <p class="muted">Éditeur gratuit pour écrire des documents scientifiques avec le rendu de LaTeX, sans code.</p>
@@ -105,6 +107,7 @@
     if (info.live) $('liveNote').hidden = false;
     document.title = (info.title || 'Document') + ' — LaTeX Home Edition';
     $('open').href = 'lhe://s/' + id;
+    $('web').href = '../?s=' + id;   // version web de l'éditeur (racine du site)
     $('copy').onclick = async () => {
       try { await navigator.clipboard.writeText(location.href); $('copy').textContent = 'Lien copié ✓'; }
       catch (e) { prompt('Copiez ce lien :', location.href); }

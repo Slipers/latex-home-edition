@@ -32,12 +32,13 @@
     <h1>Vous êtes invité(e) à un document partagé</h1>
     <p class="sub">Modification en direct, à plusieurs : réservé aux personnes invitées.</p>
     <a class="btn primary" id="open">Ouvrir dans LaTeX Home Edition</a>
+    <a class="btn" id="web">Ouvrir dans le navigateur, sans installation</a>
     <div class="steps">
       <b>Pour y accéder :</b>
       <ol>
-        <li>Installez l'application si ce n'est pas déjà fait (gratuit).</li>
+        <li>Installez l'application si ce n'est pas déjà fait (gratuit), ou utilisez la version web.</li>
         <li>Connectez-vous — ou créez un compte — <b>avec l'adresse e-mail à laquelle vous avez été invité(e)</b>.</li>
-        <li>Revenez sur ce lien, ou ouvrez « Documents en ligne » dans l'application.</li>
+        <li>Revenez sur ce lien, ou ouvrez « Documents en ligne » dans l'éditeur.</li>
       </ol>
     </div>
     <a class="btn" href="../compte/">Créer un compte</a>
@@ -53,6 +54,7 @@
   const id = (location.hash || '').replace(/^#/, '').trim().toLowerCase();
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) {
     document.getElementById('open').href = 'lhe://d/' + id;
+    document.getElementById('web').href = '../?d=' + id;   // version web de l'éditeur
     document.getElementById('ok').hidden = false;
   } else document.getElementById('ko').hidden = false;
 </script>

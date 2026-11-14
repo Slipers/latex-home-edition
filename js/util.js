@@ -1,6 +1,13 @@
 /* Utilitaires partagés — espace de noms global L */
 window.L = window.L || {};
 
+/* Où tourne l'éditeur : application de bureau (lheDesktop), serveur local de
+   développement (node server.js), fichier index.html ouvert tel quel, ou version web
+   hébergée sur GitHub Pages (L.WEB : https://slipers.github.io/latex-home-edition/) */
+L.SITE = 'https://slipers.github.io/latex-home-edition/';
+L.APP_URL = 'https://github.com/Slipers/latex-home-edition/releases/latest';
+L.WEB = !window.lheDesktop && /^https?:$/.test(location.protocol) && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
 L.uid = (p = 'b') => p + Math.random().toString(36).slice(2, 9);
 
 L.$ = (sel, root = document) => root.querySelector(sel);

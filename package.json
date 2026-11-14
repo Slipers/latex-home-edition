@@ -14,6 +14,7 @@
   "scripts": {
     "start": "electron .",
     "web": "node server.js",
+    "build:web": "node scripts/build-web.mjs",
     "dist": "electron-builder --win --publish never",
     "release": "node scripts/release.js",
     "version": "node scripts/sync-version.js && git add js/version.js",

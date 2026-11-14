@@ -431,7 +431,8 @@
     const link = C().docLink(s.id);
     const text = 'Bonjour,\n\n' + C().pseudo() + ' vous invite à ' + ({ editor: 'modifier', commenter: 'commenter', viewer: 'lire' }[role]) + ' le document « ' + title + ' » dans LaTeX Home Edition, en direct.\n\n'
       + 'Ouvrir le document : ' + link + '\n\n'
-      + 'Il faut un compte LaTeX Home Edition créé avec cette adresse e-mail (' + mail + '). Pas encore l\'application ? Elle est gratuite (Windows et Mac) : https://github.com/Slipers/latex-home-edition/releases/latest\n';
+      + 'Il faut un compte LaTeX Home Edition créé avec cette adresse e-mail (' + mail + '). Pas encore l\'application ? Elle est gratuite (Windows et Mac) : ' + L.APP_URL + '\n'
+      + 'Ou dans le navigateur, sans rien installer : ' + L.SITE + '\n';
     box.hidden = false;
     box.replaceChildren(
       L.h('span', { text: '✓ ' + mail + ' a accès au document. L\'envoi automatique d\'e-mails n\'est pas configuré : prévenez cette personne vous-même.' }),

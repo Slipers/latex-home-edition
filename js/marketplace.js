@@ -163,7 +163,8 @@
         inst ? L.h('span', { class: 'mk-installed' }, ico('check'), 'Installé') : null,
         inst ? L.h('button', { class: 'mk-btn danger-o', onclick: () => uninstallFlow(d) }, ico('trash'), 'Désinstaller')
           : L.h('button', { class: 'mk-btn primary lg', disabled: !can, onclick: () => installFlow(d) }, 'Installer'),
-        L.h('small', { text: !can ? d.unavailableText || '' : inst || M().account() ? 'Gratuit · ' + (d.size || '') : 'Gratuit · compte nécessaire' })));
+        L.h('small', { text: !can ? d.unavailableText || '' : inst || M().account() ? 'Gratuit · ' + (d.size || '') : 'Gratuit · compte nécessaire' }),
+        !can && L.WEB ? L.h('a', { class: 'mk-link', href: L.APP_URL, target: '_blank', rel: 'noopener', text: 'Télécharger l\'application de bureau' }) : null));
     const installs = (M().ratings.stats[id] || {}).installs || 0;
     const main = L.h('div', { class: 'mk-d-main' },
       L.h('section', { class: 'mk-sec' }, L.h('h3', { text: 'Présentation' }), L.h('div', { class: 'mk-prose', html: d.description || '' })),

@@ -625,7 +625,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSoon);
   App.fitToolbar();
   // Compte (Live Modification) : la session enregistrée est rechargée en arrière-plan
-  if (L.Cloud && L.Cloud.available()) { L.Cloud.onChange(() => L.CollabUI.paintAccount()); L.Cloud.init(); }
+  if (L.Cloud && L.Cloud.available()) { L.Cloud.onChange(() => L.CollabUI.paintAccount()); App.cloudReady = L.Cloud.init(); }
   L.CollabUI.paintAccount();
   // Dernier niveau de zoom de l'éditeur utilisé
   try { const z0 = parseFloat(localStorage.getItem('lhe-edit-zoom')); if (z0 >= 0.5 && z0 <= 2 && z0 !== 1) App.setEditZoom(z0, null, true); } catch (e) {}
@@ -681,6 +681,17 @@ window.addEventListener('DOMContentLoaded', () => {
     L.$('#modal').hidden = true;
     App.openAnyLink(url);
   });
+  // Lien ouvert depuis la page web d'un lien de partage (…/?s=<id>) ou d'une invitation
+  // à un document en direct (…/?d=<uuid>), une fois la session du compte rechargée ;
+  // l'adresse est nettoyée pour qu'un rechargement ne rouvre pas le lien
+  const sid = q.get('s'), did = q.get('d');
+  if (sid || did) {
+    history.replaceState(null, '', location.pathname);
+    Promise.resolve(App.cloudReady).then(() => {
+      L.$('#modal').hidden = true;
+      App.openAnyLink(sid ? 'lhe://s/' + sid : 'lhe://d/' + did);
+    });
+  }
 });
 
 /* Lien reçu (collé, cliqué) : document en Live Modification, ou lien de partage d'une copie */

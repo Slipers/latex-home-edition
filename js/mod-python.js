@@ -21,7 +21,8 @@
     if (!r.ok) throw new Error(r.status === 404 ? 'serveur local trop ancien : relancez « node server.js »' : 'erreur ' + r.status + ' du serveur local');
     return r.json();
   }
-  const bridge = window.lheDesktop && lheDesktop.py
+  // Version web hébergée (L.WEB) : module désactivé
+  const bridge = L.WEB ? null : window.lheDesktop && lheDesktop.py
     ? { kind: 'desktop', check: f => lheDesktop.py.check(!!f), run: o => lheDesktop.py.run(o), stop: id => lheDesktop.py.stop(id), install: () => lheDesktop.py.install() }
     : isLocal
       ? { kind: 'local', check: f => post('check', { force: !!f }), run: o => post('run', o), stop: id => post('stop', { id }), install: () => post('install') }
@@ -557,7 +558,7 @@
     updated: '14 novembre 2026',
     privacy: 'Le code s\'exécute uniquement sur votre ordinateur. Rien n\'est envoyé sur Internet.',
     available: () => !!bridge,
-    unavailableText: 'Disponible dans l\'application de bureau (un navigateur ne peut pas lancer Python).',
+    unavailableText: L.WEB ? 'Réservé à l\'application de bureau (Windows, Mac) : la version web ne peut pas lancer Python.' : 'Disponible dans l\'application de bureau (un navigateur ne peut pas lancer Python).',
     suggest: (kind, b) => kind === 'code' && b.lang === 'python',
     suggestTitle: 'Exécutez ce code Python',
     suggestText: 'Installez le module « Exécution Python » pour lancer ce code et voir son résultat sans quitter le document.',

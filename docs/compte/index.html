@@ -49,7 +49,7 @@
   const h = (html) => { view.innerHTML = html; };
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const params = new URLSearchParams(location.hash.replace(/^#/, '') || location.search.replace(/^\?/, ''));
-  const back = '<a class="btn" href="lhe://ouvrir">Ouvrir LaTeX Home Edition</a><a class="btn sec" href="' + APP + '">Télécharger l\'application</a>';
+  const back = '<a class="btn" href="lhe://ouvrir">Ouvrir LaTeX Home Edition</a><a class="btn sec" href="../">Ouvrir la version web</a><a class="btn sec" href="' + APP + '">Télécharger l\'application</a>';
   let sb = null;
   try { sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: false, detectSessionInUrl: true, flowType: 'implicit' } }); } catch (e) { /* hors ligne */ }
 
@@ -70,7 +70,7 @@
       + '<label for="pw2">Confirmer</label><input id="pw2" type="password" autocomplete="new-password">'
       + '<div id="e" class="err" hidden></div><button class="btn" id="go">Créer mon compte</button>'
       + '<p class="mut" style="margin-top:14px">Un e-mail de confirmation vous sera envoyé : le compte n\'est actif qu\'après un clic sur son lien. Seuls votre adresse et votre pseudo sont conservés.</p>'
-      + '<p class="mut">Déjà un compte ? Connectez-vous dans l\'application. <a href="' + APP + '">Télécharger l\'application</a></p>');
+      + '<p class="mut">Déjà un compte ? Connectez-vous dans l\'application ou dans la <a href="../">version web</a>. <a href="' + APP + '">Télécharger l\'application</a></p>');
     const $ = id => document.getElementById(id), err = $('e');
     $('go').onclick = async () => {
       err.hidden = true;
