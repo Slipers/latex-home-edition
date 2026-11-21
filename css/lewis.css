@@ -1,0 +1,54 @@
+/* Schémas de Lewis : le bloc dans la feuille et la fenêtre de construction (js/lewis-ui.js).
+   La fenêtre reprend la mise en page des schémas-blocs et de TikZ visuel
+   (css/schemabloc.css : .sbe-*, css/tikzdraw.css : .tde-*) */
+
+/* ---------- Dans le document ---------- */
+.paper .tikz.is-lw .tikz-fig { position: relative; cursor: pointer; border-radius: 4px; }
+.paper .tikz.is-lw .tikz-fig:hover { background: #f3f6fb; }
+.paper .tikz.is-lw .tikz-fig:hover .sb-hint, .paper .blk.sel .tikz.is-lw .sb-hint { opacity: 1; }
+
+/* ---------- Fenêtre ---------- */
+/* Survol : l'atome ou la liaison que l'outil va toucher */
+.lwe-over .lwe-hit:hover { stroke: rgba(63, 107, 176, .16); }
+.lwe-over .lwe-hit.fill:hover { fill: rgba(63, 107, 176, .12); stroke: rgba(63, 107, 176, .35); stroke-width: 1.2; }
+.lwe-over[data-tool="erase"] .lwe-hit:hover { stroke: rgba(192, 57, 43, .28); }
+.lwe-over[data-tool="erase"] .lwe-hit.fill:hover { fill: rgba(192, 57, 43, .12); stroke: rgba(192, 57, 43, .5); stroke-width: 1.2; }
+.lwe-over.creating .lwe-hit { cursor: pointer; }
+.lwe-over .lwe-grp { fill: #fff; stroke: #3f6bb0; stroke-width: 1.4; cursor: grab; pointer-events: all; opacity: .9; }
+.lwe-over .lwe-grp:hover { fill: #3f6bb0; }
+.lwe-over .lwe-grp.chg { fill: rgba(255, 255, 255, .25); stroke-dasharray: 2.5 2; }
+.lwe-over .lwe-grp.chg:hover { fill: rgba(63, 107, 176, .25); }
+.lwe-over .lwe-ghost { fill: rgba(63, 107, 176, .08); stroke: #3f6bb0; stroke-width: 1.4; stroke-dasharray: 3 3; pointer-events: none; }
+
+/* Palette : outils, éléments, liaisons */
+.lwe-pal { width: 156px; }
+.lwe-three { grid-template-columns: 1fr 1fr 1fr; }
+.lwe-three .tde-tool { font-size: 10.5px; }
+.lwe-els { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 6px; }
+.lwe-el { height: 28px; padding: 0; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); color: var(--txt); font: 14px "CMU Serif", Georgia, serif; }
+.lwe-el:hover { border-color: var(--acc2); color: var(--acc); background: var(--acc-bg); }
+.lwe-el.on { border-color: var(--acc2); color: var(--acc); background: var(--acc-bg); box-shadow: inset 0 0 0 1px var(--acc2); font-weight: 700; }
+.lwe-elother { grid-column: 1 / -1; min-width: 0; font: 13px "CMU Serif", Georgia, serif; padding: 4px 7px; border: 1px solid var(--line2); border-radius: 7px; background: var(--panel); color: var(--txt); }
+.lwe-elother:focus, .lwe-elin:focus, .lwe-text:focus { border-color: var(--acc2); outline: 3px solid var(--acc-bg); }
+
+/* Panneau de droite */
+.lwe-elf { display: flex; flex-direction: column; gap: 6px; }
+.lwe-elin { width: 100%; font: 16px "CMU Serif", Georgia, serif; padding: 5px 9px; border: 1.5px solid var(--line2); border-radius: 8px; background: var(--panel); color: var(--txt); }
+.lwe-chips { display: flex; flex-wrap: wrap; gap: 3px; }
+.lwe-chips button { min-width: 30px; height: 26px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); color: var(--txt); font: 14px "CMU Serif", Georgia, serif; }
+.lwe-chips button:hover { border-color: var(--acc2); background: var(--acc-bg); }
+.lwe-chips button.on { background: var(--acc-bg); color: var(--acc); border-color: var(--acc-line); font-weight: 700; }
+.lwe-step { display: flex; align-items: center; gap: 6px; }
+.lwe-step-l { flex: 1; font-size: 12.5px; color: var(--txt2); }
+.lwe-step .btn { width: 28px; height: 26px; padding: 0; text-align: center; }
+.lwe-step-v { min-width: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.lwe-rot { display: flex; gap: 5px; flex-wrap: wrap; }
+.lwe-rot .btn { flex: 1; padding-left: 6px; padding-right: 6px; text-align: center; }
+.lwe-notes { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.5; color: var(--txt2); }
+.lwe-notes li { margin-bottom: 3px; }
+.lwe-notes li.ok { color: #2e7d4f; }
+.lwe-notes li.warn { color: #b23a2a; }
+.lwe-text { width: 100%; font: 14px "CMU Serif", Georgia, serif; padding: 6px 9px; border: 1.5px solid var(--line2); border-radius: 8px; background: var(--panel); color: var(--txt); }
+.lwe-tpl-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+.lwe-tpl-grid .sbe-tpl-pv.paper { height: 96px; }
+.lwe-tpl-grid .sbe-tpl-pv svg { max-height: 86px; }

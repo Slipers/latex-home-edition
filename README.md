@@ -27,7 +27,7 @@ Tout fonctionne hors ligne : les bibliothèques et les polices sont incluses dan
 L'éditeur s'utilise aussi directement dans le navigateur : **https://slipers.github.io/latex-home-edition/** (Chrome, Edge, Firefox, Safari).
 
 - Le document en cours est sauvegardé automatiquement dans le navigateur ; **Enregistrer** télécharge le fichier `.lhe`, que l'application de bureau ouvre aussi.
-- Compte, Live Modification, fichiers en ligne, liens de partage et modules **TikZ visuel** et **Schémas-blocs** fonctionnent comme dans l'application.
+- Compte, Live Modification, fichiers en ligne, liens de partage et modules **TikZ visuel**, **Schémas-blocs** et **Schémas de Lewis** fonctionnent comme dans l'application.
 - Le module **Exécution Python** est réservé à l'application de bureau : un navigateur ne peut pas lancer Python sur l'ordinateur.
 - Les pages des liens de partage et des invitations proposent « Ouvrir dans le navigateur » (`…/?s=<lien>`, `…/?d=<document>`).
 
@@ -57,6 +57,7 @@ Sans connexion, depuis ce dossier : ouvrez **`index.html`** ou double-cliquez su
 | Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
 | Schéma-bloc (sciences de l'ingénieur) | Module complémentaire « Schémas-blocs » : colonne « Insérer » → Schéma-bloc (blocs, comparateurs, flèches tirées à la souris, formules — exporté en TikZ) |
 | Tableau d'avancement (chimie) | Colonne « Insérer » — construit depuis l'équation, calcule x_max |
+| Schéma de Lewis (chimie) | Module complémentaire « Schémas de Lewis » : colonne « Insérer » → Schéma de Lewis (doublets, lacunes et charges formelles calculés, octet vérifié — exporté en TikZ) |
 | Fusionner des cases de tableau | Panneau de droite du tableau |
 | Tableaux / images côte à côte | Colonne « Insérer » → Objets |
 | Image ou capture dans une case de tableau | Coller (Ctrl+V) dans la case, ou panneau de droite |
@@ -113,9 +114,23 @@ Module complémentaire **TikZ visuel** (page Modules). Une fois installé, **Ins
 
 Le dessin est un bloc TikZ ordinaire : même rendu dans l'éditeur et le PDF, code TikZ standard dans l'export LaTeX (aucun paquet supplémentaire). Un clic sur le dessin le rouvre ; le panneau de droite permet de le convertir en code TikZ pour le retoucher à la main.
 
+## Schémas de Lewis (chimie)
+
+Module complémentaire **Schémas de Lewis** (page Modules). Une fois installé, **Insérer → Schéma de Lewis** (ou `/lewis`) ouvre un éditeur à la souris pour les molécules et les ions :
+
+- **Atomes et liaisons** : choisissez un élément (H, C, N, O, halogènes, S, P, B, métaux… ou un autre symbole, voire un groupe comme `CH3`) et cliquez sur la feuille ; avec **Simple**, **Double** ou **Triple**, tirez d'un atome vers un autre, ou dans le vide pour créer l'atome suivant (angles de 15 en 15°, **Alt** pour un angle libre). Un clic sur un atome lui ajoute une liaison dans une direction libre ; un double-clic sur une liaison change son ordre.
+- **Électrons calculés** : doublets non liants, électrons célibataires et lacunes se déduisent des électrons de valence, des liaisons et de la charge formelle (**Charge +** / **Charge −**), puis se placent dans les espaces libres autour de l'atome. Un atome peut passer en réglage manuel ; doublets et charge se tournent en tirant leurs petits ronds.
+- **Vérification** : électrons de valence comparés au schéma, duet et octet, charge formelle incohérente, hypervalence (à partir de la 3e période), nombre impair d'électrons.
+- **Mésomérie** : flèche de réaction, flèche ↔ entre deux formes, flèches courbes de mouvement des doublets qui s'accrochent aux atomes, aux liaisons et aux doublets ; textes et formules.
+- **Présentation** : doublets en traits ou en points, charges entourées ⊕ ⊖ ou simples, couleurs, longueur des liaisons.
+- **Molécules prêtes** : eau, ammoniac, méthane, CO₂, diazote, dioxygène, HCl, HCN, méthanal, éthène, ions oxonium, ammonium, hydroxyde, nitrate, sulfate, BF₃, CO, NO, formes mésomères de l'ozone.
+- Annuler / rétablir, dupliquer, copier-coller, zoom ; la barre du bas prévient si le schéma dépasse la largeur de la page.
+
+Dans le document, un clic sur le schéma rouvre l'éditeur. L'export LaTeX produit du code TikZ ordinaire (aucun paquet de chimie nécessaire) ; le panneau de droite permet de le convertir en dessin TikZ pour le retoucher à la main. Sans le module, les schémas déjà présents restent affichés et exportés.
+
 ## Modules complémentaires
 
-Le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre la page des modules : des fonctions en plus, à installer quand on veut et à désinstaller quand on veut. Trois modules sont disponibles : **Exécution Python**, **TikZ visuel** et **Schémas-blocs**. Chaque module a sa fiche (présentation, fonctionnalités, prérequis, confidentialité, nombre d'installations) et une **note sur 5 étoiles**. Désinstaller un module ne touche pas aux documents.
+Le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre la page des modules : des fonctions en plus, à installer quand on veut et à désinstaller quand on veut. Quatre modules sont disponibles : **Exécution Python**, **TikZ visuel**, **Schémas-blocs** et **Schémas de Lewis**. Chaque module a sa fiche (présentation, fonctionnalités, prérequis, confidentialité, nombre d'installations) et une **note sur 5 étoiles**. Désinstaller un module ne touche pas aux documents.
 
 - **Compte nécessaire** : les modules s'installent avec un compte LaTeX Home Edition (gratuit) et sont rangés avec lui ; déconnecté, ou avec un autre compte, ils sont en pause.
 - **Noter un module** : il faut l'avoir installé et s'en être servi au moins 3 fois (3 exécutions de code, 3 dessins ou 3 schémas créés ou modifiés) ; la fiche montre où l'on en est. Une note par compte, modifiable ou retirée. Cette règle est aussi vérifiée par le serveur.
@@ -238,11 +253,14 @@ js/schemabloc.js    schémas-blocs : modèle, tracé automatique des flèches, c
 js/schemabloc-ui.js schémas-blocs : éditeur à la souris (css/schemabloc.css)
 js/tikzdraw.js      TikZ visuel : modèle d'un dessin, formules des courbes, code TikZ, modèles prêts
 js/tikzdraw-ui.js   TikZ visuel : éditeur à la souris (css/tikzdraw.css)
+js/lewis.js         schémas de Lewis : modèle, calcul des doublets et des charges, code TikZ, molécules prêtes
+js/lewis-ui.js      schémas de Lewis : éditeur à la souris (css/lewis.css)
 js/modules.js       modules complémentaires : registre, installation, notes ★
 js/marketplace.js   page Modules : liste, fiches, avis, fenêtre d'installation (css/marketplace.css)
 js/mod-python.js    module « Exécution Python » : boutons ▶, console, figures
 js/mod-tikzdraw.js  module « TikZ visuel » : fiche, menu Insérer → Dessin à la souris
 js/mod-schemabloc.js module « Schémas-blocs » : fiche, menu Insérer → Schéma-bloc
+js/mod-lewis.js     module « Schémas de Lewis » : fiche, menu Insérer → Schéma de Lewis
 js/import.js        conversion de code LaTeX collé en éléments modifiables
 js/pdfimport.js     import de PDF : analyse de la mise en page, formules, tableaux, images
 js/share.js         partage par lien (court via Supabase, ou long hors ligne) et nettoyage des documents reçus

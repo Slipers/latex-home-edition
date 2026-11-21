@@ -42,6 +42,7 @@ L.ITEMS = [
   { g: 'Figures et tableaux', fam: 'obj', key: 'figure', label: 'Image / figure', icon: '🖼', kw: 'image figure graphique photo schema', make: () => L.newBlock('figure') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tikzdraw', mod: 'tikzdraw', label: 'Dessin à la souris', icon: '✎△', kw: 'dessin souris tikz visuel geometrie figure repere courbe fonction graphe triangle cercle angle vecteur force physique optique tracer', action: o => L.dlgTikzDraw(null, b => App.insertBlock(b, o)) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'schemabloc', mod: 'schemabloc', label: 'Schéma-bloc', icon: '▭→', kw: 'schema bloc blocs asservissement si sii sciences ingenieur boucle fermee comparateur sommateur fonction transfert chaine energie information diagramme fonctionnel', action: o => L.dlgSchemaBloc(null, b => App.insertBlock(b, o)) },
+  { g: 'Figures et tableaux', fam: 'obj', key: 'lewis', mod: 'lewis', label: 'Schéma de Lewis', icon: 'Ö', kw: 'lewis schema chimie molecule ion atome liaison doublet non liant electron celibataire radical lacune charge formelle octet mesomerie fleche courbe', action: o => L.dlgLewis(null, b => App.insertBlock(b, o)) },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tikz', label: 'Dessin TikZ', icon: 'TikZ', kw: 'tikz dessin schema figure geometrie tracer courbe repere cercle triangle graphe', make: () => L.newBlock('tikz') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'tables2', label: 'Tableaux côte à côte', icon: '▦▦', kw: 'tableaux cote a cote deux colonnes grille autoevaluation', make: () => L.newCols('table') },
   { g: 'Figures et tableaux', fam: 'obj', key: 'figures2', label: '2 images côte à côte', icon: '🖼🖼', kw: 'images figures cote a cote deux photos', make: () => L.newCols('figure') },
@@ -1269,7 +1270,7 @@ Object.assign(App, {
       return;
     }
     const b = f.block;
-    const [ic, name] = (b.type === 'tikz' && b.sb) ? ['▭→', 'Schéma-bloc'] : (b.type === 'tikz' && b.td) ? ['✎△', 'Dessin à la souris'] : (TYPE_INFO[b.type] || ['?', b.type]);
+    const [ic, name] = (b.type === 'tikz' && b.sb) ? ['▭→', 'Schéma-bloc'] : (b.type === 'tikz' && b.td) ? ['✎△', 'Dessin à la souris'] : (b.type === 'tikz' && b.lw) ? ['Ö', 'Schéma de Lewis'] : (TYPE_INFO[b.type] || ['?', b.type]);
     const fam = b.type === 'box' ? (['exercice', 'question', 'correction', 'solution'].includes(b.kind) ? 'exo' : 'box') : (TYPE_FAM[b.type] || 'txt');
     const boxIc = b.type === 'box' ? ((L.ITEMS.find(it => it.key === b.kind) || {}).icon || '▢') : ic;
     const sub = f.parent ? (f.parent.type === 'col' ? 'Dans une colonne' : 'Dans l\'encadré « ' + L.kindName(f.parent.kind, doc.meta.lang) + ' »') : null;
@@ -1434,17 +1435,17 @@ Object.assign(App, {
       };
       // Schéma-bloc / dessin à la souris : construits avec un module complémentaire, modifiables
       // à la souris tant que le module est installé (sinon : le dessin reste, une carte propose le module)
-      const mod = b.sb ? 'schemabloc' : b.td ? 'tikzdraw' : null;
+      const mod = b.sb ? 'schemabloc' : b.td ? 'tikzdraw' : b.lw ? 'lewis' : null;
       if (mod) {
-        const on = !!(L.Modules && L.Modules.installed(mod)), what = b.sb ? 'schéma' : 'dessin';
+        const on = !!(L.Modules && L.Modules.installed(mod)), what = b.td ? 'dessin' : 'schéma';
         P.append(...[
-          on ? sec(null, btn(b.sb ? '✎  Modifier le schéma-bloc' : '✎  Modifier le dessin', () => this.editDrawing(b), 'primary wide'))
+          on ? sec(null, btn(b.sb ? '✎  Modifier le schéma-bloc' : b.lw ? '✎  Modifier le schéma de Lewis' : '✎  Modifier le dessin', () => this.editDrawing(b), 'primary wide'))
             : L.Modules ? L.Modules.card(mod, { sec }, null, 'Ce ' + what + ' a été construit avec ce module. Installez-le (gratuit) pour le modifier à la souris ; sans lui, il reste affiché et exporté tel quel.') : null,
           b.sb ? sec('Écartement des éléments', L.h('div', { class: 'rng' }, rng, lab), help('Resserre ou écarte les éléments du schéma (les blocs et les textes gardent leur taille).'), this.keepHereChk(b, chk, upd, 'schéma'))
-            : sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
+            : sec(b.lw ? 'Taille du schéma' : 'Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, what)),
           capSec('figure'),
           more('sbcode', 'Code TikZ', help('Le ' + what + ' est exporté en LaTeX sous forme de code TikZ. Pour le retoucher à la main, convertissez-le en dessin TikZ : il ne sera alors plus modifiable à la souris.'),
-            btn('Convertir en dessin TikZ', () => { if (confirm('Convertir ce ' + what + ' en dessin TikZ ? Il se modifiera ensuite par son code, plus à la souris. (Ctrl+Z pour revenir en arrière)')) upd(() => { delete b.sb; delete b.td; }); }, 'wide'))].filter(Boolean));
+            btn('Convertir en dessin TikZ', () => { if (confirm('Convertir ce ' + what + ' en dessin TikZ ? Il se modifiera ensuite par son code, plus à la souris. (Ctrl+Z pour revenir en arrière)')) upd(() => { delete b.sb; delete b.td; delete b.lw; }); }, 'wide'))].filter(Boolean));
       } else P.append(...[
         sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
         sec('Exemples', ex),
@@ -1505,11 +1506,11 @@ Object.assign(App, {
     }
   },
   renderSoon: L.debounce(() => App.render(), 250),
-  /* Schéma-bloc ou dessin à la souris : l'éditeur de son module, ou la fiche du module s'il n'est pas installé */
+  /* Schéma-bloc, dessin à la souris, schéma de Lewis : l'éditeur de son module, ou la fiche du module s'il n'est pas installé */
   editDrawing(b) {
-    const id = b.sb ? 'schemabloc' : 'tikzdraw';
+    const id = b.sb ? 'schemabloc' : b.lw ? 'lewis' : 'tikzdraw';
     if (!L.Modules || !L.Modules.installed(id)) { if (L.Market) L.Market.show(id); return; }
-    if (b.sb) L.dlgSchemaBloc(b); else L.dlgTikzDraw(b);
+    if (b.sb) L.dlgSchemaBloc(b); else if (b.lw) L.dlgLewis(b); else L.dlgTikzDraw(b);
   },
 });
 
@@ -1912,8 +1913,8 @@ App.bindEditor = function () {
       L.InsertMenu.show(r.right + 6, r.top, '', it => this.runItem(it, blk.dataset.id));
       return;
     }
-    // Schéma-bloc ou dessin à la souris : un clic ouvre l'éditeur de son module (s'il est installé)
-    const sbf = t.closest('.tikz.is-sb:not(.mod-off) .tikz-fig, .tikz.is-td:not(.mod-off) .tikz-fig');
+    // Schéma-bloc, dessin à la souris, schéma de Lewis : un clic ouvre l'éditeur de son module (s'il est installé)
+    const sbf = t.closest('.tikz.is-sb:not(.mod-off) .tikz-fig, .tikz.is-td:not(.mod-off) .tikz-fig, .tikz.is-lw:not(.mod-off) .tikz-fig');
     if (sbf && paper.contains(sbf) && !document.body.classList.contains('ro')) { const f = L.find(this.doc, sbf.closest('.blk').dataset.id); if (f) this.editDrawing(f.block); return; }
     const tv = t.closest('.tvwrap');
     if (tv) { const f = L.find(this.doc, tv.closest('.blk').dataset.id); if (f) L.dlgTabvar(f.block); return; }
