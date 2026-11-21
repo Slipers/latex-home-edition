@@ -151,6 +151,8 @@ L.renderTitle = function (ctx) {
 };
 
 L.renderToc = function (ctx, pages) {
+  // Dans l'éditeur : numéros de la dernière mise en page (comme dans le PDF)
+  const pg = pages || (ctx.mode === 'edit' && window.App && App.pageInfo && App.pageInfo.pageOf) || null;
   const box = L.h('div', { class: 'doc-toc' + (ctx.meta.tocPages === false ? ' no-pages' : ''), 'data-role': 'toc' },
     L.h('div', { class: 'toc-h', text: L.NAMES[ctx.lang].toc }));
   if (!ctx.toc.length) box.appendChild(L.h('div', { class: 'toc-empty', text: 'Ajoutez des sections : elles apparaîtront ici automatiquement.' }));
@@ -159,7 +161,7 @@ L.renderToc = function (ctx, pages) {
       e.num ? L.h('span', { class: 'toc-num', text: e.num }) : null,
       L.hydrate(L.h('span', { class: 'toc-text', html: e.html || '<i>(sans titre)</i>' }), { ...ctx, mode: 'view', fn: 0 }),
       L.h('span', { class: 'toc-dots' }),
-      L.h('span', { class: 'toc-page', text: pages && pages[e.id] ? pages[e.id] : '' }));
+      L.h('span', { class: 'toc-page', text: pg && pg[e.id] ? pg[e.id] : '' }));
     row.querySelectorAll('.fn').forEach(x => x.remove());
     box.appendChild(row);
   });
@@ -375,7 +377,7 @@ L.R = {
       new MutationObserver(() => {
         clearTimeout(t);
         t = setTimeout(() => {
-          const code = (pre.isConnected ? pre.innerText : pre.textContent).replace(/\n$/, '');
+          const code = L.codeText(pre).replace(/\n$/, '');
           show(draw(code));
           el.classList.toggle('empty', !code.trim());
         }, 160);

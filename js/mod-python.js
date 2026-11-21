@@ -21,11 +21,15 @@
     if (!r.ok) throw new Error(r.status === 404 ? 'serveur local trop ancien : relancez « node server.js »' : 'erreur ' + r.status + ' du serveur local');
     return r.json();
   }
-  // Version web hébergée (L.WEB) : module désactivé
-  const bridge = L.WEB ? null : window.lheDesktop && lheDesktop.py
-    ? { kind: 'desktop', check: f => lheDesktop.py.check(!!f), run: o => lheDesktop.py.run(o), stop: id => lheDesktop.py.stop(id), install: () => lheDesktop.py.install() }
+  // Version web hébergée (L.WEB) : module désactivé. poll / send / eof : sortie en direct
+  // et saisies tapées dans la console pendant l'exécution.
+  const D = window.lheDesktop && lheDesktop.py;
+  const bridge = L.WEB ? null : D
+    ? { kind: 'desktop', check: f => D.check(!!f), run: o => D.run(o), stop: id => D.stop(id), install: () => D.install(),
+      poll: D.poll && ((id, from) => D.poll(id, from)), send: D.send && ((id, text) => D.send(id, text)), eof: D.eof && (id => D.eof(id)) }
     : isLocal
-      ? { kind: 'local', check: f => post('check', { force: !!f }), run: o => post('run', o), stop: id => post('stop', { id }), install: () => post('install') }
+      ? { kind: 'local', check: f => post('check', { force: !!f }), run: o => post('run', o), stop: id => post('stop', { id }), install: () => post('install'),
+        poll: (id, from) => post('poll', { id, from }), send: (id, text) => post('send', { id, text }), eof: id => post('eof', { id }) }
       : null;
 
   /* ---------- Python de l'ordinateur ---------- */
@@ -57,6 +61,7 @@
     redo: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     warn: '<path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4.5M12 17.5h.01"/>',
+    eof: '<path d="M4 12h11M11 7.5l4.5 4.5-4.5 4.5M19.5 6v12"/>',
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.8h.01"/>',
   };
   function ic(name, size) {
@@ -73,14 +78,17 @@
   const results = new Map();   // id du bloc → { res, code, at }
   const inputs = new Map();    // id du bloc → entrées (input())
   const okDocs = new WeakSet(); // documents dont l'exécution a été acceptée
-  let run = null;              // exécution en cours { id, blockId, t0, code }
+  let run = null;              // exécution en cours { id, blockId, t0, code, live, chunks, waiting… }
   let ticker = 0;
   let shown = null;            // bloc affiché dans la console
   let showInputs = false;
+  let keepScroll = null;       // fin d'une exécution en direct : la console garde sa position
+  const hist = [];             // lignes déjà tapées dans la console (flèches haut / bas)
+  const lineCount = s => (s ? (String(s).replace(/\r\n?/g, '\n').replace(/\n?$/, '\n').match(/\n/g) || []).length : 0);
 
   const blockOf = id => { const f = window.App && App.doc && L.find(App.doc, id); return f && f.block.type === 'code' ? f.block : null; };
   const preOf = id => L.$('#paper .blk[data-id="' + id + '"] pre.code-edit');
-  const codeOf = id => { const pre = preOf(id); if (pre) return pre.innerText.replace(/\n$/, ''); const b = blockOf(id); return b ? b.code || '' : ''; };
+  const codeOf = id => { const pre = preOf(id); if (pre) return L.codeText(pre).replace(/\n$/, ''); const b = blockOf(id); return b ? b.code || '' : ''; };
   const firstLine = code => { const l = String(code || '').split('\n').find(s => s.trim()) || ''; return l.trim().length > 46 ? l.trim().slice(0, 45) + '…' : l.trim(); };
 
   /* Première exécution dans un document : on prévient (un document reçu peut contenir du code dangereux) */
@@ -122,32 +130,81 @@
     if (!(await confirmDoc())) return;
     const pre = preOf(id);
     if (pre && App.syncField) { App.syncField(pre); App.commit(); }
-    run = { id: L.uid('r'), blockId: id, t0: Date.now(), code };
+    const stdin = inputs.get(id) || '';
+    // live : sortie affichée au fur et à mesure, saisies tapées dans la console
+    const r = run = { id: L.uid('r'), blockId: id, t0: Date.now(), code, live: !!(bridge.poll && bridge.send),
+      chunks: [], n: 0, waiting: false, open: true, ms: 0, msAt: Date.now(), pend: [], pre: lineCount(stdin), seen: 0, draft: '' };
     openConsole();
     paintAll();
     clearInterval(ticker);
     ticker = setInterval(tick, 100);
     let res;
     try {
-      res = await bridge.run({ id: run.id, code, stdin: inputs.get(id) || '', timeout: TIMEOUT, docPath: App.filePath || null });
+      const job = bridge.run({ id: r.id, code, stdin, timeout: TIMEOUT, docPath: App.filePath || null, interactive: r.live });
+      if (r.live) pollLoop(r);
+      res = await job;
     } catch (e) { res = { ok: false, error: 'bridge', message: String((e && e.message) || e) }; }
+    r.done = true;
     clearInterval(ticker);
     if (res && res.error === 'nopython') py = { ok: false };
     else if (res && res.ok && res.version && (!py || !py.ok)) check(false);
     results.set(id, { res: res || { ok: false, error: 'bridge' }, code, at: Date.now() });
     if (res && res.ok) L.Modules.used(ID);       // le programme a tourné (même terminé par une erreur)
+    const v = r.view;
+    if (v && v.main.isConnected) {
+      keepScroll = { top: v.main.scrollTop, end: v.main.scrollHeight - v.main.scrollTop - v.main.clientHeight < 40 };
+    }
     run = null;
     paintAll();
+    keepScroll = null;
     if (App.sel === id) App.updateProps();
   }
   function stopRun() {
     if (!run) return;
     try { bridge.stop(run.id); } catch (e) { /* déjà terminé */ }
   }
+  // Temps d'exécution, sans l'attente des saisies
+  const elapsed = () => !run ? 0 : run.live ? run.ms + (run.waiting ? 0 : Date.now() - run.msAt) : Date.now() - run.t0;
   function tick() {
     if (!run) return;
-    const t = secs(Date.now() - run.t0);
+    const t = secs(elapsed());
     L.$$('.py-elapsed').forEach(x => { x.textContent = t; });
+  }
+
+  /* Pendant l'exécution : nouveaux morceaux de sortie, saisie attendue ou non */
+  async function pollLoop(r) {
+    while (!r.done) {
+      await new Promise(f => setTimeout(f, r.waiting ? 250 : 120));
+      if (r.done) return;
+      let q = null;
+      try { q = await bridge.poll(r.id, r.n); } catch (e) { /* nouvel essai au tour suivant */ }
+      if (r.done || !q || !q.running) continue;   // pas encore lancé, ou déjà terminé
+      const fresh = q.chunks || [];
+      const changed = r.waiting !== !!q.waiting || r.open !== (q.open !== false);
+      r.n = q.n; r.waiting = !!q.waiting; r.open = q.open !== false; r.ms = q.ms || 0; r.msAt = Date.now();
+      fresh.forEach(c => {
+        r.chunks.push(c);
+        if (c.s === 'in' && r.seen++ >= r.pre) r.pend.shift();   // ligne tapée, maintenant lue
+      });
+      if (fresh.length || changed) paintLive(r, fresh, changed);
+    }
+  }
+
+  /* Lignes tapées dans la console → input() du programme */
+  function sendLines(r, lines) {
+    if (!lines.length || r.done || !r.open) return;
+    r.pend.push(...lines);
+    lines.forEach(t => { if (t && hist[hist.length - 1] !== t) hist.push(t); });
+    if (hist.length > 100) hist.splice(0, hist.length - 100);
+    Promise.resolve(bridge.send(r.id, lines.join('\n'))).catch(() => { /* programme terminé */ });
+    r.waiting = false;   // jusqu'au prochain poll
+    paintLive(r, [], true);
+  }
+  function endInput(r) {
+    if (r.done || !r.open) return;
+    r.open = false; r.waiting = false;
+    Promise.resolve(bridge.eof(r.id)).catch(() => { /* programme terminé */ });
+    paintLive(r, [], true);
   }
 
   /* ---------- Bouton ▶ sur les blocs de code ---------- */
@@ -160,7 +217,15 @@
   }
   function chipFor(id) {
     const r = results.get(id);
-    if (run && run.blockId === id) return L.h('span', { class: 'py-chip run' }, L.h('i', { class: 'py-spin' }), L.h('span', { class: 'py-elapsed', text: secs(Date.now() - run.t0) }));
+    if (run && run.blockId === id) {
+      if (run.waiting) {
+        const c = L.h('button', { class: 'py-chip run wait', title: 'Le programme attend une saisie : tapez-la dans la console' }, ic('kbd', 13), 'Saisie');
+        c.onmousedown = e => e.preventDefault();
+        c.onclick = e => { e.stopPropagation(); shown = id; openConsole(); focusAsk(); };
+        return c;
+      }
+      return L.h('span', { class: 'py-chip run' }, L.h('i', { class: 'py-spin' }), L.h('span', { class: 'py-elapsed', text: secs(elapsed()) }));
+    }
     if (!r) return null;
     const a = analyse(r.res);
     const stale = r.code !== codeOf(id);
@@ -207,7 +272,7 @@
       const e = res && res.error;
       return { kind: 'err', short: 'Erreur', title: e === 'nopython' ? 'Python introuvable' : 'Exécution impossible', sys: e || 'bridge' };
     }
-    if (res.timedOut) return { kind: 'stop', short: 'Trop long', title: 'Arrêté au bout de ' + Math.round(res.timeout / 1000) + ' s' };
+    if (res.timedOut) return { kind: 'stop', short: 'Trop long', title: res.wall ? 'Arrêté : saisie attendue depuis 30 min' : 'Arrêté au bout de ' + Math.round(res.timeout / 1000) + ' s' };
     if (res.stopped) return { kind: 'stop', short: 'Arrêté', title: 'Arrêté' };
     const err = res.output.filter(o => o.s === 'err').map(o => o.t).join('');
     const lines = err.replace(/\r/g, '').trim().split('\n');
@@ -240,6 +305,7 @@
       grip.addEventListener('pointercancel', up, { once: true });
     };
     con.append(grip, L.h('div', { class: 'pyc-head' }), L.h('div', { class: 'pyc-body' }));
+    if (window.ResizeObserver) { let w = 0; new ResizeObserver(() => { if (con && con.offsetWidth !== w) { w = con.offsetWidth; fitHead(); } }).observe(con); }
     const center = L.$('#center');
     center.insertBefore(con, L.$('#statusBar', center));
   }
@@ -256,22 +322,71 @@
     b.onclick = fn;
     return b;
   };
+  const shownId = () => (shown && blockOf(shown) ? shown : null);
   function paintConsole() {
     if (!con || con.hidden) return;
-    const id = shown && blockOf(shown) ? shown : null;
+    const id = shownId();
+    const r = id ? results.get(id) : null;
+    const running = run && run.blockId === id;
+    const a = r ? analyse(r.res) : null;
+    if (run && run.view && run.view.ask && document.activeElement === run.view.ask) run.view.refocus = true;   // saisie recréée : elle garde le clavier
+    paintHead();
+
+    // Corps
+    const body = L.$('.pyc-body', con);
+    if (con.classList.contains('min')) { body.replaceChildren(); return; }
+    let main = L.h('div', { class: 'pyc-out' });
+    if (!bridge) main.append(notice('info', 'Disponible dans l\'application de bureau', 'Un navigateur ne peut pas lancer Python sur l\'ordinateur. Ouvrez ce document dans LaTeX Home Edition pour Windows, macOS ou Linux pour exécuter le code.'));
+    else if (!id) main.append(L.h('div', { class: 'pyc-empty' }, ic('play', 22), L.h('b', { text: 'Aucune exécution pour l\'instant' }),
+      L.h('span', { html: 'Cliquez sur <b>▶ Exécuter</b> en haut à droite d\'un bloc de code Python, ou appuyez sur <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> dans le code.' })));
+    else if (running && run.live) main = liveView(run);
+    else if (running && !r) main.append(L.h('div', { class: 'pyc-wait' }, L.h('i', { class: 'py-spin big' }), 'Exécution en cours…'));
+    else if (!r) main.append(L.h('div', { class: 'pyc-empty' }, ic('play', 22), L.h('b', { text: 'Ce code n\'a pas encore été exécuté' }), L.h('span', { html: 'Cliquez sur <b>Exécuter</b> ci-dessus.' })));
+    else paintResult(main, id, r, a);
+    if (running && !run.live && r) main.classList.add('dim');
+    const kids = [main];
+    if (id && showInputs) {
+      const ta = L.h('textarea', { class: 'pyc-in', spellcheck: 'false', placeholder: 'Une valeur par ligne :\n12\n3.5\nBonjour' });
+      ta.value = inputs.get(id) || '';
+      ta.oninput = () => inputs.set(id, ta.value);
+      ta.onkeydown = e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runBlock(id); }
+        else if ((e.ctrlKey || e.metaKey) && /^[zy]$/i.test(e.key)) e.stopPropagation();   // annulation dans la zone, pas dans le document
+      };
+      kids.push(L.h('div', { class: 'pyc-inputs' }, L.h('b', { text: 'Entrées à l\'avance' }),
+        L.h('small', { text: bridge && bridge.poll ? 'Lues d\'abord par input(), une par ligne. La suite se tape dans la console pendant l\'exécution.' : 'Lues dans l\'ordre par input(), une par ligne.' }), ta));
+    }
+    body.replaceChildren(...kids);
+    if (running && run.live) {
+      main.scrollTop = main.scrollHeight;
+      if (run.view && run.view.refocus) { run.view.refocus = false; focusAsk(); }
+    } else if (keepScroll && r) {
+      // Fin d'une exécution suivie en direct : on reste où l'on était (en bas, en général)
+      main.scrollTop = keepScroll.end ? main.scrollHeight : keepScroll.top;
+    }
+    // Erreur : on descend jusqu'à l'explication (comme un terminal) ; sinon, début de la sortie
+    else main.scrollTop = a && a.kind === 'err' ? main.scrollHeight : 0;
+  }
+
+  /* En-tête de la console : bloc affiché, état, boutons */
+  function paintHead() {
+    if (!con || con.hidden) return;
+    const id = shownId();
     const r = id ? results.get(id) : null;
     const running = run && run.blockId === id;
     const a = r ? analyse(r.res) : null;
     const ro = document.body.classList.contains('ro');
-
-    // En-tête
-    const status = running ? L.h('span', { class: 'pyc-st run' }, L.h('i', { class: 'py-spin' }), 'Exécution… ', L.h('span', { class: 'py-elapsed', text: secs(Date.now() - run.t0) }))
+    const status = running
+      ? run.waiting
+        ? L.h('span', { class: 'pyc-st wait', title: 'Tapez la valeur dans la console, puis Entrée' }, ic('kbd', 13), 'En attente d\'une saisie')
+        : L.h('span', { class: 'pyc-st run' }, L.h('i', { class: 'py-spin' }), 'Exécution… ', L.h('span', { class: 'py-elapsed', text: secs(elapsed()) }))
       : a ? L.h('span', { class: 'pyc-st ' + a.kind }, ic(a.kind === 'ok' ? 'check' : a.kind === 'err' ? 'x' : 'stop', 13), a.title) : null;
     const ctx = id ? L.h('button', { class: 'pyc-ctx', title: 'Afficher le bloc de code dans le document', text: firstLine(codeOf(id)) || 'Bloc de code' }) : null;
     if (ctx) ctx.onclick = () => { const el = App.blockEl(id); if (el) { App.select(id); el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } };
     const acts = [];
     if (id) {
-      acts.push(tbtn('kbd', 'Entrées', () => { showInputs = !showInputs; paintConsole(); }, showInputs ? 'on' : '', 'Valeurs lues par input(), une par ligne'));
+      acts.push(tbtn('kbd', 'Entrées', () => { showInputs = !showInputs; paintConsole(); }, 'inp' + (showInputs ? ' on' : ''), 'Entrées à l\'avance : valeurs lues par input(), une par ligne'));
+      if (running && run.live && run.open) acts.push(tbtn('eof', 'Fin des saisies', () => endInput(run), 'eof', 'Fin des saisies (Ctrl+D) : sys.stdin.read() se termine, input() lève EOFError'));
       if (running) acts.push(tbtn('stop', 'Arrêter', stopRun, 'danger'));
       else acts.push(tbtn('play', r ? 'Relancer' : 'Exécuter', () => runBlock(id), 'primary', 'Exécuter ce code (Ctrl+Entrée)'));
       if (r && r.res.ok && r.res.output.length) {
@@ -283,35 +398,118 @@
     const minimized = con.classList.contains('min');
     acts.push(tbtn(minimized ? 'up' : 'down', '', () => { con.classList.toggle('min'); L.store.set('lhe-pyc-min', con.classList.contains('min') ? '1' : '0'); paintConsole(); if (App.layoutSheets) App.layoutSheets(); }, '', minimized ? 'Agrandir la console' : 'Réduire la console'));
     acts.push(tbtn('x', '', closeConsole, '', 'Fermer la console'));
-    L.$('.pyc-head', con).replaceChildren(...[
-      L.h('span', { class: 'pyc-title' }, L.h('span', { class: 'pyc-logo' }, ic('term', 15)), 'Console Python'),
+    const head = L.$('.pyc-head', con);
+    head.replaceChildren(...[
+      L.h('span', { class: 'pyc-title' }, L.h('span', { class: 'pyc-logo' }, ic('term', 15)), L.h('span', { class: 'pyc-title-t', text: 'Console Python' })),
       ctx, status,
       r && !running && r.code !== codeOf(id) ? L.h('span', { class: 'pyc-stale', text: 'code modifié depuis', title: 'Le code a changé depuis cette exécution : relancez pour mettre à jour le résultat' }) : null,
       L.h('span', { class: 'pyc-flex' }), ...acts].filter(Boolean));
-
-    // Corps
-    const body = L.$('.pyc-body', con);
-    if (minimized) { body.replaceChildren(); return; }
-    const main = L.h('div', { class: 'pyc-out' });
-    if (!bridge) main.append(notice('info', 'Disponible dans l\'application de bureau', 'Un navigateur ne peut pas lancer Python sur l\'ordinateur. Ouvrez ce document dans LaTeX Home Edition pour Windows, macOS ou Linux pour exécuter le code.'));
-    else if (!id) main.append(L.h('div', { class: 'pyc-empty' }, ic('play', 22), L.h('b', { text: 'Aucune exécution pour l\'instant' }),
-      L.h('span', { html: 'Cliquez sur <b>▶ Exécuter</b> en haut à droite d\'un bloc de code Python, ou appuyez sur <kbd>Ctrl</kbd>+<kbd>Entrée</kbd> dans le code.' })));
-    else if (running && !r) main.append(L.h('div', { class: 'pyc-wait' }, L.h('i', { class: 'py-spin big' }), 'Exécution en cours…'));
-    else if (!r) main.append(L.h('div', { class: 'pyc-empty' }, ic('play', 22), L.h('b', { text: 'Ce code n\'a pas encore été exécuté' }), L.h('span', { html: 'Cliquez sur <b>Exécuter</b> ci-dessus.' })));
-    else paintResult(main, id, r, a);
-    if (running && r) main.classList.add('dim');
-    const kids = [main];
-    if (id && showInputs) {
-      const ta = L.h('textarea', { class: 'pyc-in', spellcheck: 'false', placeholder: 'Une valeur par ligne :\n12\n3.5\nBonjour' });
-      ta.value = inputs.get(id) || '';
-      ta.oninput = () => inputs.set(id, ta.value);
-      ta.onkeydown = e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runBlock(id); } };
-      kids.push(L.h('div', { class: 'pyc-inputs' }, L.h('b', { text: 'Entrées du programme' }), L.h('small', { text: 'Lues dans l\'ordre par input(), une par ligne.' }), ta));
-    }
-    body.replaceChildren(...kids);
-    // Erreur : on descend jusqu'à l'explication (comme un terminal) ; sinon, début de la sortie
-    main.scrollTop = a && a.kind === 'err' ? main.scrollHeight : 0;
+    fitHead();
   }
+  /* Console étroite : on raccourcit l'en-tête plutôt que de cacher les derniers boutons */
+  function fitHead() {
+    const head = con && L.$('.pyc-head', con);
+    if (!head || con.hidden || !con.offsetWidth) return;   // pas encore mis en page : ResizeObserver rappellera
+    head.classList.remove('tight', 'tighter');
+    if (head.scrollWidth > head.clientWidth + 1) head.classList.add('tight');
+    if (head.scrollWidth > head.clientWidth + 1) head.classList.add('tighter');
+  }
+
+  /* ---------- Exécution en direct : sortie au fur et à mesure, saisie dans la console ---------- */
+  const CLS = { out: 'o', err: 'e', in: 'i' };
+  function addChunks(v, chunks) {
+    chunks.forEach(c => {
+      const cls = CLS[c.s] || 'o', t = String(c.t || '').replace(/\r\n/g, '\n');
+      const last = v.out.lastChild;
+      if (last && last.className === cls && last.firstChild) last.firstChild.appendData(t);   // même flux : un seul nœud
+      else v.out.appendChild(L.h('span', { class: cls, text: t }));
+    });
+  }
+  function liveView(r) {
+    const pre = L.h('pre', { class: 'pyc-pre live' });
+    const out = L.h('span', { class: 'pyc-live-out' });
+    const pend = L.h('span', { class: 'pyc-live-pend' });
+    const main = L.h('div', { class: 'pyc-out' }, pre);
+    const v = r.view = { main, pre, out, pend, ask: null, refocus: r.view ? r.view.refocus : false };
+    pre.append(out, pend);
+    addChunks(v, r.chunks);
+    pend.replaceChildren(...r.pend.map(t => L.h('span', { class: 'i', text: t + '\n' })));
+    syncAsk(r, v);
+    // Clic dans la sortie (sans sélection de texte) : saisie, comme dans un terminal
+    main.addEventListener('mouseup', () => { if (v.ask && !String(getSelection())) v.ask.focus({ preventScroll: true }); });
+    return main;
+  }
+  function makeAsk(r) {
+    const ask = L.h('input', { class: 'pyc-ask', type: 'text', spellcheck: 'false', autocomplete: 'off', 'aria-label': 'Saisie pour le programme (Entrée pour envoyer)' });
+    ask.value = r.draft;
+    let h = hist.length;
+    ask.oninput = () => { r.draft = ask.value; };
+    ask.onkeydown = e => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (e.key === 'Enter' && !e.isComposing && !mod) {
+        e.preventDefault();
+        const t = ask.value;
+        ask.value = r.draft = ''; h = hist.length + 1;
+        sendLines(r, [t]);
+      } else if (mod && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
+        if (ask.value) { const t = ask.value; ask.value = r.draft = ''; sendLines(r, [t]); }
+        endInput(r);
+      } else if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && hist.length) {
+        e.preventDefault();
+        h = Math.max(0, Math.min(hist.length, h + (e.key === 'ArrowUp' ? -1 : 1)));
+        ask.value = r.draft = hist[h] || '';
+      } else if (mod && /^[zy]$/i.test(e.key)) e.stopPropagation();   // annulation dans la saisie, pas dans le document
+    };
+    // Collage de plusieurs lignes : chaque ligne complète est envoyée, le reste attend Entrée
+    ask.onpaste = e => {
+      const t = e.clipboardData && e.clipboardData.getData('text');
+      if (!t || !/[\r\n]/.test(t)) return;
+      e.preventDefault();
+      const a = ask.selectionStart, b = ask.selectionEnd;
+      const parts = (ask.value.slice(0, a) + t + ask.value.slice(b)).split(/\r\n|\r|\n/);
+      ask.value = r.draft = parts.pop();
+      sendLines(r, parts);
+    };
+    return ask;
+  }
+  function syncAsk(r, v) {
+    v.pre.classList.toggle('waiting', !!r.waiting);
+    if (r.open) {
+      if (!v.ask) { v.ask = makeAsk(r); v.pre.appendChild(v.ask); }
+      v.ask.placeholder = r.waiting ? 'Tapez une valeur, puis Entrée' : '';
+    } else if (v.ask) {
+      v.ask.remove(); v.ask = null;
+    }
+    if (!r.open && !v.pre.querySelector('.pyc-caret')) v.pre.appendChild(L.h('span', { class: 'pyc-caret', 'aria-hidden': 'true' }));
+  }
+  /* La saisie prend le clavier quand le programme attend, sauf si l'on écrit ailleurs */
+  function wantFocus(r) {
+    const a = document.activeElement;
+    if (!a || a === document.body || (con && con.contains(a))) return true;
+    if (a.closest && a.closest('.blk[data-id="' + r.blockId + '"]')) return true;
+    return !(a.isContentEditable || /^(INPUT|TEXTAREA|SELECT|MATH-FIELD)$/.test(a.tagName));
+  }
+  function focusAsk() {
+    const v = run && run.view;
+    if (v && v.ask && v.ask.isConnected) { v.ask.focus({ preventScroll: true }); v.main.scrollTop = v.main.scrollHeight; }
+    else if (v) v.refocus = true;   // console en cours d'ouverture
+  }
+  function paintLive(r, fresh, changed) {
+    if (r !== run) return;
+    if (changed) { paintHead(); paintBars(); }
+    const v = r.view;
+    if (!v || !v.main.isConnected) return;
+    const m = v.main, atEnd = m.scrollHeight - m.scrollTop - m.clientHeight < 40;
+    const hadFocus = v.ask && document.activeElement === v.ask;
+    addChunks(v, fresh);
+    v.pend.replaceChildren(...r.pend.map(t => L.h('span', { class: 'i', text: t + '\n' })));
+    syncAsk(r, v);
+    if (hadFocus && v.ask && document.activeElement !== v.ask) v.ask.focus({ preventScroll: true });
+    if (atEnd || (changed && r.waiting)) m.scrollTop = m.scrollHeight;
+    if (changed && r.waiting && v.ask && document.activeElement !== v.ask && wantFocus(r)) v.ask.focus({ preventScroll: true });
+  }
+
   function notice(icon, title, text, extra) {
     return L.h('div', { class: 'pyc-note ' + icon }, ic(icon === 'warn' ? 'warn' : 'info', 18), L.h('div', null, L.h('b', { text: title }), L.h('span', { html: text }), extra || null));
   }
@@ -323,10 +521,11 @@
       return;
     }
     const pre = L.h('pre', { class: 'pyc-pre' });
-    res.output.forEach(o => pre.appendChild(L.h('span', { class: o.s === 'err' ? 'e' : 'o', text: o.t.replace(/\r\n/g, '\n') })));
+    res.output.forEach(o => pre.appendChild(L.h('span', { class: CLS[o.s] || 'o', text: o.t.replace(/\r\n/g, '\n') })));
     if (!res.output.length) pre.appendChild(L.h('span', { class: 'none', text: res.figures.length ? '(aucun texte affiché)' : '(le programme n\'a rien affiché : utilisez print(…) pour afficher un résultat)' }));
     if (res.truncated) pre.appendChild(L.h('span', { class: 'none', text: '\n… sortie tronquée (trop longue)' }));
-    if (res.timedOut) pre.appendChild(L.h('span', { class: 'e', text: '\n■ Arrêté : le programme a dépassé ' + Math.round(res.timeout / 1000) + ' s (boucle infinie ?).' }));
+    if (res.timedOut && res.wall) pre.appendChild(L.h('span', { class: 'e', text: '\n■ Arrêté : aucune saisie depuis trop longtemps (30 min).' }));
+    else if (res.timedOut) pre.appendChild(L.h('span', { class: 'e', text: '\n■ Arrêté : le programme a dépassé ' + Math.round(res.timeout / 1000) + ' s de calcul (boucle infinie ?).' }));
     else if (res.stopped) pre.appendChild(L.h('span', { class: 'none', text: '\n■ Exécution arrêtée.' }));
     // Ligne de l'erreur : cliquable, montre la ligne dans le bloc de code
     if (a.line) pre.querySelectorAll('span.e').forEach(sp => {
@@ -353,6 +552,7 @@
   function explain(a) {
     let text = EXPL[a.type] || '';
     let extra = null;
+    if (a.type === 'EOFError' && bridge && bridge.poll) text = 'Le programme attendait une saisie au clavier (input), mais les saisies étaient terminées (Ctrl+D ou « Fin des saisies »). Relancez, puis tapez la valeur dans la console et appuyez sur Entrée.';
     if (a.type === 'ModuleNotFoundError' || a.type === 'ImportError') {
       const mod = (/No module named '([^'.]+)/.exec(a.msg || '') || [])[1];
       if (mod) {
@@ -529,7 +729,7 @@
   L.Modules.register({
     id: ID,
     name: 'Exécution Python',
-    version: '1.0.0',
+    version: '1.1.0',
     author: 'LaTeX Home Edition',
     official: true,
     category: 'Programmation',
@@ -544,18 +744,20 @@
       ['term', 'Console intégrée', 'Sortie du programme et erreurs, en bas de l\'éditeur, sans changer la mise en page.'],
       ['warn', 'Erreurs expliquées', 'Type d\'erreur traduit en français, ligne en cause cliquable.'],
       ['image', 'Graphiques matplotlib', 'Les figures s\'affichent dans la console et s\'insèrent dans le document.'],
-      ['kbd', 'Saisies input()', 'Donnez à l\'avance les valeurs lues par input().'],
+      ['kbd', 'Saisies input()', 'Le programme demande une valeur : tapez-la dans la console, comme dans un terminal. Ou donnez-les à l\'avance.'],
+      ['redo', 'Sortie en direct', 'Les print() s\'affichent pendant l\'exécution ; le temps d\'attente d\'une saisie ne compte pas dans la limite.'],
       ['insert', 'Résultat dans le document', 'Insérez la sortie sous le code, pour un compte rendu ou un corrigé.'],
     ],
     steps: [
       'Insérez un bloc <b>Code informatique</b> (menu Insérer, ou tapez « / code »), langage <b>Python</b>.',
       'Écrivez ou collez votre code.',
       'Cliquez sur <b>▶ Exécuter</b> en haut à droite du bloc, ou appuyez sur <kbd>Ctrl</kbd>+<kbd>Entrée</kbd>.',
+      'Si le programme demande une valeur (input), tapez-la dans la console puis Entrée.',
       'Lisez le résultat dans la console ; insérez-le dans le document si besoin.',
     ],
     compat: 'Application de bureau (Windows, macOS, Linux)',
     size: 'Inclus dans l\'application',
-    updated: '14 novembre 2026',
+    updated: '21 novembre 2026',
     privacy: 'Le code s\'exécute uniquement sur votre ordinateur. Rien n\'est envoyé sur Internet.',
     available: () => !!bridge,
     unavailableText: L.WEB ? 'Réservé à l\'application de bureau (Windows, Mac) : la version web ne peut pas lancer Python.' : 'Disponible dans l\'application de bureau (un navigateur ne peut pas lancer Python).',

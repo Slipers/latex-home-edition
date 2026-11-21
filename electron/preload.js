@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('lheDesktop', {
   py: {
     check: force => ipcRenderer.invoke('lhe:py-check', force),
     run: opts => ipcRenderer.invoke('lhe:py-run', opts),
+    poll: (id, from) => ipcRenderer.invoke('lhe:py-poll', id, from),
+    send: (id, text) => ipcRenderer.invoke('lhe:py-send', id, text),
+    eof: id => ipcRenderer.invoke('lhe:py-eof', id),
     stop: id => ipcRenderer.invoke('lhe:py-stop', id),
     install: () => ipcRenderer.invoke('lhe:py-install'),
   },

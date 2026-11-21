@@ -156,15 +156,42 @@ L.paginate = async function (doc, host) {
     return [a, b];
   };
 
+  /* --- Découpe d'un code entre deux lignes. Un code collé peut faire des milliers de
+     lignes : nombre de lignes qui tiennent cherché par bonds puis par dichotomie, et
+     chaque morceau ne copie que ses lignes (essayer ligne après ligne en recopiant tout
+     le code figeait l'application : temps proportionnel au carré du nombre de lignes) --- */
+  let codeFit = 40;
   const splitCode = (el, test) => {
     const pre = el.querySelector('pre');
-    if (pre.classList.contains('code-lines')) return splitKids(el, 'pre', test);
-    const lines = pre.textContent.split('\n');
-    const mk = (s, e) => { const c = el.cloneNode(true); c.querySelector('pre').textContent = lines.slice(s, e).join('\n'); return c; };
-    let n = 0;
-    while (n < lines.length - 1 && test(mk(0, n + 1))) n++;
-    if (n === 0) return null;
-    return [mk(0, n), mk(n, lines.length)];
+    const byLine = pre.classList.contains('code-lines');
+    const lines = byLine ? Array.from(pre.children) : pre.textContent.split('\n');
+    const N = lines.length;
+    if (N < 2) return null;
+    const mk = (s, e) => {
+      const c = el.cloneNode(false), p = pre.cloneNode(false);
+      if (byLine) for (let i = s; i < e; i++) p.appendChild(lines[i].cloneNode(true));
+      else p.textContent = lines.slice(s, e).join('\n');
+      Array.from(el.children).forEach(k => c.appendChild(k === pre ? p : k.cloneNode(true)));
+      return c;
+    };
+    // Premier essai : autant de lignes qu'à la page précédente (en général, 2 essais suffisent)
+    let ok = 0, fail = N;
+    const k0 = Math.min(Math.max(1, codeFit), N - 1);
+    if (test(mk(0, k0))) {
+      ok = k0;
+      for (let step = 1; ok < N - 1; step *= 2) { const j = Math.min(ok + step, N - 1); if (test(mk(0, j))) ok = j; else { fail = j; break; } }
+    } else fail = k0;
+    let lo = ok + 1, hi = fail - 1;
+    while (lo <= hi) { const mid = (lo + hi) >> 1; if (test(mk(0, mid))) { ok = mid; lo = mid + 1; } else hi = mid - 1; }
+    if (!ok) return null;
+    codeFit = ok;
+    // La suite réutilise l'élément lui-même (jamais affiché tel quel) : seules les lignes
+    // de la page sont copiées
+    const a = mk(0, ok);
+    if (byLine) for (let i = 0; i < ok; i++) lines[i].remove();
+    else pre.textContent = lines.slice(ok).join('\n');
+    a.classList.add('split-first'); el.classList.add('split-cont');
+    return [a, el];
   };
 
   /* --- Dessin ou image « gardé à cet endroit » : réduit (jusqu'à 40 %) pour tenir dans la place restante --- */
@@ -216,11 +243,25 @@ L.paginate = async function (doc, host) {
     const isHead = el.matches('.sec');
     // Un titre garde de la place pour la suite… sauf s'il est suivi d'un saut de page
     const lastOnPage = !queue.length || queue[0].dataset.role === 'pagebreak';
-    if (fits(el, isHead && !lastOnPage ? 2.2 * lh : 0)) { place(el); continue; }
+    // Long code : ses lignes (au moins une demi-ligne de texte chacune) dépassent à coup sûr
+    // la page, inutile de mesurer le tout (des milliers de lignes, à chaque page)
+    const lns = el.matches('.code') && el.querySelector('pre.code-lines');
+    const tooLong = !!lns && lns.childElementCount * lh / 2 > avail;
+    if (!tooLong && fits(el, isHead && !lastOnPage ? 2.2 * lh : 0)) { place(el); continue; }
     if (el.dataset.keep === '1' && !empty() && shrinkToFit(el)) { place(el); continue; }
     if (!isHead) {
       const sp = L._split(el, x => fits(x));
-      if (sp) { place(sp[0]); sp[1]._splitOffset = sp[0].offsetHeight; newPage(); queue.unshift(sp[1]); continue; }
+      if (sp) {
+        // Position de la coupure dans l'élément d'origine (cumulée quand il s'étend sur plus
+        // de deux pages), et pour du code, numéro de la ligne où reprend la page suivante
+        const off = el._splitOffset || 0, ln = el._splitLine || 0;
+        if (off) sp[0]._splitOffset = off;
+        if (ln) sp[0]._splitLine = ln;
+        place(sp[0]);
+        sp[1]._splitOffset = off + sp[0].offsetHeight;
+        if (el.matches('.code')) { const pre = sp[0].querySelector('pre'); sp[1]._splitLine = ln + (pre.querySelectorAll('.ln').length || pre.textContent.split('\n').length); }
+        newPage(); queue.unshift(sp[1]); continue;
+      }
     }
     if (empty()) { place(el); newPage(); continue; }   // élément plus grand qu'une page
     // Un titre ne reste pas seul en bas de page : il passe à la page suivante avec ce qui le suit
@@ -247,7 +288,7 @@ L.paginate = async function (doc, host) {
     if (!i) return;
     const first = pg.querySelector('.page-content > *');
     // forced : saut imposé (saut de page, page de garde), que l'éditeur respecte toujours
-    if (first) breaks.push({ page: i + 1, id: first.dataset.id || null, offset: first._splitOffset || 0, forced: !!pg._forced });
+    if (first) breaks.push({ page: i + 1, id: first.dataset.id || null, offset: first._splitOffset || 0, line: first._splitLine || 0, forced: !!pg._forced });
   });
   // Notes de chaque page (affichées en bas des feuilles dans l'éditeur)
   const notes = pages.map(pg => Array.from(pg.querySelectorAll('.page-foot .fn')).map(p => ({ html: p.innerHTML, fn: p.dataset.fn || null, pnote: p.dataset.pnote || null })));
@@ -272,6 +313,7 @@ L.paginate = async function (doc, host) {
   let k = start - 1;
   L.lastPagination.pageNums = pages.map(pg => pg.classList.contains('titlepage') ? null : ++k);
   L.lastPagination.total = total;
+  L.lastPagination.pageOf = pageOf;
   host.querySelectorAll('.toc-row').forEach(r => {
     const s = r.querySelector('.toc-page');
     if (s) s.textContent = pageOf[r.dataset.target] ?? '';

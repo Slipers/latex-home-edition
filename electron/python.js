@@ -6,7 +6,9 @@
                  d'installation habituels) et les bibliothèques scientifiques présentes ;
    · run()     : exécute un code dans un dossier temporaire, avec une limite de temps,
                  récupère la sortie (texte) et les graphiques matplotlib (PNG) ;
-   · stop()    : arrête une exécution en cours ;
+   · poll()    : sortie au fur et à mesure, et si le programme attend une saisie ;
+   · send()    : ligne tapée dans la console (input()) ; eof() : fin des saisies ;
+   · stop()    : arrête une exécution en cours (stopAll() : toutes, à la fermeture) ;
    · install() : installe Python pour l'utilisateur (Windows : winget, sans droits
                  administrateur). Ailleurs : installation manuelle depuis python.org.
 
@@ -26,21 +28,84 @@ const DEFAULT_TIMEOUT = 60 * 1000;
 const PY_WINGET_ID = 'Python.Python.3.14';
 
 /* Lanceur exécuté autour du code : erreurs sans les lignes du lanceur, graphiques
-   matplotlib enregistrés en PNG à la fin (plt.show() ne bloque pas : backend Agg). */
+   matplotlib enregistrés en PNG à la fin (plt.show() ne bloque pas : backend Agg).
+   Saisies : input() et sys.stdin lisent l'entrée standard (valeurs données à l'avance,
+   puis lignes tapées dans la console). Le lanceur le signale par un message entre \0\1
+   et \1\0 sur la sortie, jamais affiché : LHEASK (le programme lit une ligne) et
+   LHEECHO:valeur (valeur lue, affichée comme saisie). */
+const MARK_START = '\x00\x01LHE', MARK_END = '\x01\x00';
 const RUNNER = String.raw`
-import sys, os, traceback, warnings
+import sys, os, io, traceback, warnings
 code_path, fig_dir = sys.argv[1], sys.argv[2]
 sys.argv = ['code.py']
 sys.path.insert(0, os.getcwd())
 warnings.filterwarnings('ignore', message='.*non-interactive.*')
 warnings.filterwarnings('ignore', message='.*FigureCanvasAgg.*')
 import builtins
-_input = builtins.input
-def _echo_input(prompt=''):
-    v = _input(prompt)
-    print(v)
+_out, _stdin = sys.stdout, sys.stdin
+def _mark(kind, text=''):
+    for s in (sys.stdout, sys.stderr):
+        try:
+            s.flush()
+        except Exception:
+            pass
+    _out.write('\x00\x01LHE' + kind + ':' + str(text).replace('\x00', '').replace('\x01', '') + '\x01\x00')
+    _out.flush()
+def _line():
+    _mark('ASK')
+    return _stdin.readline()
+def _strip(v):
+    if v.endswith('\n'):
+        v = v[:-1]
+    if v.endswith('\r'):
+        v = v[:-1]
     return v
-builtins.input = _echo_input
+def _input(*args):
+    if len(args) > 1:
+        raise TypeError('input expected at most 1 argument, got %d' % len(args))
+    if args:
+        sys.stdout.write(str(args[0]))
+        sys.stdout.flush()
+    v = _line()
+    if not v:
+        raise EOFError('EOF when reading a line')
+    v = _strip(v)
+    _mark('ECHO', v)
+    return v
+builtins.input = _input
+class _Bytes(object):
+    def readline(self, size=-1):
+        return sys.stdin.readline().encode('utf-8')
+    def read(self, size=-1):
+        return sys.stdin.read().encode('utf-8')
+    def __iter__(self):
+        return iter(self.readline, b'')
+class _Stdin(io.TextIOBase):
+    encoding = 'utf-8'
+    buffer = _Bytes()
+    def readable(self):
+        return True
+    def isatty(self):
+        return False
+    def fileno(self):
+        return _stdin.fileno()
+    def readline(self, size=-1):
+        v = _line()
+        if v:
+            _mark('ECHO', _strip(v))
+        return v
+    def read(self, size=-1):
+        return ''.join(iter(self.readline, ''))
+    def readlines(self, hint=-1):
+        return list(iter(self.readline, ''))
+    def __iter__(self):
+        return self
+    def __next__(self):
+        v = self.readline()
+        if not v:
+            raise StopIteration
+        return v
+sys.stdin = _Stdin()
 with open(code_path, encoding='utf-8') as f:
     src = f.read()
 g = {'__name__': '__main__', '__builtins__': __builtins__}
@@ -142,7 +207,8 @@ async function check(force) {
 }
 
 /* ---------- Exécution ---------- */
-const runs = new Map();   // id → { child, stopped }
+const runs = new Map();   // id → { child, stopped, log, active, asking, fed, read }
+const WALL = 30 * 60 * 1000;   // durée maximale, attente des saisies comprise
 
 function killTree(child) {
   if (!child || child.exitCode !== null) return;
@@ -150,7 +216,11 @@ function killTree(child) {
   else { try { child.kill('SIGKILL'); } catch (_) { /* déjà terminé */ } }
 }
 
-async function run({ id, code, stdin, cwd, timeout } = {}) {
+/* Exécute le code. stdin : valeurs données à l'avance (une par ligne). interactive : la
+   suite des saisies est demandée pendant l'exécution (poll / send / eof) ; sinon, une
+   saisie de plus termine le programme (EOFError). La limite de temps ne compte pas
+   l'attente d'une saisie. */
+async function run({ id, code, stdin, cwd, timeout, interactive } = {}) {
   const py = await check(false);
   if (!py.ok) return { ok: false, error: 'nopython' };
   code = String(code || '');
@@ -167,12 +237,13 @@ async function run({ id, code, stdin, cwd, timeout } = {}) {
   const limit = Math.max(1000, Math.min(Number(timeout) || DEFAULT_TIMEOUT, 10 * 60 * 1000));
   const t0 = Date.now();
   return new Promise(resolve => {
-    const out = [];
-    let size = 0, truncated = false, timedOut = false, done = false;
+    const out = [], log = [];
+    let size = 0, truncated = false, timedOut = false, wall = false, done = false;
     const push = (s, t) => {
-      if (truncated) return;
+      if (truncated || !t) return;
       if (size + t.length > MAX_OUT) { t = t.slice(0, MAX_OUT - size); truncated = true; }
       size += t.length;
+      log.push({ s, t });   // morceaux dans l'ordre, pour l'affichage pendant l'exécution
       const last = out[out.length - 1];
       if (last && last.s === s) last.t += t; else out.push({ s, t });
     };
@@ -186,18 +257,51 @@ async function run({ id, code, stdin, cwd, timeout } = {}) {
       cleanup(dir);
       return resolve({ ok: false, error: 'spawn', message: String(e.message || e) });
     }
-    const rec = { child, stopped: false };
+    // En attente : le programme lit une ligne et toutes celles envoyées sont déjà lues
+    const rec = { child, stopped: false, log, active: 0, asking: false, fed: 0, read: 0 };
+    rec.waiting = () => !!interactive && rec.asking && rec.read >= rec.fed && child.stdin.writable;
     runs.set(id, rec);
-    const timer = setTimeout(() => { timedOut = true; killTree(child); }, limit);
+    // Temps d'exécution sans l'attente des saisies
+    let last = Date.now();
+    const timer = setInterval(() => {
+      const now = Date.now();
+      if (!rec.waiting()) rec.active += now - last;
+      last = now;
+      if (rec.active > limit || now - t0 > WALL) { timedOut = true; wall = rec.active <= limit; killTree(child); }
+    }, 100);
+    rec.ms = () => rec.active + (rec.waiting() ? 0 : Date.now() - last);
+    // Sortie du programme, sans les messages du lanceur (saisie demandée, valeur lue)
+    let pend = '';
+    const feed = d => {
+      pend += d;
+      for (;;) {
+        const i = pend.indexOf('\x00');
+        if (i < 0) { push('out', pend); pend = ''; return; }
+        if (i > 0) { push('out', pend.slice(0, i)); pend = pend.slice(i); }
+        if (pend.length < MARK_START.length) { if (MARK_START.startsWith(pend)) return; push('out', pend[0]); pend = pend.slice(1); continue; }
+        if (!pend.startsWith(MARK_START)) { push('out', pend[0]); pend = pend.slice(1); continue; }
+        const j = pend.indexOf(MARK_END, MARK_START.length);
+        if (j < 0) { if (pend.length > 1e6) { push('out', pend); pend = ''; } return; }
+        const body = pend.slice(MARK_START.length, j), c = body.indexOf(':');
+        pend = pend.slice(j + MARK_END.length);
+        const kind = body.slice(0, c), text = body.slice(c + 1);
+        if (kind === 'ASK') rec.asking = true;
+        else if (kind === 'ECHO') { rec.asking = false; rec.read++; push('in', text + '\n'); }
+      }
+    };
     child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
-    child.stdout.on('data', d => push('out', d));
+    child.stdout.on('data', feed);
     child.stderr.on('data', d => push('err', d));
     child.stdin.on('error', () => { /* le programme n'a pas tout lu : sans importance */ });
-    child.stdin.end(stdin ? String(stdin).replace(/\r?\n?$/, '\n') : '');
+    const pre = stdin ? String(stdin).replace(/\r\n?/g, '\n').replace(/\n?$/, '\n') : '';
+    rec.fed = (pre.match(/\n/g) || []).length;
+    if (interactive) { if (pre) child.stdin.write(pre); } else child.stdin.end(pre);
     const finish = (exitCode, err) => {
       if (done) return;
       done = true;
-      clearTimeout(timer);
+      clearInterval(timer);
+      if (pend) { push('out', pend); pend = ''; }
+      rec.active = rec.ms();
       runs.delete(id);
       const figures = [];
       try {
@@ -208,14 +312,45 @@ async function run({ id, code, stdin, cwd, timeout } = {}) {
       } catch (_) { /* pas de graphique */ }
       cleanup(dir);
       resolve({
-        ok: true, exitCode, output: out, figures, ms: Date.now() - t0, truncated,
-        timedOut, stopped: rec.stopped && !timedOut, timeout: limit, version: py.version,
+        ok: true, exitCode, output: out, figures, ms: rec.active, truncated,
+        timedOut, wall, stopped: rec.stopped && !timedOut, timeout: limit, version: py.version,
         error: err ? 'spawn' : undefined, message: err ? String(err.message || err) : undefined,
       });
     };
     child.on('error', e => finish(null, e));
     child.on('close', c => finish(c, null));
   });
+}
+
+/* Pendant une exécution : morceaux de sortie depuis le n° `from`, et saisie attendue ou non */
+function poll(id, from) {
+  const r = runs.get(String(id));
+  if (!r) return { running: false };
+  const k = Math.max(0, Number(from) || 0);
+  return { running: true, chunks: r.log.slice(k), n: r.log.length, waiting: r.waiting(), open: r.child.stdin.writable, ms: r.ms() };
+}
+
+/* Ligne(s) tapée(s) dans la console, lues par input() */
+function send(id, text) {
+  const r = runs.get(String(id));
+  if (!r || !r.child.stdin.writable) return false;
+  const t = String(text == null ? '' : text).replace(/\r\n?/g, '\n') + '\n';
+  r.fed += (t.match(/\n/g) || []).length;
+  r.child.stdin.write(t);
+  return true;
+}
+
+/* Fin des saisies (Ctrl+D) : input() lève EOFError, sys.stdin.read() se termine */
+function eof(id) {
+  const r = runs.get(String(id));
+  if (!r) return false;
+  try { r.child.stdin.end(); } catch (_) { /* déjà fermé */ }
+  return true;
+}
+
+/* À la fermeture de l'application : aucun programme ne reste en attente */
+function stopAll() {
+  runs.forEach(r => { r.stopped = true; killTree(r.child); });
 }
 
 function stop(id) {
@@ -252,4 +387,4 @@ async function install() {
   try { return await installing; } finally { installing = null; }
 }
 
-module.exports = { check, run, stop, install, PY_WINGET_ID };
+module.exports = { check, run, poll, send, eof, stop, stopAll, install, PY_WINGET_ID };

@@ -319,6 +319,7 @@ Object.assign(App, {
       host.innerHTML = '';
       this.pageInfo = L.lastPagination;
       this.applyFits();
+      this.fillTocPages();
       this.drawPageMarks();
     } catch (e) { console.warn('Pagination', e); }
     this._paginating = false;
@@ -328,6 +329,13 @@ Object.assign(App, {
      insérés aux endroits exacts où la mise en page du PDF change de page, et les feuilles
      (avec en-tête et pied de page) sont dessinées derrière le texte. */
   drawPageMarks() { this.layoutSheets(); },
+  /* Numéros de page de la table des matières, comme dans le PDF (ils restaient vides dans
+     l'éditeur : des pointillés qui ne menaient à rien) */
+  fillTocPages() {
+    const pageOf = this.pageInfo && this.pageInfo.pageOf;
+    if (!pageOf) return;
+    L.$$('#paper .toc-row').forEach(r => { const s = r.querySelector('.toc-page'); if (s) s.textContent = pageOf[r.dataset.target] ?? ''; });
+  },
   /* Dessins et images « gardés à cet endroit » : même taille réduite que dans le PDF */
   applyFits() {
     const fit = (this.pageInfo && this.pageInfo.fit) || {};
@@ -397,17 +405,116 @@ Object.assign(App, {
       box.remove();
       return (noteCache[i] = h);
     };
+    // Éléments posés en haut d'une page, et ceux qu'il ne sert à rien de repousser
+    const atTop = new Set(), stuck = new Set();
+    // Code coupé entre deux pages : le cadre se referme en bas de la première page et se
+    // rouvre en haut de la suivante, comme dans le PDF (sinon ses bords traversaient la
+    // marge et l'espace entre les feuilles). L'espace couvre le cadre sur toute sa largeur.
+    // Mesures du cadre lues une fois par bloc : relire une marge après chaque espace inséré
+    // forçait à recalculer tout le bloc (des milliers de lignes), à chaque page
+    let colors = null;
+    const frames = new Map();
+    const frameOf = pre => {
+      if (frames.has(pre)) return frames.get(pre);
+      const cs = getComputedStyle(pre), f = v => parseFloat(v) || 0;
+      const fr = { head: this.codeChrome(pre).head, pb: f(cs.paddingBottom), bb: f(cs.borderBottomWidth), pt: f(cs.paddingTop), bt: f(cs.borderTopWidth),
+        pl: f(cs.paddingLeft), pr: f(cs.paddingRight), bl: f(cs.borderLeftWidth), br: f(cs.borderRightWidth), cb: cs.borderBottomColor, ct: cs.borderTopColor };
+      frames.set(pre, fr);
+      return fr;
+    };
+    const codeBreak = (sp, pre, toBottom) => {
+      if (!colors) {
+        const probe = L.h('div', { class: 'sheet' });
+        layer.appendChild(probe);
+        colors = { page: getComputedStyle(probe).backgroundColor, desk: getComputedStyle(L.$('#desk')).backgroundColor };
+        probe.remove();
+      }
+      const { head, pb, bb, pt, bt, pl, pr, cb, ct } = frameOf(pre);
+      // La suite commence sous le haut du cadre (marge, bordure, retrait), comme dans le PDF
+      const h = (parseFloat(sp.style.height) || 0) + head;
+      sp.style.height = h + 'px';
+      const a = Math.max(toBottom, pb + bb), b = Math.max(a + GAP, Math.min(h - pt - bt, h)), end = Math.max(h, b + bt);
+      const grad = stops => 'linear-gradient(to bottom, ' + stops.map(([c, s, e]) => c + ' ' + s.toFixed(2) + 'px ' + e.toFixed(2) + 'px').join(', ') + ')';
+      // Seuls les deux bords verticaux sont masqués (le numéro de page et l'en-tête, dessinés
+      // derrière, restent visibles) ; puis les traits qui ferment et rouvrent le cadre
+      const side = grad([['transparent', 0, pb + bb], [colors.page, pb + bb, a], [colors.desk, a, a + GAP], [colors.page, a + GAP, b], ['transparent', b, end]]);
+      const ends = grad([['transparent', 0, pb], [cb, pb, pb + bb], ['transparent', pb + bb, b], [ct, b, b + bt], ['transparent', b + bt, end]]);
+      // (bandes un peu plus larges que les bords : ceux-ci sont alignés sur les pixels de l'écran)
+      const ex = 2, bl = frameOf(pre).bl + 2 * ex, br = frameOf(pre).br + 2 * ex;
+      sp.style.background = side + ' left top / ' + bl + 'px 100% no-repeat, ' + side + ' right top / ' + br + 'px 100% no-repeat, ' +
+        ends + ' center top / calc(100% - ' + 2 * ex + 'px) 100% no-repeat';
+      const left = pl + bl - ex, right = pr + br - ex;
+      sp.style.marginLeft = -left + 'px';
+      sp.style.width = 'calc(100% + ' + (left + right) + 'px)';
+    };
     const newPage = pos => {
       let sp;
-      if (pos.kind === 'block') { sp = L.h('div', { class: 'pg-sp', contenteditable: 'false' }); pos.before.parentNode.insertBefore(sp, pos.before); }
+      if (pos.kind === 'block') { sp = L.h('div', { class: 'pg-sp', contenteditable: 'false' }); pos.before.parentNode.insertBefore(sp, pos.before); atTop.add(pos.before); }
       else { sp = L.h('span', { class: 'pg-float', contenteditable: 'false' }); pos.range.insertNode(sp); }
       const y = local(sp);
       const bottom = Math.max(prevTop + P, y + 12);
       const nextTop = bottom + GAP;
       sp.style.height = Math.max(0, nextTop + mtop - y) + 'px';
+      const codePre = pos.kind !== 'block' && sp.parentElement && sp.parentElement.closest('pre.code-edit');
+      if (codePre) codeBreak(sp, codePre, bottom - y);
       sheets[sheets.length - 1].bottom = bottom;
       sheets.push({ top: nextTop });
       prevTop = nextTop;
+    };
+    /* Long code : toutes ses pages d'un coup, à partir de la première coupure `ov`. Chaque
+       espace inséré ferait recalculer tout le bloc (des milliers de lignes, à chaque page) ;
+       les lignes sont donc mesurées une fois, et comme un espace décale exactement les
+       lignes suivantes de sa hauteur, les coupures suivantes se calculent sans remesurer.
+       Mêmes règles que overflowPoint. S'arrête avant `until` (coupure du PDF). */
+    const codeRun = (ov, until) => {
+      const pre = ov.code, r0 = ov.range;
+      const untilR = until ? (() => { const [n, o] = boundary(until), r = document.createRange(); r.setStart(n, o); r.collapse(true); return r; })() : null;
+      const pts = [];
+      let on = false;
+      const tw = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+      for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+        if (n === r0.startContainer) on = true;
+        if (!on) continue;
+        const t = n.nodeValue, p0 = n.previousSibling;
+        const add = i => {
+          if (n === r0.startContainer && i < r0.startOffset) return;
+          const rg = document.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1);
+          const rc = rg.getClientRects()[0];
+          if (rc) pts.push({ n, i, top: rc.top, bottom: rc.bottom });
+        };
+        if (t[0] && t[0] !== '\n' && (!p0 || p0.nodeName === 'BR' || (p0.nodeType === 3 && /\n$/.test(p0.nodeValue)) || p0.classList && p0.classList.contains('pg-float'))) add(0);
+        for (let i = t.indexOf('\n'); i >= 0 && i + 1 < t.length; i = t.indexOf('\n', i + 1)) if (t[i + 1] !== '\n') add(i + 1);
+      }
+      const { head, tail } = this.codeChrome(pre);
+      frameOf(pre);   // (lu avant les insertions)
+      const P0 = pTop(), cuts = [];
+      let shift = 0;
+      let limit = P0 + (prevTop + P - mbot - noteH(sheets.length - 1)) * z, topS = P0 + (prevTop + mtop) * z;
+      for (const p of pts) {
+        if (untilR && untilR.comparePoint(p.n, p.i) >= 0) break;
+        const top = p.top + shift;
+        if (p.bottom + shift + tail * z <= limit + 0.5 || top <= topS + (head + 1) * z) continue;
+        const y = (top - P0) / z;
+        const bottom = Math.max(prevTop + P, y + 12), nextTop = bottom + GAP;
+        const h = Math.max(0, nextTop + mtop - y);
+        cuts.push({ p, h, toBottom: bottom - y });
+        shift += (h + head) * z;   // (codeBreak ajoute le haut du cadre à l'espace)
+        sheets[sheets.length - 1].bottom = bottom;
+        sheets.push({ top: nextTop });
+        prevTop = nextTop;
+        limit = P0 + (prevTop + P - mbot - noteH(sheets.length - 1)) * z;
+        topS = P0 + (prevTop + mtop) * z;
+      }
+      // Insertion de la fin vers le début : les positions dans un même texte restent justes
+      for (let k = cuts.length - 1; k >= 0; k--) {
+        const c = cuts[k], rg = document.createRange();
+        rg.setStart(c.p.n, c.p.i); rg.collapse(true);
+        const sp = L.h('span', { class: 'pg-float', contenteditable: 'false' });
+        rg.insertNode(sp);
+        sp.style.height = c.h + 'px';
+        codeBreak(sp, pre, c.toBottom);
+      }
+      return cuts.length;
     };
     // Là où le texte affiché dépasse le bas de la page, on passe à la page suivante —
     // tout de suite, sans attendre la mise en page complète (qui suit en arrière-plan).
@@ -415,10 +522,15 @@ Object.assign(App, {
     const fixOverflow = until => {
       for (let guard = 0; guard < 500; guard++) {
         const limit = pTop() + (prevTop + P - mbot - noteH(sheets.length - 1)) * z;
-        const ov = this.overflowPoint(flow, limit, pTop() + (prevTop + mtop) * z);
+        const ov = this.overflowPoint(flow, limit, pTop() + (prevTop + mtop) * z, stuck);
         if (!ov || (until && !posBefore(ov, until))) return;
-        newPage(ov);
+        // Déjà en haut d'une page, et plus haut qu'elle (long code collé…) : sa marge le laisse
+        // un peu sous le haut de la page, mais le repousser encore ne ferait qu'ajouter des
+        // pages vides, sans fin. Il reste là ; la suite est paginée après lui.
+        if (ov.kind === 'block' && atTop.has(ov.before)) { stuck.add(ov.before); continue; }
         drifted = true;
+        if (ov.kind === 'float' && ov.code && codeRun(ov, until)) continue;
+        newPage(ov);
       }
     };
     // 1 bis. Sauts de la mise en page du PDF, tant que l'éditeur affiche la même chose.
@@ -428,11 +540,18 @@ Object.assign(App, {
     // apparaît transparente) : on dessine alors les pages trouvées jusque-là
     try {
     (info ? info.breaks : []).forEach(b => {
+      // Déjà paginé par l'éditeur lui-même : seuls les sauts imposés comptent encore (le texte
+      // qui dépasse avant eux, ou à la fin, est paginé par fixOverflow)
+      if (drifted && !b.forced) return;
+      // Code coupé entre deux pages : paginé d'un coup par l'éditeur (codeRun), avec les mêmes
+      // règles que le PDF (cadre de chaque morceau compris)
+      if (b.line) return;
       const pos = this.breakPoint(paper, b);
       if (!pos) return;
       fixOverflow(pos);
       if (drifted && !b.forced) return;
-      if (posTop(pos) <= pTop() + (prevTop + mtop) * z + 2) return;   // déjà en haut d'une page
+      if (pos.kind === 'block' && atTop.has(pos.before)) return;     // déjà en haut d'une page
+      if (posTop(pos) <= pTop() + (prevTop + mtop) * z + 2) return;
       newPage(pos);
       drifted = false;
     });
@@ -543,16 +662,28 @@ Object.assign(App, {
     if (found) return found;
     return el.nextElementSibling && el.nextElementSibling.matches('.blk') ? { kind: 'block', before: el.nextElementSibling } : { kind: 'block', before: el };
   },
+  /* Cadre d'un bloc de code (en unités locales) : au-dessus de la première ligne (marge,
+     bordure, retrait) et sous la dernière */
+  codeChrome(pre) {
+    const cs = getComputedStyle(pre), box = pre.closest('.code'), bs = box ? getComputedStyle(box) : null, f = v => parseFloat(v) || 0;
+    return {
+      head: (bs ? f(bs.marginTop) : 0) + f(cs.borderTopWidth) + f(cs.paddingTop),
+      tail: f(cs.paddingBottom) + f(cs.borderBottomWidth) + (bs ? f(bs.marginBottom) : 0),
+    };
+  },
   /* Premier endroit où le texte affiché dépasse `limitS` (bas de la zone de texte de la
      page, en coordonnées d'écran) : avant un élément insécable (équation, figure,
      tableau, titre…), ou au début de la ligne qui dépasse. `topS` : haut de la zone de
-     texte de la page (on ne coupe jamais avant ce qui est déjà en haut de page). */
-  overflowPoint(flow, limitS, topS) {
-    const NOSPLIT = '.env.cours:not(.cg-exo), .env.st-cadre, .eq, .tvwrap, .tbl, .fig, .code, .tikz, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk, .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="code"], .blk[data-type="vspace"], .blk[data-type="rule"]';
-    const SKIP = '.gutter, .pg-sp, .pg-float, .num, .li-mark, .env-head-inline, .collab-layer, .cmt-layer, .vspace-lab, .tv-hint';
+     texte de la page (on ne coupe jamais avant ce qui est déjà en haut de page). `stuck` :
+     éléments déjà en haut d'une page et plus hauts qu'elle, qu'on ne repousse plus. */
+  overflowPoint(flow, limitS, topS, stuck) {
+    const z = this.editZoom || 1;
+    const NOSPLIT = '.env.cours:not(.cg-exo), .env.st-cadre, .eq, .tvwrap, .tbl, .fig, .tikz, .qed-line, .bib-item, .toc-row, .bib-h, .toc-h, .meta-blk:not([data-id="__toc"]), .blk[data-type="heading"], .blk[data-type="equation"], .blk[data-type="figure"], .blk[data-type="table"], .blk[data-type="tabvar"], .blk[data-type="vspace"], .blk[data-type="rule"]';
+    const SKIP = '.gutter, .pg-sp, .pg-float, .num, .li-mark, .env-head-inline, .collab-layer, .cmt-layer, .vspace-lab, .tv-hint, .code-hl, .py-bar';
     const BLOCKLIKE = '.blk, .li, [data-f], ' + NOSPLIT;
     const above = r => r.bottom <= limitS + 0.5;
     const movable = r => r.top > topS + 1;
+    const free = n => !(stuck && stuck.has(n));
     // Couper avant le bloc entier (et ses poignées) quand c'est son premier champ
     const blockOf = n => {
       if (!n.matches('[data-f]')) return n;
@@ -575,14 +706,45 @@ Object.assign(App, {
           const r = n.getBoundingClientRect();
           if ((!r.height && !r.width) || above(r)) continue;
           const blockLike = n.matches(BLOCKLIKE);
-          if (blockLike && r.top >= limitS - 0.5 && movable(r)) { found = { kind: 'block', before: blockOf(n) }; return; }
-          if (n.matches(NOSPLIT)) { if (movable(r)) { found = { kind: 'block', before: n }; return; } continue; }
+          if (blockLike && r.top >= limitS - 0.5 && movable(r) && free(blockOf(n))) { found = { kind: 'block', before: blockOf(n) }; return; }
+          if (n.matches(NOSPLIT)) { if (movable(r) && free(n)) { found = { kind: 'block', before: n }; return; } continue; }
           if (n.tagName === 'TABLE' || n.tagName === 'svg') continue;
           visit(n);
-          // Rien de coupable dedans (paragraphe vide qui dépasse) : on passe le bloc entier
-          if (!found && n.matches('.blk, [data-f], .li') && movable(r)) found = { kind: 'block', before: blockOf(n) };
+          // Rien de coupable dedans (paragraphe vide qui dépasse) : on passe le bloc entier.
+          // Pas pour du code : seul son cadre dépasse alors (sa dernière ligne tient)
+          if (!found && n.matches('.blk, [data-f], .li') && !n.matches('pre.code-edit, .blk[data-type="code"]') && movable(r) && free(blockOf(n))) found = { kind: 'block', before: blockOf(n) };
         } else if (n.nodeType === 3 && n.parentElement && n.parentElement.closest('[data-f]')) {
           const t = n.nodeValue;
+          const rectAt = i => { const rg = document.createRange(); rg.setStart(n, i); rg.setEnd(n, i + 1); return rg.getClientRects()[0]; };
+          // Code (coupé entre deux pages comme dans le PDF) : seulement au début d'une ligne.
+          // Première ligne qui dépasse cherchée par dichotomie (un code collé peut faire
+          // des milliers de lignes)
+          const codePre = n.parentElement.closest('pre.code-edit');
+          if (codePre) {
+            // Comme dans le PDF, chaque morceau garde son cadre : une ligne tient si le bas du
+            // cadre (retrait, bordure, marge) tient aussi ; et la première ligne d'une page,
+            // sous le haut du cadre, n'est jamais repoussée (une ligne plus haute qu'une page
+            // ajouterait sinon des pages sans fin)
+            const { head, tail } = this.codeChrome(codePre);
+            // Morceau déjà sur une page précédente (sa fin tient) : rien à chercher dedans
+            let e = t.length - 1;
+            while (e >= 0 && t[e] === '\n') e--;
+            const last = e >= 0 ? rectAt(e) : null;
+            if (last && last.bottom + tail * z <= limitS + 0.5) continue;
+            const p0 = n.previousSibling, starts = [];
+            if (t[0] !== '\n' && (!p0 || p0.nodeName === 'BR' || (p0.nodeType === 3 && /\n$/.test(p0.nodeValue)))) starts.push(0);
+            for (let i = t.indexOf('\n'); i >= 0 && i + 1 < t.length; i = t.indexOf('\n', i + 1)) if (t[i + 1] !== '\n') starts.push(i + 1);
+            let lo = 0, hi = starts.length - 1, best = -1;
+            while (lo <= hi) {
+              const mid = (lo + hi) >> 1, rc = rectAt(starts[mid]);
+              if (rc && rc.bottom + tail * z > limitS + 0.5) { best = mid; hi = mid - 1; } else lo = mid + 1;
+            }
+            for (let j = best; j >= 0 && j < starts.length; j++) {
+              const rc = rectAt(starts[j]);
+              if (rc && rc.top > topS + (head + 1) * z) { const rg = document.createRange(); rg.setStart(n, starts[j]); rg.collapse(true); found = { kind: 'float', range: rg, code: codePre }; return; }
+            }
+            continue;
+          }
           for (let i = 0; i < t.length; i++) {
             if (i > 0 && !/\s/.test(t[i - 1])) continue;
             if (/\s/.test(t[i])) continue;
@@ -594,11 +756,11 @@ Object.assign(App, {
       }
     };
     visit(flow);
-    return found ? this.keepTogether(found, topS) : null;
+    return found ? this.keepTogether(found, topS, stuck) : null;
   },
   /* Mêmes règles que la pagination du PDF : pas une seule ligne d'un paragraphe en
      bas de page, et un titre n'y reste pas seul (il passe avec la suite). */
-  keepTogether(pos, topS) {
+  keepTogether(pos, topS, stuck) {
     const z = this.editZoom || 1;
     let blk = null, first = false;
     if (pos.kind === 'block') {
@@ -614,14 +776,14 @@ Object.assign(App, {
         const r = pos.range.cloneRange();
         if (sc.nodeType === 3 && r.startOffset < sc.nodeValue.length) r.setEnd(sc, r.startOffset + 1);
         const top = (r.getClientRects()[0] || r.getBoundingClientRect()).top;
-        if (top - fr.top < lh * 1.5 && top - fr.top > lh * 0.5 && fr.height > lh * 2.5 && fr.top > topS + 1) return this.keepTogether({ kind: 'block', before: field.closest('.li') || blk }, topS);
+        if (top - fr.top < lh * 1.5 && top - fr.top > lh * 0.5 && fr.height > lh * 2.5 && fr.top > topS + 1 && !(stuck && stuck.has(field.closest('.li') || blk))) return this.keepTogether({ kind: 'block', before: field.closest('.li') || blk }, topS, stuck);
         first = top - fr.top < lh * 0.5 && (blk.querySelector('[data-f]') === field);
       }
     }
     if (blk && first) {
       let prev = blk.previousElementSibling;
       while (prev && prev.matches('.pg-sp')) prev = prev.previousElementSibling;
-      if (prev && prev.matches('.blk[data-type="heading"]') && prev.getBoundingClientRect().top > topS + 1) return { kind: 'block', before: prev };
+      if (prev && prev.matches('.blk[data-type="heading"]') && prev.getBoundingClientRect().top > topS + 1 && !(stuck && stuck.has(prev))) return { kind: 'block', before: prev };
     }
     return pos;
   },
@@ -668,7 +830,10 @@ Object.assign(App, {
     if (old) {
       const info = L.computeNumbers(App.doc);
       const ctx = { doc: App.doc, mode: 'edit', nums: info.nums, toc: info.toc, bib: info.bib, lang: App.doc.meta.lang, meta: App.doc.meta };
+      // (avec les numéros de page connus ; un changement de page dans la table est replacé)
+      const cut = old.querySelector('.pg-sp, .pg-float');
       old.replaceWith(L.renderToc(ctx));
+      if (cut) App.layoutSheets();
     }
     App.updateOutline();
     App.updateName();
@@ -767,7 +932,7 @@ Object.assign(App, {
     if (!t) return;
     const f = field.dataset.f;
     let v;
-    if (f === 'code') { v = field.innerText.replace(/\n$/, ''); field.classList.toggle('is-empty', !v); }
+    if (f === 'code') { v = L.codeText(field).replace(/\n$/, ''); field.classList.toggle('is-empty', !v); }
     else { v = L.serializeRich(field); field.classList.toggle('is-empty', L.isEmptyHtml(v)); }
     this.setPath(t, f, v);
     if (L.Collab) L.Collab.localChanged();
@@ -1846,6 +2011,25 @@ App.bindEditor = function () {
       const fig = this.insertBlock(L.newBlock('figure'), { after: blk ? blk.dataset.id : null, noPick: true });
       this.setImage(fig.id, img);
       return;
+    }
+    // Code sur plusieurs lignes : inséré d'un bloc. Le collage du navigateur crée un élément
+    // par ligne, en un temps qui croît comme le carré du nombre de lignes (plus d'une minute,
+    // application figée, pour un long programme). L'annulation (Ctrl+Z) est celle de l'application.
+    if (field && field.dataset.f === 'code' && cd) {
+      const code = (cd.getData('text/plain') || '').replace(/\r\n?/g, '\n');
+      const s = window.getSelection();
+      if (code.includes('\n') && s.rangeCount && field.contains(s.getRangeAt(0).startContainer)) {
+        e.preventDefault();
+        const r = s.getRangeAt(0);
+        r.deleteContents();
+        const tn = document.createTextNode(code);
+        r.insertNode(tn);
+        r.setStartAfter(tn); r.collapse(true);
+        s.removeAllRanges(); s.addRange(r);
+        field.normalize();
+        field.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste' }));
+        return;
+      }
     }
     if (!field || field.dataset.f === 'code') return;
     e.preventDefault();

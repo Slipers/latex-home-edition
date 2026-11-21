@@ -73,7 +73,10 @@ L.dlgTemplates = function (welcome) {
 
 /* ---------- Réglages du document ---------- */
 L.dlgSettings = function (section) {
-  const m = L.fixMeta(App.doc.meta);
+  // Toujours les réglages actuels du document : ils peuvent être remplacés pendant que la
+  // fenêtre est ouverte (annuler, modification en direct à plusieurs…)
+  const cur = () => L.fixMeta(App.doc.meta);
+  const m = new Proxy({}, { get: (_, k) => cur()[k], set: (_, k, v) => { cur()[k] = v; return true; } });
   const apply = () => { App.commit(); App.render(); };
   const txt = (key, label, ph) => {
     const i = L.h('input', { type: 'text', value: L.plain(m[key]), placeholder: ph || '' });
@@ -158,7 +161,7 @@ L.dlgSettings = function (section) {
 
   // ---- En-tête, pied de page et numérotation ----
   const hfSec = L.h('div', { class: 'set-h', text: 'En-tête, pied de page et numéros de page' });
-  const hfInput = (obj, k, ph) => { const i = L.h('input', { type: 'text', value: obj[k] || '', placeholder: ph }); i.oninput = () => { obj[k] = i.value; App.render(); App.commitSoon(); }; return i; };
+  const hfInput = (where, k, ph) => { const i = L.h('input', { type: 'text', value: m[where][k] || '', placeholder: ph }); i.oninput = () => { m[where][k] = i.value; App.render(); App.commitSoon(); }; return i; };
   const sel = (key, opts) => {
     const s = L.h('select', null, ...opts.map(([v, t]) => { const o = L.h('option', { value: v, text: t }); if (String(m[key]) === String(v)) o.selected = true; return o; }));
     s.onchange = () => { m[key] = s.value; apply(); };
@@ -169,8 +172,8 @@ L.dlgSettings = function (section) {
   body.append(hfSec,
     L.h('div', { class: 'hf-grid' },
       L.h('span'), L.h('span', { text: 'À gauche' }), L.h('span', { text: 'Au centre' }), L.h('span', { text: 'À droite' }),
-      L.h('span', { text: 'En-tête' }), hfInput(m.header, 'l', 'ex. {titre}'), hfInput(m.header, 'c', ''), hfInput(m.header, 'r', 'ex. {auteur}'),
-      L.h('span', { text: 'Pied de page' }), hfInput(m.footer, 'l', 'ex. Lycée…'), hfInput(m.footer, 'c', ''), hfInput(m.footer, 'r', 'ex. {date}')),
+      L.h('span', { text: 'En-tête' }), hfInput('header', 'l', 'ex. {titre}'), hfInput('header', 'c', ''), hfInput('header', 'r', 'ex. {auteur}'),
+      L.h('span', { text: 'Pied de page' }), hfInput('footer', 'l', 'ex. Lycée…'), hfInput('footer', 'c', ''), hfInput('footer', 'r', 'ex. {date}')),
     L.h('p', { class: 'pp-help', html: 'Raccourcis utilisables : <b>{titre}</b>, <b>{auteur}</b>, <b>{date}</b>. Dans l\'éditeur, double-cliquez sur un en-tête ou un pied de page pour revenir ici.' }),
     L.h('div', { class: 'grid3' },
       L.h('div', { class: 'field' }, L.h('label', { text: 'Format des numéros' }), sel('numFormat', L.NUM_FORMATS)),

@@ -301,6 +301,19 @@ p.mk-rev-note { margin: 0; padding: 16px; border: 1px dashed var(--h-line); bord
 .pyc-pre { margin: 0; font: 13px/1.5 Consolas, "Cascadia Mono", "CMU Typewriter", monospace; white-space: pre-wrap; word-break: break-word; tab-size: 4; }
 .pyc-pre .e { color: #ff8f86; }
 .pyc-pre .none { color: #8e98ab; font-style: italic; }
+/* Valeurs saisies (input), comme dans un terminal : en gras, sans couleur */
+.pyc-pre .i { color: #fff; font-weight: 700; }
+/* Saisie dans la console pendant l'exécution */
+.pyc-ask { display: inline; width: min(28ch, 60%); min-width: 12ch; margin: 0; padding: 0; border: 0; border-bottom: 1px solid transparent; background: transparent; color: #fff; font: 700 13px/1.5 Consolas, "Cascadia Mono", "CMU Typewriter", monospace; caret-color: #dde3ee; outline: none; vertical-align: baseline; }
+.pyc-ask::placeholder { color: #6f798c; font-weight: 400; font-style: italic; }
+.pyc-pre.waiting .pyc-ask { border-bottom-color: #4a5468; }
+.pyc-pre.waiting .pyc-ask:focus { border-bottom-color: #9aa4b6; }
+.pyc-caret { display: inline-block; width: .55em; height: 1.05em; vertical-align: -.15em; background: #8e98ab; animation: pyc-blink 1.1s steps(1) infinite; }
+@keyframes pyc-blink { 50% { opacity: 0; } }
+.pyc-st.wait { background: color-mix(in srgb, var(--txt) 9%, transparent); color: var(--txt); }
+/* En-tête trop étroit : boutons de saisie en icône seule (texte en infobulle), puis titre */
+.pyc-head.tight .pyc-btn.eof > span, .pyc-head.tight .pyc-btn.inp > span, .pyc-head.tighter .pyc-title-t { display: none; }
+.py-chip.run.wait { cursor: pointer; color: var(--txt); }
 .pyc-line { border: 0; padding: 0 3px; margin: 0; border-radius: 3px; background: rgba(255, 143, 134, .16); color: #ffb3ad; font: inherit; text-decoration: underline; cursor: pointer; }
 .pyc-line:hover { background: rgba(255, 143, 134, .3); }
 .pyc-empty, .pyc-wait { height: 100%; min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; text-align: center; color: #9aa4b6; font-size: 13px; }

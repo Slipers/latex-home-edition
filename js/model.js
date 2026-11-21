@@ -118,8 +118,13 @@ L.pageNumText = function (fmt, n, total, lang) {
 L.fixMeta = function (m) {
   if (m.pageNumbers === false && !m._hfMigrated) m.numFormat = 'none';
   m._hfMigrated = true;
-  m.header = Object.assign({ l: '', c: '', r: '' }, m.header || {});
-  m.footer = Object.assign({ l: '', c: '', r: '' }, m.footer || {});
+  // Complétés sur place, sans remplacer les objets : la fenêtre « Document » écrit dedans
+  // pendant que l'éditeur se redessine (un nouvel objet à chaque appel faisait perdre la
+  // saisie de l'en-tête et du pied de page)
+  for (const w of ['header', 'footer']) {
+    const o = m[w] && typeof m[w] === 'object' ? m[w] : (m[w] = {});
+    for (const k of ['l', 'c', 'r']) if (o[k] == null) o[k] = '';
+  }
   return m;
 };
 

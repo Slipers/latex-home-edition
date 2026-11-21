@@ -140,7 +140,9 @@ Le bouton **Modules** de l'accueil (ou 🧩 dans la barre d'outils) ouvre la pag
 
 - Chaque bloc de code Python reçoit un bouton **▶ Exécuter** (ou **Ctrl+Entrée** dans le code) ; le résultat s'affiche dans une **console** en bas de la fenêtre, sans modifier le document.
 - Erreurs expliquées en français, avec un lien vers la ligne fautive ; commande `pip` à copier quand une bibliothèque manque.
-- `input()` : les entrées se saisissent à l'avance dans la console. Bouton **Arrêter**, arrêt automatique après 60 s.
+- La sortie s'affiche **en direct**, pendant l'exécution.
+- `input()` : quand le programme demande une valeur, on la tape **dans la console**, comme dans un terminal (Entrée pour envoyer, ↑ / ↓ pour reprendre une ligne déjà tapée, plusieurs lignes collées d'un coup, **Ctrl+D** ou « Fin des saisies » pour terminer les entrées). Les valeurs peuvent aussi être données à l'avance (« Entrées »).
+- Bouton **Arrêter** ; arrêt automatique après 60 s de calcul (le temps passé à attendre une saisie ne compte pas).
 - Graphiques **matplotlib** affichés dans la console, à insérer dans le document en un clic.
 - Le code s'exécute **sur l'ordinateur**, avec le Python installé (3.6 ou plus récent) : rien n'est envoyé sur Internet. À la première exécution d'un document, une confirmation est demandée (un document reçu pourrait contenir du code malveillant).
 - À l'installation, le module cherche Python ; s'il manque, il propose de l'installer (Windows : Python officiel via winget, sans droits administrateur), d'ouvrir python.org, ou d'annuler.

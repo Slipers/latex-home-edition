@@ -22,7 +22,10 @@ function pyApi(req, res, what) {
     let r;
     try {
       if (what === 'check') r = await py.check(!!o.force);
-      else if (what === 'run') r = await py.run({ id: o.id, code: o.code, stdin: o.stdin, timeout: o.timeout });
+      else if (what === 'run') r = await py.run({ id: o.id, code: o.code, stdin: o.stdin, timeout: o.timeout, interactive: !!o.interactive });
+      else if (what === 'poll') r = py.poll(o.id, o.from);
+      else if (what === 'send') r = py.send(o.id, o.text);
+      else if (what === 'eof') r = py.eof(o.id);
       else if (what === 'stop') r = py.stop(o.id);
       else if (what === 'install') r = await py.install();
       else return deny(404);

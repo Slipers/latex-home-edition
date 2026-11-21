@@ -65,12 +65,57 @@
   /* Éditeur : le code reste du texte simple, modifiable (champ transparent) ; une copie
      colorée, exactement superposée, est redessinée à chaque modification — frappe,
      collage, modification d'un autre utilisateur en Live, annulation… */
+  /* Texte d'un champ de code tel qu'affiché. innerText, car les retours à la ligne tapés
+     peuvent être des <br> (que textContent ignorerait). Les espaces de changement de page
+     (.pg-float, quand le code continue sur la page suivante) sont écartés : innerText les
+     compterait comme des retours à la ligne, ajoutés au code enregistré. */
+  L.codeText = function (pre) {
+    if (!pre.isConnected) return pre.textContent;
+    const fl = pre.querySelectorAll('.pg-float');
+    fl.forEach(f => { f.style.display = 'none'; });
+    const t = pre.innerText;
+    fl.forEach(f => { f.style.display = ''; });
+    return t;
+  };
+
+  /* Même espace de changement de page dans la coloration, au même caractère : sinon les
+     couleurs restent sur la page précédente, décalées du texte */
+  function mirrorBreaks(pre, hl) {
+    const fl = Array.from(pre.querySelectorAll('.pg-float'));
+    if (!fl.length) return;
+    const at = [];
+    let n = 0;
+    const walk = node => {
+      for (const c of Array.from(node.childNodes)) {
+        if (c.nodeType === 3) n += c.nodeValue.length;
+        else if (c.nodeType === 1) {
+          if (c.classList.contains('pg-float')) at.push([n, c.style.height]);
+          else if (c.tagName === 'BR') n += 1;
+          else walk(c);
+        }
+      }
+    };
+    walk(pre);
+    const tw = document.createTreeWalker(hl, NodeFilter.SHOW_TEXT);
+    let pos = 0, node, k = 0;
+    while (k < at.length && (node = tw.nextNode())) {
+      const len = node.nodeValue.length;
+      while (k < at.length && at[k][0] <= pos + len) {
+        const cut = at[k][0] - pos;
+        const sp = L.h('span', { class: 'pg-float', style: { height: at[k][1] } });
+        if (cut <= 0) node.parentNode.insertBefore(sp, node);
+        else if (cut >= len) node.parentNode.insertBefore(sp, node.nextSibling);
+        else { const rest = node.splitText(cut); rest.parentNode.insertBefore(sp, rest); }
+        k++;
+      }
+      pos += len;
+    }
+  }
+
   L.codeOverlay = function (pre, lang) {
     const hl = L.h('pre', { class: 'code-hl', 'aria-hidden': 'true' });
-    // innerText, comme l'enregistrement du champ : les retours à la ligne tapés peuvent être
-    // des <br> (que textContent ignorerait), pas seulement des « \n »
-    const text = () => (pre.isConnected ? pre.innerText : pre.textContent).replace(/\n$/, '');
-    const paint = () => { hl.innerHTML = L.highlightCode(text(), lang) + '\n'; };
+    const text = () => L.codeText(pre).replace(/\n$/, '');
+    const paint = () => { hl.innerHTML = L.highlightCode(text(), lang) + '\n'; mirrorBreaks(pre, hl); };
     paint();
     let raf = 0;
     new MutationObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(paint); })

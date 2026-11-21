@@ -351,8 +351,11 @@ ipcMain.handle('lhe:py-check', (e, force) => py.check(!!force));
 ipcMain.handle('lhe:py-run', (e, o) => {
   o = o || {};
   const dir = typeof o.docPath === 'string' && isRecent(o.docPath) ? path.dirname(o.docPath) : null;
-  return py.run({ id: o.id, code: o.code, stdin: o.stdin, timeout: o.timeout, cwd: dir });
+  return py.run({ id: o.id, code: o.code, stdin: o.stdin, timeout: o.timeout, cwd: dir, interactive: !!o.interactive });
 });
+ipcMain.handle('lhe:py-poll', (e, id, from) => py.poll(id, from));
+ipcMain.handle('lhe:py-send', (e, id, text) => py.send(id, text));
+ipcMain.handle('lhe:py-eof', (e, id) => py.eof(id));
 ipcMain.handle('lhe:py-stop', (e, id) => py.stop(id));
 ipcMain.handle('lhe:py-install', () => py.install());
 
@@ -524,5 +527,6 @@ if (!app.requestSingleInstanceLock()) {
     setInterval(() => checkUpdates(false), 60 * 60 * 1000);
   });
   app.on('window-all-closed', () => app.quit());
+  app.on('before-quit', () => py.stopAll());   // un programme qui attend une saisie ne reste pas ouvert
   app.on('activate', () => { if (!windows.size) createWindow(); });
 }
