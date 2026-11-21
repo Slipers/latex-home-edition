@@ -27,13 +27,12 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+# Deux jobs : l'archive du site est finalisée à la fin du premier, avant que le second la
+# publie (dans un seul job, deploy-pages ne la trouvait parfois pas encore)
 jobs:
-  publier:
-    name: Publier le site
+  assembler:
+    name: Assembler le site
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - name: Assembler le site
@@ -42,5 +41,14 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+
+  publier:
+    name: Publier le site
+    needs: assembler
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
       - id: deploiement
         uses: actions/deploy-pages@v5
