@@ -38,6 +38,10 @@
 .lwe-chips button { min-width: 30px; height: 26px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--soft); color: var(--txt); font: 14px "CMU Serif", Georgia, serif; }
 .lwe-chips button:hover { border-color: var(--acc2); background: var(--acc-bg); }
 .lwe-chips button.on { background: var(--acc-bg); color: var(--acc); border-color: var(--acc-line); font-weight: 700; }
+.lwe-seg2 { margin-top: 5px; }
+.lwe-pq { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
+.lwe-pq-l { font-size: 12px; color: var(--txt2); }
+.lwe-pq .lwe-chips button { font-size: 13px; min-width: 36px; }
 .lwe-step { display: flex; align-items: center; gap: 6px; }
 .lwe-step-l { flex: 1; font-size: 12.5px; color: var(--txt2); }
 .lwe-step .btn { width: 28px; height: 26px; padding: 0; text-align: center; }

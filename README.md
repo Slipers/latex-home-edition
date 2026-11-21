@@ -57,7 +57,7 @@ Sans connexion, depuis ce dossier : ouvrez **`index.html`** ou double-cliquez su
 | Tableau de variations / de signes | Colonne « Insérer » — exporté avec `tkz-tab` |
 | Schéma-bloc (sciences de l'ingénieur) | Module complémentaire « Schémas-blocs » : colonne « Insérer » → Schéma-bloc (blocs, comparateurs, flèches tirées à la souris, formules — exporté en TikZ) |
 | Tableau d'avancement (chimie) | Colonne « Insérer » — construit depuis l'équation, calcule x_max |
-| Schéma de Lewis (chimie) | Module complémentaire « Schémas de Lewis » : colonne « Insérer » → Schéma de Lewis (doublets, lacunes et charges formelles calculés, octet vérifié — exporté en TikZ) |
+| Schéma de Lewis (chimie) | Module complémentaire « Schémas de Lewis » : colonne « Insérer » → Schéma de Lewis (doublets, lacunes et charges formelles calculés, octet vérifié, hybride de résonance — exporté en TikZ) |
 | Fusionner des cases de tableau | Panneau de droite du tableau |
 | Tableaux / images côte à côte | Colonne « Insérer » → Objets |
 | Image ou capture dans une case de tableau | Coller (Ctrl+V) dans la case, ou panneau de droite |
@@ -122,8 +122,9 @@ Module complémentaire **Schémas de Lewis** (page Modules). Une fois installé,
 - **Électrons calculés** : doublets non liants, électrons célibataires et lacunes se déduisent des électrons de valence, des liaisons et de la charge formelle (**Charge +** / **Charge −**), puis se placent dans les espaces libres autour de l'atome. Un atome peut passer en réglage manuel ; doublets et charge se tournent en tirant leurs petits ronds.
 - **Vérification** : électrons de valence comparés au schéma, duet et octet, charge formelle incohérente, hypervalence (à partir de la 3e période), nombre impair d'électrons.
 - **Mésomérie** : flèche de réaction, flèche ↔ entre deux formes, flèches courbes de mouvement des doublets qui s'accrochent aux atomes, aux liaisons et aux doublets ; textes et formules.
+- **Hybride de résonance** : dessinez les formes mésomères côte à côte, les atomes aux mêmes places, puis **Construire l'hybride** : l'hybride se place dessous, avec pour chaque liaison et chaque charge la moyenne des formes (liaison délocalisée en trait plein + pointillés, charges partielles −½, −⅔… ou δ+ / δ−). Seuls les doublets présents dans toutes les formes sont dessinés. Une liaison délocalisée et une charge partielle peuvent aussi se régler à la main.
 - **Présentation** : doublets en traits ou en points, charges entourées ⊕ ⊖ ou simples, couleurs, longueur des liaisons.
-- **Molécules prêtes** : eau, ammoniac, méthane, CO₂, diazote, dioxygène, HCl, HCN, méthanal, éthène, ions oxonium, ammonium, hydroxyde, nitrate, sulfate, BF₃, CO, NO, formes mésomères de l'ozone.
+- **Molécules prêtes** : eau, ammoniac, méthane, CO₂, diazote, dioxygène, HCl, HCN, méthanal, éthène, ions oxonium, ammonium, hydroxyde, nitrate, sulfate, BF₃, CO, NO, formes mésomères de l'ozone, ion carbonate et benzène avec leur hybride.
 - Annuler / rétablir, dupliquer, copier-coller, zoom ; la barre du bas prévient si le schéma dépasse la largeur de la page.
 
 Dans le document, un clic sur le schéma rouvre l'éditeur. L'export LaTeX produit du code TikZ ordinaire (aucun paquet de chimie nécessaire) ; le panneau de droite permet de le convertir en dessin TikZ pour le retoucher à la main. Sans le module, les schémas déjà présents restent affichés et exportés.

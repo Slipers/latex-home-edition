@@ -25,23 +25,23 @@
   L.Modules.register({
     id: ID,
     name: 'Schémas de Lewis',
-    version: '1.0.0',
+    version: '1.1.0',
     author: 'LaTeX Home Edition',
     official: true,
     category: 'Chimie',
-    tags: ['Chimie', 'Lewis', 'Mésomérie'],
+    tags: ['Chimie', 'Lewis', 'Mésomérie', 'Résonance'],
     colors: ['#c2185b', '#6a4fb0'],
     icon: '<path d="M8.6 15.8l2.4-7.6 2.4 7.6M9.5 13.2h3"/><path d="M8 5.2h6M4.8 9v5.2M17.2 9v5.2"/><path d="M8 19h6"/>',
     tagline: 'Molécules et ions dessinés à la souris : liaisons, doublets non liants, lacunes et charges formelles placés tout seuls, octet vérifié.',
     description: '<p>Posez les atomes, tirez les liaisons simples, doubles ou triples : les <b>doublets non liants</b>, les <b>électrons célibataires</b> et les <b>lacunes</b> se calculent à partir des électrons de valence, des liaisons et des charges formelles, puis se placent dans les espaces libres autour de chaque atome, comme dans les manuels.</p>'
-      + '<p>Le module compte les électrons de valence, vérifie le duet et l\'octet, signale une charge formelle incohérente ou une hypervalence. Flèches de mésomérie, flèches courbes de mouvement des doublets et textes complètent le schéma, qui s\'exporte en LaTeX (TikZ) et en PDF comme le reste du document.</p>',
+      + '<p>Le module compte les électrons de valence, vérifie le duet et l\'octet, signale une charge formelle incohérente ou une hypervalence. Flèches de mésomérie, flèches courbes de mouvement des doublets et textes complètent le schéma ; à partir des formes mésomères, le module construit l\'<b>hybride de résonance</b> (liaisons délocalisées en pointillés, charges partielles). Le schéma s\'exporte en LaTeX (TikZ) et en PDF comme le reste du document.</p>',
     features: [
       [ic('<circle cx="7" cy="12" r="3.2"/><circle cx="17" cy="12" r="3.2"/><path d="M10.2 10.8h3.6M10.2 13.2h3.6"/>'), 'Atomes et liaisons', 'Éléments courants en un clic, liaisons tirées d\'un atome à l\'autre, angles réguliers.'],
       [ic('<path d="M8 5h8"/><path d="M9 18.5l3-8 3 8M10 16h4"/>'), 'Doublets automatiques', 'Doublets non liants, électrons célibataires et lacunes calculés et bien placés.'],
       [ic('<circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/>'), 'Charges formelles', 'Entourées ⊕ ⊖ ou simples, déplaçables autour de l\'atome.'],
       [ic('<path d="M5 13l4 4L19 7"/>'), 'Vérification', 'Électrons de valence comptés, duet et octet vérifiés, hypervalence signalée.'],
-      [ic('<path d="M4 17C6 7 15 5 19 12"/><path d="M19.6 7.4L19 12l-4.4-1.4"/>'), 'Mésomérie', 'Flèches ↔ et flèches courbes qui s\'accrochent aux doublets et aux liaisons.'],
-      [ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'), 'Molécules prêtes', 'Eau, ammoniac, CO₂, diazote, ions oxonium, nitrate, sulfate, BF₃, ozone…'],
+      [ic('<path d="M4 17C6 7 15 5 19 12"/><path d="M19.6 7.4L19 12l-4.4-1.4"/>'), 'Mésomérie et hybride', 'Flèches ↔ et courbes ; hybride de résonance construit à partir des formes : liaisons en pointillés, charges −½ ou δ−.'],
+      [ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'), 'Molécules prêtes', 'Eau, ammoniac, CO₂, ions oxonium, nitrate, sulfate, BF₃, ozone ; carbonate et benzène avec leur hybride…'],
     ],
     steps: [
       'Menu <b>Insérer</b> → <b>Schéma de Lewis</b> (ou tapez « / lewis » sur une ligne vide).',

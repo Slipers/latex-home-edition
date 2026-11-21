@@ -9,12 +9,16 @@
             auto (doublets, électrons célibataires et lacunes calculés), lp, rad, vac (leur
             nombre quand auto est faux), ang (angles imposés de ces groupes d'électrons, ou
             null), qa (angle imposé de la charge, ou null), c (couleur)
-     bond   a, b (identifiants des deux atomes), o (1, 2 ou 3), c (couleur)
+     bond   a, b (identifiants des deux atomes), o (1, 2 ou 3 ; ou ordre moyen d'un hybride de
+            résonance, 1,5, 4/3… : traits pleins et un trait en pointillés), s (côté du trait en
+            pointillés : 1 ou −1, sinon automatique), c (couleur)
      arrow  p: [A, B], k ('->' réaction, '<->' mésomérie), c
      curve  p: [A, B], bend (courbure : fraction de la longueur, signe = côté), c
      text   p, lab ({ latex, mode : 'm' formule | 't' texte }), c
+   La charge q d'un atome peut être partielle dans un hybride de résonance (−1/2, −2/3…).
    Options : lp ('trait' | 'points' : dessin des doublets non liants), charge ('cercle' ⊕ |
-   'simple' +), lac (lacunes ajoutées automatiquement), blen (longueur des nouvelles liaisons). */
+   'simple' +), pq (charges partielles : 'frac' −½ | 'delta' δ−), lac (lacunes ajoutées
+   automatiquement), blen (longueur des nouvelles liaisons). */
 (function () {
   const r2 = v => { const r = Math.round(v * 100) / 100; return String(Object.is(r, -0) ? 0 : r); };
   const P = p => '(' + r2(p[0]) + ',' + r2(p[1]) + ')';
@@ -24,6 +28,27 @@
   const deg = (x, y) => ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
   const mod360 = a => ((a % 360) + 360) % 360;
   const adist = (a, b) => { const d = Math.abs(mod360(a) - mod360(b)) % 360; return d > 180 ? 360 - d : d; };
+
+  /* ---------- Fractions (hybride de résonance : ordres de liaison et charges moyens) ---------- */
+  const snap = v => Math.round(v * 60) / 60;          // 60 : multiple commun des dénominateurs 2 à 6
+  const isFrac = v => Math.abs(v - Math.round(v)) > 1e-6;
+  // v = n/d avec d de 1 à 6, ou null
+  function fracOf(v) {
+    for (let d = 1; d <= 6; d++) { const n = Math.round(v * d); if (Math.abs(n - v * d) < 1e-6) return [n, d]; }
+    return null;
+  }
+  // Valeur reçue : une fraction de dénominateur 2 à 6, sinon l'entier le plus proche
+  const cleanFrac = v => { const f = fracOf(v); return f ? f[0] / f[1] : Math.round(v); };
+  const UFR = { '1/2': '½', '1/3': '⅓', '2/3': '⅔', '1/4': '¼', '3/4': '¾', '1/5': '⅕', '2/5': '⅖', '3/5': '⅗', '4/5': '⅘', '1/6': '⅙', '5/6': '⅚' };
+  // 1.5 → « 1½ », 4/3 → « 1⅓ », −0.5 → « −½ », 2 → « 2 »
+  function numText(v) {
+    const s = v < -1e-9 ? '−' : '', f = fracOf(Math.abs(v));
+    if (!f) return s + String(Math.round(Math.abs(v) * 100) / 100).replace('.', ',');
+    const [n, d] = f;
+    if (d === 1) return s + n;
+    const w = Math.floor(n / d);
+    return s + (w || '') + UFR[(n % d) + '/' + d];
+  }
 
   /* ---------- Éléments ---------- */
   // Électrons de valence (éléments des blocs s et p)
@@ -57,7 +82,7 @@
   /* ---------- Couleurs ---------- */
   const COLORS = { noir: 'black', rouge: 'red!80!black', bleu: 'blue!75!black', vert: 'green!50!black', orange: 'orange!95!black', violet: 'violet', gris: 'gray', marron: 'brown!80!black' };
   const col = c => (c && c !== 'noir' && COLORS[c]) ? COLORS[c] : '';
-  const DEF = { lp: 'trait', charge: 'cercle', lac: true, blen: 1 };
+  const DEF = { lp: 'trait', charge: 'cercle', pq: 'frac', lac: true, blen: 1 };
   const opts = lw => Object.assign({}, DEF, (lw && lw.opts) || {});
 
   /* ---------- Géométrie d'un symbole (cm, police de 11 pt) ----------
@@ -91,22 +116,39 @@
   const byId = (lw, id) => lw.items.find(i => i.id === id);
   const other = (b, id) => (b.a === id ? b.b : b.a);
   const bondSum = (lw, id) => bondsOf(lw, id).reduce((s, b) => s + (b.o || 1), 0);
+  // Molécule d'un atome : les atomes qu'on atteint en suivant les liaisons
+  function partOf(lw, id) {
+    const seen = new Set([id]), stack = [id];
+    while (stack.length) {
+      const cur = stack.pop();
+      bondsOf(lw, cur).forEach(b => { const o = other(b, cur); if (!seen.has(o) && byId(lw, o)) { seen.add(o); stack.push(o); } });
+    }
+    return [...seen];
+  }
+  function parts(lw) {
+    const done = new Set(), out = [];
+    atoms(lw).forEach(a => { if (!done.has(a.id)) { const p = partOf(lw, a.id); p.forEach(id => done.add(id)); out.push(p); } });
+    return out;
+  }
   /* Doublets non liants, électrons célibataires, lacunes. Automatique : électrons non liants
      = électrons de valence − charge formelle − liaisons ; lacunes pour compléter l'octet d'un
-     atome lié (bore, carbocation…). */
+     atome lié (bore, carbocation…).
+     Atome d'un hybride de résonance (liaison délocalisée ou charge partielle) : e est une
+     moyenne sur les formes ; seuls les doublets entiers sont dessinés (ceux communs à toutes
+     les formes), sans électron célibataire ni lacune partielle. */
   function electrons(lw, a) {
-    const bs = bondSum(lw, a.id), o = opts(lw);
+    const bs = snap(bondSum(lw, a.id)), o = opts(lw), hyb = isFrac(bs) || isFrac(a.q || 0);
     if (a.auto === false || !known(a.el)) {
-      if (a.auto !== false) return { lp: 0, rad: 0, vac: 0, bs, over: false };
-      return { lp: Math.max(0, a.lp | 0), rad: Math.max(0, a.rad | 0), vac: Math.max(0, a.vac | 0), bs, over: false };
+      const lp = a.auto === false ? Math.max(0, a.lp | 0) : 0, rad = a.auto === false ? Math.max(0, a.rad | 0) : 0;
+      return { lp, rad, vac: a.auto === false ? Math.max(0, a.vac | 0) : 0, bs, over: false, e: 2 * lp + rad, hyb };
     }
-    let e = VAL[a.el] - (a.q || 0) - bs;
-    const over = e < 0;
+    let e = snap(VAL[a.el] - (a.q || 0) - bs);
+    const over = e < -1e-6;
     if (e < 0) e = 0;
-    let lp = Math.floor(e / 2), r = e % 2;
+    let lp = Math.floor(e / 2 + 1e-9), r = hyb ? 0 : Math.round(e) % 2;
     // atome seul (ni liaison) : électrons célibataires d'abord, comme dans le schéma de Lewis
     // des atomes (C : 4 électrons célibataires ; O : 2 doublets et 2 électrons célibataires)
-    if (!bs) {
+    if (!bs && !hyb) {
       const cap = period(a.el) === 1 ? 2 : 8;
       r = e <= cap ? Math.min(e, cap - e) : e % 2;
       lp = (e - r) / 2;
@@ -114,44 +156,49 @@
     let vac = 0;
     if (o.lac !== false && bs > 0 && VAL[a.el] >= 2 && period(a.el) > 1) {
       const around = 2 * bs + e;
-      if (around < 8) vac = Math.floor((8 - around) / 2);
+      if (around < 8 - 1e-6) vac = Math.floor((8 - around) / 2 + 1e-9);
     }
-    return { lp, rad: r, vac, bs, over };
+    return { lp, rad: r, vac, bs, over, e, hyb };
   }
   // Bilan d'un atome : électrons autour, charge formelle attendue, remarques
   function check(lw, a) {
     const ex = electrons(lw, a), out = { ...ex, notes: [], warn: false };
     if (!known(a.el)) { out.notes.push('Groupe « ' + a.el + ' » : électrons non vérifiés.'); return out; }
-    const around = 2 * ex.bs + 2 * ex.lp + ex.rad, fc = VAL[a.el] - (2 * ex.lp + ex.rad) - ex.bs;
+    // électrons non liants : ceux dessinés, ou la moyenne sur les formes pour un hybride
+    const nb = ex.hyb && a.auto !== false ? ex.e : 2 * ex.lp + ex.rad;
+    const around = snap(2 * ex.bs + nb), fc = snap(VAL[a.el] - nb - ex.bs);
     out.around = around; out.fc = fc;
-    const nm = a.el;
-    const pl = (n, w) => n + ' ' + w + (n > 1 ? 's' : '');
+    const nm = a.el, N = numText;
+    const pl = (n, w) => N(n) + ' ' + w + (n > 1 ? 's' : '');
     if (ex.over) { out.notes.push(nm + ' : trop de liaisons pour sa charge (' + pl(ex.bs, 'liaison') + ', ' + pl(VAL[a.el], 'électron') + ' de valence).'); out.warn = true; }
-    else if (fc !== (a.q || 0)) { out.notes.push(nm + ' : la charge formelle devrait être ' + qText(fc) + ' (dessinée : ' + qText(a.q || 0) + ').'); out.warn = true; }
+    else if (Math.abs(fc - (a.q || 0)) > 1e-6) { out.notes.push(nm + ' : la charge formelle devrait être ' + qText(fc) + ' (dessinée : ' + qText(a.q || 0) + ').'); out.warn = true; }
     if (period(a.el) === 1) {
-      if (around > 2) { out.notes.push(nm + ' : ' + around + ' électrons, plus que le duet (2) : impossible.'); out.warn = true; }
+      if (around > 2 + 1e-6) { out.notes.push(nm + ' : ' + N(around) + ' électrons, plus que le duet (2) : impossible.'); out.warn = true; }
     } else if (period(a.el) === 2) {
-      if (around > 8) { out.notes.push(nm + ' : ' + around + ' électrons : l\'octet ne peut pas être dépassé dans la 2e période.'); out.warn = true; }
-      else if (around < 8 && ex.bs > 0 && VAL[a.el] >= 4 && !ex.rad) out.notes.push(nm + ' : ' + around + ' électrons, octet non atteint' + (ex.vac ? ' (lacune).' : '.'));
-    } else if (around > 8) out.notes.push(nm + ' : ' + around + ' électrons, hypervalence (possible à partir de la 3e période).');
+      if (around > 8 + 1e-6) { out.notes.push(nm + ' : ' + N(around) + ' électrons : l\'octet ne peut pas être dépassé dans la 2e période.'); out.warn = true; }
+      else if (around < 8 - 1e-6 && ex.bs > 0 && VAL[a.el] >= 4 && !ex.rad) out.notes.push(nm + ' : ' + N(around) + ' électrons, octet non atteint' + (ex.vac ? ' (lacune).' : '.'));
+    } else if (around > 8 + 1e-6) out.notes.push(nm + ' : ' + N(around) + ' électrons, hypervalence (possible à partir de la 3e période).');
     return out;
   }
-  const qText = q => !q ? '0' : (Math.abs(q) > 1 ? Math.abs(q) : '') + (q > 0 ? '+' : '−');
+  // Charge : « 2− », « + », « −½ » (charge partielle d'un hybride)
+  const qText = q => !q ? '0' : isFrac(q) ? (q > 0 ? '+' : '') + numText(q) : (Math.abs(q) > 1 ? Math.abs(q) : '') + (q > 0 ? '+' : '−');
   // Bilan du schéma : électrons de valence attendus et dessinés
   function summary(lw) {
     const at = atoms(lw);
-    let val = 0, drawn = 0, charge = 0, unknown = 0, warn = 0;
+    let val = 0, drawn = 0, charge = 0, unknown = 0, warn = 0, hyb = 0;
     const notes = [];
     at.forEach(a => {
       const c = check(lw, a);
       if (!known(a.el)) { unknown++; return; }
       val += VAL[a.el]; charge += a.q || 0;
-      drawn += 2 * c.lp + c.rad;
+      // hybride : électrons non liants comptés en moyenne sur les formes
+      drawn += c.hyb && a.auto !== false ? c.e : 2 * c.lp + c.rad;
+      if (c.hyb) hyb++;
       c.notes.forEach(n => notes.push({ n, warn: c.warn }));
       if (c.warn) warn++;
     });
     lw.items.forEach(b => { if (b.t === 'bond' && byId(lw, b.a) && byId(lw, b.b) && known(byId(lw, b.a).el) && known(byId(lw, b.b).el)) drawn += 2 * (b.o || 1); });
-    return { atoms: at.length, val: val - charge, drawn, charge, unknown, notes, warn };
+    return { atoms: at.length, val: snap(val - charge), drawn: snap(drawn), charge: snap(charge), unknown, notes, warn, hyb };
   }
 
   /* ---------- Place des doublets, électrons célibataires, lacunes et charge ----------
@@ -206,16 +253,42 @@
   const LP_OFF = 0.075, RAD_OFF = 0.065, VAC_OFF = 0.105, Q_OFF = 0.17;
   const at = (a, ang, d) => [a.p[0] + d * Math.cos(rad(ang)), a.p[1] + d * Math.sin(rad(ang))];
   const groupPos = (a, g) => at(a, g.a, clear(a.el, g.a) + (g.k === 'vac' ? VAC_OFF : g.k === 'rad' ? RAD_OFF : LP_OFF));
-  const chargePos = (a, qa) => at(a, qa, clear(a.el, qa) + Q_OFF);
+  // une charge partielle (−½, δ−) est plus large qu'un ⊕ : un peu plus loin du symbole
+  const chargePos = (a, qa, lw) => at(a, qa, clear(a.el, qa) + (isFrac(a.q || 0) ? (opts(lw).pq === 'delta' ? 0.2 : 0.25) : Q_OFF));
 
   /* ---------- Code TikZ ---------- */
   const opt = list => { const l = list.filter(Boolean); return l.length ? '[' + l.join(', ') + ']' : ''; };
   // Symbole → texte TikZ : chiffres en indice (CH3 → CH$_{3}$)
   const label = el => String(el || '').replace(/[^A-Za-z0-9()']/g, '').replace(/(\d+)/g, '$$_{$1}$$');
-  function chargeLabel(q, style) {
+  function chargeLabel(q, style, pq) {
+    if (isFrac(q)) {
+      // charge partielle d'un hybride de résonance : −½ ou δ−
+      if (pq === 'delta') return '$\\delta^{' + (q > 0 ? '+' : '-') + '}$';
+      const f = fracOf(Math.abs(q)) || [Math.round(Math.abs(q) * 6), 6];
+      return '$' + (q > 0 ? '+' : '-') + '\\frac{' + f[0] + '}{' + f[1] + '}$';
+    }
     const n = Math.abs(q) > 1 ? String(Math.abs(q)) : '';
     if (style === 'simple') return '$' + n + (q > 0 ? '+' : '-') + '$';
     return '$' + n + (q > 0 ? '\\oplus' : '\\ominus') + '$';
+  }
+  const bondOrder = b => Math.max(1, Math.min(3, num(+b.o, 1) || 1));
+  /* Côté du trait en pointillés d'une liaison délocalisée (+1 : à gauche en allant de a vers b) :
+     choisi (b.s), sinon vers le centre de la molécule (intérieur d'un cycle, d'un angle),
+     sinon du côté des autres liaisons de ses atomes */
+  function bondSide(lw, b) {
+    if (b.s === 1 || b.s === -1) return b.s;
+    const A = byId(lw, b.a), B = byId(lw, b.b);
+    if (!A || !B) return 1;
+    const len = Math.hypot(B.p[0] - A.p[0], B.p[1] - A.p[1]) || 1, nx = -(B.p[1] - A.p[1]) / len, ny = (B.p[0] - A.p[0]) / len;
+    const side = q => (q[0] - A.p[0]) * nx + (q[1] - A.p[1]) * ny;
+    const mol = partOf(lw, A.id).map(id => byId(lw, id).p);
+    const c = [mol.reduce((s, q) => s + q[0], 0) / mol.length, mol.reduce((s, q) => s + q[1], 0) / mol.length];
+    let d = side(c);
+    if (Math.abs(d) < 0.02) {
+      d = 0;
+      [A, B].forEach(X => bondsOf(lw, X.id).forEach(o => { const Y = o !== b && byId(lw, other(o, X.id)); if (Y) d += side(Y.p) / (Math.hypot(Y.p[0] - X.p[0], Y.p[1] - X.p[1]) || 1); }));
+    }
+    return d < -1e-3 ? -1 : 1;
   }
   function bondCode(lw, b, out) {
     const A = byId(lw, b.a), B = byId(lw, b.b);
@@ -225,13 +298,16 @@
     const ux = dx / len, uy = dy / len, nx = -uy, ny = ux, ang = deg(dx, dy);
     const s = clear(A.el, ang) + 0.025, e = clear(B.el, ang + 180) + 0.025;
     if (s + e >= len - 0.04) return;
-    const o = Math.max(1, Math.min(3, b.o | 0 || 1)), offs = o === 1 ? [0] : o === 2 ? [-0.05, 0.05] : [-0.085, 0, 0.085];
+    // ordre moyen d'un hybride (1,5, 4/3…) : traits pleins, plus un trait en pointillés
+    const o = bondOrder(b), part = isFrac(o), n = Math.floor(o + 1e-9) + (part ? 1 : 0);
+    const offs = n === 1 ? [0] : n === 2 ? [-0.05, 0.05] : [-0.085, 0, 0.085];
+    const dash = part ? (bondSide(lw, b) > 0 ? offs.length - 1 : 0) : -1;
     const c = col(b.c);
-    offs.forEach(k => {
+    offs.forEach((k, i) => {
       // les traits d'une liaison multiple raccourcissent un peu, comme dans les manuels
       const sh = k ? 0.02 : 0;
       const p0 = [A.p[0] + ux * (s + sh) + nx * k, A.p[1] + uy * (s + sh) + ny * k], p1 = [B.p[0] - ux * (e + sh) + nx * k, B.p[1] - uy * (e + sh) + ny * k];
-      out.push('  \\draw' + opt([c]) + ' ' + P(p0) + ' -- ' + P(p1) + ';');
+      out.push('  \\draw' + opt([c, i === dash ? 'dash pattern=on 1.5pt off 2pt' : '']) + ' ' + P(p0) + ' -- ' + P(p1) + ';');
     });
   }
   function atomCode(lw, a, out) {
@@ -248,7 +324,7 @@
         out.push('  \\draw' + opt([c, 'thin']) + ' ' + P(q(-1, -1)) + ' -- ' + P(q(1, -1)) + ' -- ' + P(q(1, 1)) + ' -- ' + P(q(-1, 1)) + ' -- cycle;');
       }
     });
-    if (a.q) out.push('  \\node' + opt(['inner sep=0pt', 'font=\\footnotesize', c ? 'text=' + c : '']) + ' at ' + P(chargePos(a, L0.qa)) + ' {' + chargeLabel(a.q, o.charge) + '};');
+    if (a.q) out.push('  \\node' + opt(['inner sep=0pt', 'font=\\footnotesize', c ? 'text=' + c : '']) + ' at ' + P(chargePos(a, L0.qa, lw)) + ' {' + chargeLabel(a.q, o.charge, o.pq) + '};');
   }
   // Flèche courbe : courbe de Bézier de A à B, bombée sur le côté (bend)
   function curveCtrl(it) {
@@ -294,6 +370,7 @@
     const o = Object.assign({}, DEF, lw.opts && typeof lw.opts === 'object' ? lw.opts : {});
     o.lp = o.lp === 'points' ? 'points' : 'trait';
     o.charge = o.charge === 'simple' ? 'simple' : 'cercle';
+    o.pq = o.pq === 'delta' ? 'delta' : 'frac';
     o.lac = o.lac !== false;
     o.blen = Math.max(0.5, Math.min(2, num(+o.blen, 1)));
     const out = { items: [], opts: o }, seen = new Set();
@@ -309,13 +386,16 @@
       switch (it.t) {
         case 'atom':
           it.p = pt(it.p); it.el = cleanEl(it.el) || 'C';
-          it.q = Math.max(-4, Math.min(4, Math.round(num(+it.q, 0))));
+          it.q = Math.max(-4, Math.min(4, cleanFrac(num(+it.q, 0))));
           it.auto = it.auto !== false;
           ['lp', 'rad', 'vac'].forEach(k => { it[k] = Math.max(0, Math.min(8, Math.round(num(+it[k], 0)))); });
           it.ang = Array.isArray(it.ang) ? it.ang.map(v => mod360(num(+v, 0))) : null;
           it.qa = typeof it.qa === 'number' && isFinite(it.qa) ? mod360(it.qa) : null;
           keep(it); break;
-        case 'bond': it.o = Math.max(1, Math.min(3, Math.round(num(+it.o, 1)))); keep(it); break;
+        case 'bond':
+          it.o = Math.max(1, Math.min(3, cleanFrac(num(+it.o, 1))));
+          if (!isFrac(it.o) || (it.s !== 1 && it.s !== -1)) delete it.s;   // s : côté des pointillés choisi
+          keep(it); break;
         case 'arrow': it.p = [pt(it.p && it.p[0]), pt(it.p && it.p[1], [1, 0])]; it.k = it.k === '<->' ? '<->' : '->'; keep(it); break;
         case 'curve': it.p = [pt(it.p && it.p[0]), pt(it.p && it.p[1], [1, 0])]; it.bend = Math.max(-1.5, Math.min(1.5, num(+it.bend, 0.4))); keep(it); break;
         case 'text': it.p = pt(it.p); it.lab = it.lab && typeof it.lab === 'object' ? { latex: String(it.lab.latex || ''), mode: it.lab.mode === 't' ? 't' : 'm' } : { latex: '', mode: 't' }; keep(it); break;
@@ -354,6 +434,101 @@
     else if (it.p && Array.isArray(it.p[0])) it.p = it.p.map(q => [q[0] + dx, q[1] + dy]);
   }
 
+  /* ---------- Hybride de résonance ----------
+     Les formes mésomères sont les molécules du schéma qui ont les mêmes atomes reliés de la
+     même façon, dessinées côte à côte avec leurs atomes aux mêmes places. L'hybride reprend
+     le squelette : ordre de chaque liaison et charge de chaque atome = moyenne sur les formes
+     (liaison délocalisée en pointillés, charge partielle −½, −⅔…). Il se place sous les formes. */
+  function formOf(lw, ids) {
+    const ats = ids.map(id => byId(lw, id)), adj = new Map(ats.map(a => [a.id, new Map()]));
+    let nb = 0, hyb = false;
+    ats.forEach(a => { if (isFrac(a.q || 0)) hyb = true; });
+    lw.items.forEach(b => {
+      if (b.t !== 'bond' || !adj.has(b.a) || !adj.has(b.b)) return;
+      adj.get(b.a).set(b.b, b); adj.get(b.b).set(b.a, b); nb++;
+      if (isFrac(bondOrder(b))) hyb = true;
+    });
+    const center = [ats.reduce((s, a) => s + a.p[0], 0) / ats.length, ats.reduce((s, a) => s + a.p[1], 0) / ats.length];
+    const sig = ats.map(a => a.el + ':' + adj.get(a.id).size).sort().join(',') + '|' + nb;
+    return { ids, ats, adj, center, sig, hyb };
+  }
+  // Atomes de B qui correspondent à ceux de A : mêmes éléments, mêmes liaisons, et le plus
+  // près possible une fois les deux formes superposées (la symétrie d'une molécule laisse
+  // souvent plusieurs choix : l'ozone, le benzène…)
+  function matchForms(A, B) {
+    const off = [B.center[0] - A.center[0], B.center[1] - A.center[1]];
+    const d2 = (a, b) => (b.p[0] - a.p[0] - off[0]) ** 2 + (b.p[1] - a.p[1] - off[1]) ** 2;
+    // ordre de parcours : en suivant les liaisons, pour couper court aux mauvais choix
+    const start = A.ats.reduce((m, a) => (A.adj.get(a.id).size > A.adj.get(m.id).size ? a : m), A.ats[0]);
+    const order = [], seen = new Set();
+    const visit = a => { const q = [a]; seen.add(a.id); while (q.length) { const x = q.shift(); order.push(x); A.adj.get(x.id).forEach((_, y) => { if (!seen.has(y)) { seen.add(y); q.push(byIdIn(A, y)); } }); } };
+    visit(start);
+    A.ats.forEach(a => { if (!seen.has(a.id)) visit(a); });
+    const cands = new Map(order.map(a => [a.id, B.ats.filter(b => b.el === a.el && B.adj.get(b.id).size === A.adj.get(a.id).size).sort((x, y) => d2(a, x) - d2(a, y))]));
+    const map = new Map(), used = new Set();
+    let best = null, bestCost = Infinity, steps = 0;
+    (function rec(k, cost) {
+      if (cost >= bestCost - 1e-9 || ++steps > 60000) return;
+      if (k === order.length) { bestCost = cost; best = new Map(map); return; }
+      const a = order[k];
+      for (const b of cands.get(a.id)) {
+        if (used.has(b.id)) continue;
+        let ok = true;
+        for (const [x, y] of map) if (A.adj.get(a.id).has(x) !== B.adj.get(b.id).has(y)) { ok = false; break; }
+        if (!ok) continue;
+        map.set(a.id, b.id); used.add(b.id);
+        rec(k + 1, cost + d2(a, b));
+        map.delete(a.id); used.delete(b.id);
+      }
+    })(0, 0);
+    return best;
+  }
+  const byIdIn = (F, id) => F.ats.find(a => a.id === id);
+  /* only : identifiants choisis (facultatif) — les formes sont alors les molécules touchées.
+     Rend { items } (atomes et liaisons de l'hybride, à ajouter au schéma) ou { error } */
+  function hybrid(lw, only) {
+    let fs = parts(lw).filter(p => p.length >= 2).map(p => formOf(lw, p)).filter(f => !f.hyb);
+    if (only && only.size) { const t = fs.filter(f => f.ids.some(id => only.has(id))); if (t.length >= 2) fs = t; }
+    const groups = new Map();
+    fs.forEach(f => { if (!groups.has(f.sig)) groups.set(f.sig, []); groups.get(f.sig).push(f); });
+    let forms = null;
+    groups.forEach(g => { if (g.length >= 2 && (!forms || g.length > forms.length)) forms = g; });
+    if (!forms) return { error: fs.length < 2 ? 'Dessinez d\'abord au moins deux formes mésomères, côte à côte.' : 'Les formes mésomères doivent avoir les mêmes atomes, reliés de la même façon.' };
+    forms.sort((f, g) => f.center[0] - g.center[0] || g.center[1] - f.center[1]);
+    const ref = forms[0], maps = [];
+    for (const f of forms) {
+      const m = f === ref ? new Map(ref.ids.map(id => [id, id])) : matchForms(ref, f);
+      if (!m) return { error: 'Les formes mésomères doivent avoir les mêmes atomes, reliés de la même façon.' };
+      maps.push({ f, m });
+    }
+    const n = forms.length, avg = list => cleanFrac(snap(list.reduce((s, v) => s + v, 0) / n));
+    const qs = new Map(ref.ats.map(a => [a.id, avg(maps.map(({ f, m }) => byIdIn(f, m.get(a.id)).q || 0))]));
+    const bonds = [];
+    ref.adj.forEach((nbrs, x) => nbrs.forEach((b, y) => {
+      if (b.a !== x) return;    // chaque liaison une seule fois, dans son sens
+      bonds.push({ b, o: avg(maps.map(({ f, m }) => bondOrder(f.adj.get(m.get(x)).get(m.get(y))))) });
+    }));
+    if (!bonds.some(x => isFrac(x.o)) && ![...qs.values()].some(isFrac)) return { error: 'Les formes ont les mêmes liaisons et les mêmes charges : rien n\'est délocalisé.' };
+    // place : sous tout le schéma, centré sur les formes
+    const ys = [], xs = forms.flatMap(f => f.ats.map(a => a.p[0]));
+    lw.items.forEach(it => {
+      if (it.t === 'atom') ys.push(it.p[1] - 1.2);
+      else if (it.t === 'text') ys.push(it.p[1] - 0.8);
+      else if (it.t === 'arrow' || it.t === 'curve') (it.t === 'curve' ? it.p.concat([curveTop(it)]) : it.p).forEach(q => ys.push(q[1] - 0.8));
+    });
+    const rx = ref.ats.map(a => a.p[0]), top = Math.max(...ref.ats.map(a => a.p[1]));
+    const dx = (Math.min(...xs) + Math.max(...xs)) / 2 - (Math.min(...rx) + Math.max(...rx)) / 2, dy = Math.min(...ys) - top;
+    const tmp = { items: lw.items.slice() }, ids = new Map(), items = [];
+    const put = it => { it.id = newId(tmp, it.t); tmp.items.push(it); items.push(it); return it; };
+    ref.ats.forEach(a => {
+      const h = put({ t: 'atom', el: a.el, p: [+(a.p[0] + dx).toFixed(3), +(a.p[1] + dy).toFixed(3)], q: qs.get(a.id), auto: true, lp: 0, rad: 0, vac: 0, ang: null, qa: null });
+      if (a.c) h.c = a.c;
+      ids.set(a.id, h.id);
+    });
+    bonds.forEach(({ b, o }) => { const h = put({ t: 'bond', a: ids.get(b.a), b: ids.get(b.b), o }); if (b.c) h.c = b.c; });
+    return { items, forms: n };
+  }
+
   /* ---------- Modèles prêts ---------- */
   // atomes : [symbole, x, y, charge] ; liaisons : [i, j, ordre]
   function mol(atomsL, bondsL, extra) {
@@ -364,6 +539,30 @@
     return lw;
   }
   const s3 = Math.sqrt(3) / 2;
+  // Formes mésomères suivies de leur hybride (placé dessous)
+  function withHybrid(lw) { const h = hybrid(lw); (h.items || []).forEach(it => lw.items.push(it)); return lw; }
+  // Ion carbonate : trois formes (la double liaison tourne), C au centre
+  function carbonate() {
+    const A = [], B = [], ang = [90, 210, 330];
+    [-3.9, 0, 3.9].forEach((cx, f) => {
+      const k = A.length;
+      A.push(['C', cx, 0]);
+      ang.forEach((a, i) => A.push(['O', +(cx + Math.cos(rad(a))).toFixed(3), +Math.sin(rad(a)).toFixed(3), i === f ? 0 : -1]));
+      ang.forEach((a, i) => B.push([k, k + 1 + i, i === f ? 2 : 1]));
+    });
+    return withHybrid(mol(A, B, [-2.45, 1.45].map((x, i) => ({ id: 'f' + (i + 1), t: 'arrow', p: [[x, 0.2], [x + 1, 0.2]], k: '<->' }))));
+  }
+  // Benzène : les deux formes de Kekulé
+  function benzene() {
+    const A = [], B = [];
+    [-2.9, 2.9].forEach((cx, f) => {
+      const k = A.length;
+      for (let i = 0; i < 6; i++) { const a = 90 - 60 * i; A.push(['C', +(cx + Math.cos(rad(a))).toFixed(3), +Math.sin(rad(a)).toFixed(3)]); }
+      for (let i = 0; i < 6; i++) { const a = 90 - 60 * i; A.push(['H', +(cx + 1.7 * Math.cos(rad(a))).toFixed(3), +(1.7 * Math.sin(rad(a))).toFixed(3)]); }
+      for (let i = 0; i < 6; i++) { B.push([k + i, k + (i + 1) % 6, i % 2 === f ? 2 : 1]); B.push([k + i, k + 6 + i]); }
+    });
+    return withHybrid(mol(A, B, [{ id: 'f1', t: 'arrow', p: [[-0.5, 0], [0.5, 0]], k: '<->' }]));
+  }
   const TEMPLATES = [
     { key: 'vide', name: 'Schéma vide', desc: 'Partir de zéro', make: () => ({ items: [], opts: {} }) },
     { key: 'eau', name: 'Eau', f: 'H₂O', make: () => mol([['O', 0, 0], ['H', -0.8, -0.6], ['H', 0.8, -0.6]], [[0, 1], [0, 2]]) },
@@ -390,6 +589,8 @@
       [{ id: 'f1', t: 'arrow', p: [[-0.55, -0.1], [0.55, -0.1]], k: '<->' },
         { id: 'k1', t: 'curve', p: [[-1.4, -0.06], [-1.98, 0.02]], bend: -0.75 },
         { id: 'k2', t: 'curve', p: [[-2.96, 0.03], [-3.5, -0.1]], bend: -0.75 }]) },
+    { key: 'carbonate', name: 'Ion carbonate : hybride', f: 'CO₃²⁻, trois formes et l\'hybride', make: carbonate },
+    { key: 'benzene', name: 'Benzène : hybride', f: 'C₆H₆, deux formes et l\'hybride', make: benzene },
   ];
 
   /* ---------- Lien avec le document ---------- */
@@ -404,5 +605,6 @@
   };
 
   L.LW = { VAL, NAMES, COLORS, DEF, TEMPLATES, opts, known, period, cleanEl, textW, clear, electrons, check, summary, qText,
-    layout, groupPos, chargePos, curveCtrl, curveTop, toTikz, repair, newId, anchors, shift, sync, byId, bondsOf, other, r2 };
+    layout, groupPos, chargePos, curveCtrl, curveTop, toTikz, repair, newId, anchors, shift, sync, byId, bondsOf, other, r2,
+    isFrac, numText, cleanFrac, bondSide, partOf, parts, hybrid };
 })();

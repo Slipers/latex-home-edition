@@ -201,7 +201,7 @@
           if (it.t !== 'atom' || !sel.has(it.id) || sel.size > 6) return;
           const lay = LW.layout(lw, it);
           lay.groups.forEach((g, k) => { const q = LW.groupPos(it, g); gS.appendChild(S('circle', { cx: X(q[0]), cy: Y(q[1]), r: 5, class: 'lwe-grp', 'data-i': it.id, 'data-g': k })); });
-          if (it.q && lay.qa !== null) { const q = LW.chargePos(it, lay.qa); gS.appendChild(S('circle', { cx: X(q[0]), cy: Y(q[1]), r: 7, class: 'lwe-grp chg', 'data-i': it.id, 'data-q': 1 })); }
+          if (it.q && lay.qa !== null) { const q = LW.chargePos(it, lay.qa, lw); gS.appendChild(S('circle', { cx: X(q[0]), cy: Y(q[1]), r: 7, class: 'lwe-grp chg', 'data-i': it.id, 'data-q': 1 })); }
         });
         if (sel.size === 1) {
           const it = item([...sel][0]);
@@ -358,7 +358,8 @@
       switch (tool) {
         case 'atom': if (a.el !== el) act(() => { a.el = el; a.ang = null; }); break;
         case 'erase': act(() => removeIds([a.id])); break;
-        case 'plus': case 'minus': act(() => { a.q = Math.max(-4, Math.min(4, (a.q || 0) + (tool === 'plus' ? 1 : -1))); a.ang = null; }); break;
+        // charge partielle (hybride) : on passe à l'entier suivant
+        case 'plus': case 'minus': act(() => { const q = a.q || 0; a.q = Math.max(-4, Math.min(4, tool === 'plus' ? Math.floor(q + 1e-9) + 1 : Math.ceil(q - 1e-9) - 1)); a.ang = null; }); break;
         case 'lp': case 'rad': case 'vac': act(() => { manual(a); a[tool] = Math.max(0, Math.min(8, (a[tool] || 0) + (e.shiftKey ? -1 : 1))); a.ang = null; }); break;
         default: break;
       }
@@ -602,7 +603,7 @@
         if (dbl && d.k === 'move') {
           const it = item(d.id);
           // double-clic : liaison simple → double → triple ; texte : on l'écrit
-          if (it && it.t === 'bond') act(() => { it.o = it.o >= 3 ? 1 : it.o + 1; });
+          if (it && it.t === 'bond') act(() => { it.o = LW.isFrac(it.o) || it.o >= 3 ? 1 : it.o + 1; delete it.s; });
           else if (it && it.t === 'text' && focusText) focusText();
           else if (it && it.t === 'atom') { const i = L.$('.lwe-elin', side); if (i) { i.focus(); i.select(); } }
         }
@@ -687,16 +688,32 @@
       L.h('b', { class: 'lwe-step-v', text: String(val) }),
       L.h('button', { class: 'btn', text: '+', disabled: val >= (max || 8), onclick: () => on(Math.min(max || 8, val + 1)) }));
     const notes = list => list.length ? L.h('ul', { class: 'lwe-notes' }, list.map(n => L.h('li', { class: n.warn ? 'warn' : n.ok ? 'ok' : '', text: n.n }))) : null;
+    // Type d'une ou de plusieurs liaisons : simple, double, triple, ou délocalisée (hybride)
+    function orderSegs(bds) {
+      const v = bds.every(b => Math.abs(b.o - bds[0].o) < 1e-6) ? bds[0].o : null;
+      const set = o => act(() => bds.forEach(b => { b.o = o; delete b.s; [item(b.a), item(b.b)].forEach(a => { if (a) a.ang = null; }); }));
+      return [seg([[1, 'Simple'], [2, 'Double'], [3, 'Triple']], v, set),
+        seg([[1.5, 'Simple + pointillés', 'Liaison délocalisée d\'un hybride de résonance (ordre 1½)'], [2.5, 'Double + pointillés', 'Ordre 2½']], v, set, 'lwe-seg2')];
+    }
+    // Hybride de résonance des formes mésomères du schéma (ou de celles choisies), placé dessous
+    function makeHybrid(only) {
+      const h = LW.hybrid(lw, only);
+      if (h.error) { L.toast(h.error, 'err'); return; }
+      act(() => { h.items.forEach(it => lw.items.push(it)); sel = new Set(h.items.map(i => i.id)); setTool('sel'); });
+      fit();
+      L.toast('Hybride de résonance des ' + h.forms + ' formes ajouté en dessous.');
+    }
 
     function verifySec() {
       const s = LW.summary(lw);
       if (!s.atoms) return null;
       const lines = [];
       if (s.unknown) lines.push({ n: plur(s.unknown, 'groupe non vérifié', 'groupes non vérifiés') + ' (symbole inconnu).' });
-      const pairs = s.val / 2;
-      lines.push({ n: 'Électrons de valence' + (s.charge ? ' (charge ' + LW.qText(s.charge) + ')' : '') + ' : ' + s.val + (s.val % 2 ? ' : nombre impair, un électron célibataire.' : ', soit ' + pairs + ' doublets.') });
-      const ok = s.drawn === s.val;
-      lines.push({ n: 'Électrons dessinés : ' + s.drawn + (ok ? ' ✔' : ' ✖ (il en faut ' + s.val + ')'), ok, warn: !ok });
+      const pairs = s.val / 2, N = LW.numText;
+      lines.push({ n: 'Électrons de valence' + (s.charge ? ' (charge ' + LW.qText(s.charge) + ')' : '') + ' : ' + N(s.val) + (LW.isFrac(s.val) ? '.' : s.val % 2 ? ' : nombre impair, un électron célibataire.' : ', soit ' + pairs + ' doublets.') });
+      const ok = Math.abs(s.drawn - s.val) < 1e-6;
+      lines.push({ n: (s.hyb ? 'Électrons dessinés et délocalisés : ' : 'Électrons dessinés : ') + N(s.drawn) + (ok ? ' ✔' : ' ✖ (il en faut ' + N(s.val) + ')'), ok, warn: !ok });
+      if (s.hyb) lines.push({ n: 'Hybride de résonance : électrons comptés en moyenne sur les formes ; seuls les doublets présents dans toutes les formes sont dessinés.' });
       s.notes.forEach(n => lines.push(n));
       if (ok && !s.warn) lines.push({ n: 'Charges formelles cohérentes, duet et octet vérifiés.', ok: true });
       return sec('Vérification', notes(lines));
@@ -710,7 +727,10 @@
         side.append(
           L.h('div', { class: 'sbe-title' }, L.h('span', { class: 'sbe-ic', text: 'Ö' }), L.h('b', { text: 'Schéma de Lewis' })),
           sec('Doublets non liants', seg([['trait', '— Traits', 'Un trait par doublet (usage en France)'], ['points', '•• Points', 'Deux points par doublet']], o.lp, v => act(() => { lw.opts.lp = v; }))),
-          sec('Charges formelles', seg([['cercle', '⊕ ⊖ Entourées'], ['simple', '+ − Simples']], o.charge, v => act(() => { lw.opts.charge = v; }))),
+          sec('Charges formelles', seg([['cercle', '⊕ ⊖ Entourées'], ['simple', '+ − Simples']], o.charge, v => act(() => { lw.opts.charge = v; })),
+            lw.items.some(i => i.t === 'atom' && LW.isFrac(i.q || 0)) ? seg([['frac', '−½ Fractions', 'Charges partielles en fractions'], ['delta', 'δ− Delta', 'Charges partielles notées δ+ et δ−']], o.pq, v => act(() => { lw.opts.pq = v; }), 'lwe-seg2') : null),
+          sec('Hybride de résonance', btn('Construire l\'hybride', () => makeHybrid(null), 'wide'),
+            tip('Dessinez les formes mésomères côte à côte, les atomes aux mêmes places : l\'hybride (liaisons délocalisées en pointillés, charges partielles) se place dessous.')),
           sec('Lacunes', chk('Ajouter les lacunes automatiquement', o.lac, v => act(() => { lw.opts.lac = v; }), 'Bore, aluminium, carbocations… : une lacune par doublet manquant pour l\'octet')),
           sec('Nouvelles liaisons', L.h('div', { class: 'sbe-row' }, L.h('span', { class: 'sbe-lab', text: 'Longueur' }), (() => {
             const r = L.h('input', { type: 'range', min: 0.6, max: 1.6, step: 0.05, value: o.blen });
@@ -724,12 +744,16 @@
         return;
       }
       if (list.length > 1) {
-        const ats = list.filter(i => i.t === 'atom');
-        side.append(
+        const ats = list.filter(i => i.t === 'atom'), bds = list.filter(i => i.t === 'bond');
+        // plusieurs molécules choisies : leur hybride de résonance
+        const mols = new Set(ats.concat(bds.map(b => item(b.a)).filter(Boolean)).map(a => LW.partOf(lw, a.id).sort()[0]));
+        side.append(...[
           L.h('div', { class: 'sbe-title' }, L.h('span', { class: 'sbe-ic', text: String(list.length) }), L.h('b', { text: list.length + ' éléments choisis' })),
+          mols.size >= 2 ? sec('Hybride de résonance', btn('Construire l\'hybride de ces formes', () => makeHybrid(new Set(sel)), 'primary wide')) : null,
           ats.length ? sec('Élément des atomes', elField(null, v => act(() => ats.forEach(a => { a.el = v; a.ang = null; })))) : null,
+          bds.length ? sec(bds.length > 1 ? 'Type des liaisons' : 'Type de la liaison', ...orderSegs(bds)) : null,
           sec('Couleur', swatches(null, v => act(() => list.forEach(i => { if (v) i.c = v; else delete i.c; })))),
-          sec(null, btn('Dupliquer', duplicate, 'wide'), btn('Supprimer', removeSel, 'wide')));
+          sec(null, btn('Dupliquer', duplicate, 'wide'), btn('Supprimer', removeSel, 'wide'))].filter(Boolean));
         return;
       }
       const it = list[0];
@@ -739,7 +763,10 @@
           const lay = LW.layout(lw, it), ex = lay.ex, ck = LW.check(lw, it), nm = LW.NAMES[it.el];
           side.append(head(it.el, nm ? 'Atome ' + (/^[aeiouyhéâ]/i.test(nm) ? 'd\'' : 'de ') + nm : 'Groupe ' + it.el));
           side.append(sec('Élément', elField(it.el, v => act(() => { it.el = v; it.ang = null; }))));
-          side.append(sec('Charge formelle', seg([[-2, '2−'], [-1, '−'], [0, '0'], [1, '+'], [2, '2+']], it.q || 0, v => act(() => { it.q = v; it.ang = null; it.qa = null; }))));
+          const setQ = v => act(() => { it.q = v; it.ang = null; it.qa = null; });
+          side.append(sec('Charge formelle', seg([[-2, '2−'], [-1, '−'], [0, '0'], [1, '+'], [2, '2+']], it.q || 0, setQ),
+            L.h('div', { class: 'lwe-pq' }, L.h('span', { class: 'lwe-pq-l', text: 'Partielle (hybride)', title: 'Charge partagée entre plusieurs atomes dans un hybride de résonance' }),
+              L.h('div', { class: 'lwe-chips' }, [-2 / 3, -1 / 2, -1 / 3, 1 / 3, 1 / 2, 2 / 3].map(v => L.h('button', { class: Math.abs((it.q || 0) - v) < 1e-6 ? 'on' : '', text: LW.qText(v), title: 'Charge ' + LW.qText(v), onclick: () => setQ(v) }))))));
           const autoBox = sec('Électrons non liants', chk('Calcul automatique', it.auto !== false, v => act(() => { if (v) { it.auto = true; } else manual(it); it.ang = null; }), 'À partir des électrons de valence, des liaisons et de la charge formelle'));
           if (it.auto !== false && LW.known(it.el)) autoBox.append(tip(plur(ex.lp, 'doublet non liant', 'doublets non liants') + (ex.rad ? ', ' + plur(ex.rad, 'électron célibataire', 'électrons célibataires') : '') + (ex.vac ? ', ' + plur(ex.vac, 'lacune', 'lacunes') : '') + '.'));
           else autoBox.append(
@@ -755,14 +782,17 @@
             tip('Ou tirez les petits ronds autour de l\'atome.')));
           side.append(sec('Couleur', swatches(it.c, v => act(() => { if (v) it.c = v; else delete it.c; }))));
           const nl = ck.notes.map(n => ({ n, warn: ck.warn }));
-          if (LW.known(it.el) && !nl.length) nl.push({ n: (ck.around || 0) + ' électrons autour de ' + it.el + (LW.period(it.el) === 1 ? ' : duet ✔' : ck.around === 8 ? ' : octet ✔' : '') + '.', ok: true });
+          if (LW.known(it.el) && !nl.length) nl.push({ n: LW.numText(ck.around || 0) + ' électrons autour de ' + it.el + (ck.hyb && it.auto !== false ? ' (en moyenne)' : '') + (LW.period(it.el) === 1 ? ' : duet ✔' : Math.abs(ck.around - 8) < 1e-6 ? ' : octet ✔' : '') + '.', ok: true });
           side.append(sec('Bilan', notes(nl)));
           break;
         }
         case 'bond': {
-          const A = item(it.a), B = item(it.b);
-          side.append(head('—', 'Liaison ' + (A ? A.el : '?') + '–' + (B ? B.el : '?')));
-          side.append(sec('Type', seg([[1, 'Simple'], [2, 'Double'], [3, 'Triple']], it.o, v => act(() => { it.o = v; if (A) A.ang = null; if (B) B.ang = null; })), tip('Raccourcis : 1, 2, 3 ou double-clic sur la liaison.')));
+          const A = item(it.a), B = item(it.b), part = LW.isFrac(it.o);
+          side.append(head('—', (part ? 'Liaison délocalisée ' : 'Liaison ') + (A ? A.el : '?') + '–' + (B ? B.el : '?')));
+          side.append(sec('Type', ...orderSegs([it]),
+            part ? tip('Ordre moyen sur les formes mésomères : ' + LW.numText(it.o) + '.') : null,
+            part ? btn('Pointillés de l\'autre côté', () => act(() => { it.s = -LW.bondSide(lw, it); }), 'wide') : null,
+            tip('Raccourcis : 1, 2, 3 ou double-clic sur la liaison.')));
           side.append(sec('Couleur', swatches(it.c, v => act(() => { if (v) it.c = v; else delete it.c; }))));
           break;
         }
