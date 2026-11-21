@@ -977,6 +977,7 @@ Object.assign(App, {
     this.render();
     if (block.type === 'equation') L.MathDock.open({ kind: 'block', blockId: block.id, isNew: true });
     if (block.type === 'figure' && !opts.noPick) this.pickImage(block.id);
+    if (block.type === 'tikz' && !block.sb && !block.td && !block.lw && L.TikzDock) L.TikzDock.open(block.id);   // curseur dans le code, en bas
     if (block.type === 'pnote' && L.isEmptyHtml(L.pnoteHtml(block))) L.dlgFootnote('', v => { block.html = v; delete block.text; this.commit(); this.render(); }, () => this.removeBlock(block.id, false), true);
     const el = this.blockEl(block.id);
     if (el && !focusMap[block.type]) this.ensureCaretVisible(el);
@@ -1373,6 +1374,7 @@ Object.assign(App, {
       }
       P.scrollTop = top;
     }
+    if (L.TikzDock) L.TikzDock.follow();   // panneau du code TikZ : suit le dessin sélectionné
   },
   buildProps() {
     const P = L.$('#props');
@@ -1612,10 +1614,11 @@ Object.assign(App, {
           more('sbcode', 'Code TikZ', help('Le ' + what + ' est exporté en LaTeX sous forme de code TikZ. Pour le retoucher à la main, convertissez-le en dessin TikZ : il ne sera alors plus modifiable à la souris.'),
             btn('Convertir en dessin TikZ', () => { if (confirm('Convertir ce ' + what + ' en dessin TikZ ? Il se modifiera ensuite par son code, plus à la souris. (Ctrl+Z pour revenir en arrière)')) upd(() => { delete b.sb; delete b.td; delete b.lw; }); }, 'wide'))].filter(Boolean));
       } else P.append(...[
+        document.body.classList.contains('ro') ? null : sec(null, btn('✎  Modifier le code', () => L.TikzDock && L.TikzDock.open(b.id), 'primary wide'), help('Le code s\'écrit dans le panneau en bas de la fenêtre ; le dessin suit la frappe.')),
         sec('Taille du dessin', L.h('div', { class: 'rng' }, rng, lab), this.keepHereChk(b, chk, upd, 'dessin')),
         sec('Exemples', ex),
         capSec('figure'),
-        more('tikzhelp', 'Aide TikZ', help('<p>Écrivez le dessin en <b>TikZ</b> sous la figure : <code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>')),
+        more('tikzhelp', 'Aide TikZ', help('<p>Écrivez le dessin en <b>TikZ</b> dans le panneau « Code du dessin », en bas de la fenêtre :<code>\\draw</code>, <code>\\fill</code>, <code>\\filldraw</code>, <code>\\node</code>, <code>\\foreach</code>… Coordonnées en cm, repère vers le haut.</p><p>Formes : <code>--</code>, <code>rectangle</code>, <code>circle (1)</code>, <code>ellipse (2 and 1)</code>, <code>arc (0:90:1)</code>, <code>grid</code>, <code>plot</code>. Options : couleurs (<code>red!30</code>), <code>thick</code>, <code>dashed</code>, <code>-&gt;</code>…</p><p>L\'export LaTeX contient votre code TikZ tel quel.</p>')),
         // sans code : le module « TikZ visuel », s'il n'est pas encore installé
         L.Modules && !L.Modules.installed('tikzdraw') ? L.Modules.card('tikzdraw', { sec }, 'Dessiner sans écrire de code', 'Avec le module « TikZ visuel », points, cercles, angles et courbes de fonctions se dessinent à la souris.') : null].filter(Boolean));
     } else if (b.type === 'code') {

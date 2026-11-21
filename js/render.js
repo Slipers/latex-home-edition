@@ -341,8 +341,8 @@ L.R = {
     return el;
   },
 
-  /* Dessin TikZ : dessiné par js/tikz.js ; dans l'éditeur, le code se modifie sous le
-     dessin (visible quand le bloc est sélectionné) et le dessin suit la frappe */
+  /* Dessin TikZ : dessiné par js/tikz.js ; dans l'éditeur, le code se modifie dans un
+     panneau en bas de la fenêtre quand le dessin est sélectionné, et le dessin suit la frappe */
   tikz(b, ctx) {
     const el = L.h('div', { class: 'tikz' + (b.code && b.code.trim() ? '' : ' empty') });
     const fig = L.h('div', { class: 'tikz-fig' });
@@ -352,7 +352,7 @@ L.R = {
       fig.replaceChildren();
       if (r.svg && !r.empty) fig.appendChild(r.svg);
       else if (r.error && ctx.mode !== 'edit') fig.appendChild(L.h('div', { class: 'tikz-error', text: 'Dessin TikZ : ' + r.error }));
-      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode !== 'edit' ? '' : b.sb ? 'Schéma-bloc vide : cliquez pour le construire' : b.lw ? 'Schéma de Lewis vide : cliquez pour le construire' : b.td ? 'Dessin vide : cliquez pour dessiner' : r.error ? 'Le dessin contient une erreur (voir sous le code)' : 'Dessin vide : écrivez du code TikZ ci-dessous' }));
+      else if (!r.error || ctx.mode === 'edit') fig.appendChild(L.h('div', { class: 'tikz-empty', text: ctx.mode !== 'edit' ? '' : b.sb ? 'Schéma-bloc vide : cliquez pour le construire' : b.lw ? 'Schéma de Lewis vide : cliquez pour le construire' : b.td ? 'Dessin vide : cliquez pour dessiner' : r.error ? 'Le dessin contient une erreur (voir le panneau « Code du dessin », en bas)' : 'Dessin vide : écrivez le code TikZ dans le panneau en bas' }));
       return r;
     };
     if (ctx.mode === 'edit' && (b.sb || b.td || b.lw)) {
@@ -364,27 +364,10 @@ L.R = {
       draw(b.code);
       fig.appendChild(L.h('div', { class: 'sb-hint', contenteditable: 'false', text: !on ? 'Module « ' + (b.sb ? 'Schémas-blocs' : b.lw ? 'Schémas de Lewis' : 'TikZ visuel') + ' » nécessaire pour le modifier' : b.sb || b.lw ? 'Cliquez pour modifier le schéma' : 'Cliquez pour modifier le dessin' }));
     } else if (ctx.mode === 'edit') {
-      const pre = L.h('pre', { class: 'code-edit', contenteditable: 'plaintext-only', spellcheck: 'false', 'data-b': b.id, 'data-f': 'code', 'data-ph': '\\draw (0,0) -- (2,1);' });
-      pre.textContent = b.code || '';
-      if (!b.code) pre.classList.add('is-empty');
-      const msg = L.h('div', { class: 'tikz-msg' });
-      const show = r => {
-        msg.className = 'tikz-msg' + (r.error ? ' err' : r.warnings && r.warnings.length ? ' warn' : '');
-        msg.textContent = r.error ? '⚠ ' + r.error : r.warnings && r.warnings.length ? 'ℹ ' + r.warnings.join(' · ') : '';
-      };
-      show(draw(b.code));
-      let t = 0;
-      new MutationObserver(() => {
-        clearTimeout(t);
-        t = setTimeout(() => {
-          const code = L.codeText(pre).replace(/\n$/, '');
-          show(draw(code));
-          el.classList.toggle('empty', !code.trim());
-        }, 160);
-      }).observe(pre, { characterData: true, childList: true, subtree: true });
-      el.appendChild(L.h('div', { class: 'tikz-src', contenteditable: 'false' },
-        L.h('div', { class: 'tikz-src-h' }, L.h('b', { text: 'Code TikZ' }), L.h('span', { text: 'le dessin suit la frappe · exemples dans le panneau de droite' })),
-        L.h('div', { class: 'code' }, L.codeOverlay(pre, 'latex')), msg));
+      // Le code se modifie dans le panneau « Code du dessin », en bas de l'éditeur
+      // (js/tikzdock.js) : la feuille ne montre que le dessin, à sa vraie place
+      el.__draw = code => { const r = draw(code); el.__last = r; el.classList.toggle('empty', !String(code || '').trim()); return r; };
+      el.__last = draw(b.code);
     } else draw(b.code);
     const cap = L.caption(b, ctx, 'figure', 'Légende du dessin');
     if (cap) el.appendChild(cap);

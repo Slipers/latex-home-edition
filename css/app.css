@@ -216,19 +216,32 @@ td.rt:focus { background: #f2f6fd; }
 .pbreak { border-top: 1px dashed #aab3c2; margin: 18px 0; text-align: center; height: 0; user-select: none; }
 .pbreak span { position: relative; top: -9px; background: #fff; padding: 0 8px; font: 11px var(--ui); color: var(--mut); }
 .code-edit { outline: none; min-height: 1.4em; }
-/* Bloc TikZ dans l'éditeur : le code s'affiche sous le dessin quand le bloc est sélectionné */
+/* Bloc TikZ dans l'éditeur : seulement le dessin ; le code s'écrit dans le panneau du bas */
 .tikz-empty { padding: 18px 20px; border: 1px dashed #b9c3d3; border-radius: 6px; color: #8a93a5; font: 12.5px var(--ui); }
-.tikz-src { display: none; margin: 10px 0 2px; text-align: left; background: #f5f7fb; border: 1px solid #ccd6e6; border-radius: 8px; padding: 8px 10px 9px; }
-.blk.sel .tikz-src, .tikz.empty .tikz-src, .tikz-src:focus-within { display: block; }
-.tikz-src-h { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; font: 12px var(--ui); color: #5d6678; }
-.tikz-src-h b { color: #2b4c7e; font-weight: 600; }
-.tikz-src .code { margin: 0; }
-.tikz-src .code-wrap { background: #fff; }
-.tikz-src .code pre { border-color: #cdd5e2; }
-.tikz-msg { font: 12px var(--ui); margin-top: 6px; white-space: pre-wrap; }
-.tikz-msg:empty { display: none; }
-.tikz-msg.err { color: #b3261e; }
-.tikz-msg.warn { color: #8a6412; }
+.paper .tikz:not(.is-sb):not(.is-td):not(.is-lw) .tikz-fig { cursor: pointer; }
+/* Panneau « Code du dessin » (js/tikzdock.js), en bas de l'éditeur comme la console Python */
+.tkd { position: relative; flex: none; display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-top: 1px solid var(--line2); box-shadow: 0 -4px 14px rgba(20, 30, 50, .06); }
+.tkd[hidden] { display: none; }
+.tkd.min { height: auto !important; }
+.tkd-grip { position: absolute; left: 0; right: 0; top: -4px; height: 8px; cursor: ns-resize; z-index: 2; }
+.tkd-grip:hover, .tkd.resizing .tkd-grip { background: linear-gradient(transparent 3px, var(--acc2) 3px, var(--acc2) 5px, transparent 5px); }
+.tkd.min .tkd-grip, .tkd.min .tkd-body { display: none; }
+.tkd-head { flex: none; display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 3px 6px 3px 12px; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--txt2); overflow: hidden; }
+.tkd.min .tkd-head { border-bottom: 0; }
+.tkd-title { display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 650; color: var(--txt); white-space: nowrap; }
+.tkd-logo { padding: 1px 6px; border: 1px solid var(--line2); border-radius: 5px; font: 600 10.5px/1.5 var(--ui); letter-spacing: .02em; color: var(--txt2); }
+.tkd-hint { min-width: 0; color: var(--mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tkd-flex { flex: 1; }
+.tkd-btn { flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 7px; background: none; color: var(--txt2); cursor: pointer; }
+.tkd-btn:hover { background: var(--hov); color: var(--txt); }
+.tkd-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.tkd-code { flex: 1; min-height: 0; margin: 0; overflow: auto; background: #fff; text-align: left; }
+.tkd-code pre { border: 0; padding: 8px 12px 10px; font: 13px/1.5 Consolas, "Cascadia Mono", "CMU Typewriter", monospace; color: #1f2430; }
+.tkd-code .code-edit { min-height: 100%; }
+.tkd-msg { flex: none; padding: 5px 12px; border-top: 1px solid var(--line); font: 12px var(--ui); white-space: pre-wrap; }
+.tkd-msg:empty { display: none; }
+.tkd-msg.err { color: #b3261e; }
+.tkd-msg.warn { color: #8a6412; }
 /* Code coloré : le champ modifiable est transparent, la copie colorée est dessinée dessous */
 .code-wrap { position: relative; }
 .code-wrap > .code-hl { position: absolute; inset: 0; margin: 0; pointer-events: none; user-select: none; overflow: hidden; }

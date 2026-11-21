@@ -51,6 +51,7 @@ Sans connexion, depuis ce dossier : ouvrez **`index.html`** ou double-cliquez su
 | Table des matières | Réglages « Document » |
 | Code informatique | Bloc « Code » (Python, C, Java, Matlab…) |
 | Exécuter du code Python et voir le résultat | Module complémentaire « Exécution Python » : bouton **▶ Exécuter** sur les blocs de code Python |
+| Dessin TikZ écrit en code | Colonne « Insérer » → Dessin TikZ : le code s'écrit dans un panneau en bas de la fenêtre (comme la console Python), le dessin suit la frappe |
 | Dessiner à la souris (géométrie, courbes de fonctions, physique) sans code | Module complémentaire « TikZ visuel » : colonne « Insérer » → Dessin à la souris |
 | Ajouter ou retirer des fonctions | Bouton **Modules** de l'accueil, ou 🧩 dans la barre d'outils |
 | Symboles (maths, physique, chimie…) | Touche **Tab** : menu avec recherche |
@@ -251,6 +252,7 @@ js/banque-*.js      contenu des sujets (1re, terminale, sup, spé)
 js/dialogs.js       fenêtres de dialogue
 js/app.js           démarrage, fichiers, exports
 js/tikz.js          dessins TikZ : interpréteur qui dessine en SVG (éditeur, aperçu, PDF)
+js/tikzdock.js      panneau « Code du dessin » en bas de l'éditeur (code des dessins TikZ)
 js/sciences.js      tableaux de variations / de signes, tableau d'avancement
 js/schemabloc.js    schémas-blocs : modèle, tracé automatique des flèches, code TikZ, modèles prêts
 js/schemabloc-ui.js schémas-blocs : éditeur à la souris (css/schemabloc.css)
