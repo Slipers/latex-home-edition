@@ -207,11 +207,25 @@
   const canComment = () => S && S.role !== 'viewer';
   const active = () => !!S;
 
-  async function open(id, opts = {}) {
+  /* Deux demandes d'ouverture du même document en même temps (double clic, reprise du dernier
+     document au démarrage pendant un clic dans « Partagés »…) : une seule session. Sinon les
+     deux sessions se disputaient le même canal temps réel et la seconde échouait. */
+  let opening = null, openGen = 0;
+  function open(id, opts = {}) {
+    if (opening && opening.id === id) return opening.p;
+    const p = openNow(id, opts);
+    opening = { id, p };
+    const done = () => { if (opening && opening.p === p) opening = null; };
+    p.then(done, done);
+    return p;
+  }
+  async function openNow(id, opts) {
     if (!C().available()) throw new Error('La Live Modification n\'est pas disponible (module de connexion absent).');
     if (!C().user()) { L.dlgAuth('login', () => open(id, opts)); return; }
+    const gen = ++openGen;
     leave(true);
     const info = await C().openDoc(id);   // lève LHE_FORBIDDEN si pas d'accès
+    if (gen !== openGen) return null;     // une ouverture plus récente (autre document) a pris le relais
     const ydoc = new Y.Doc();
     const s = S = {
       id, role: info.role, owner: info.owner, title: info.title, ydoc, root: ydoc.getMap('doc'),

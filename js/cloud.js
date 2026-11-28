@@ -159,6 +159,16 @@
   function channel(id, h) {
     const c = client();
     if (state.session) c.realtime.setAuth(state.session.access_token);
+    // Un ancien canal du même document peut encore exister (fermeture pas encore confirmée par
+    // le serveur, coupure réseau, document rouvert aussitôt) : supabase-js le renverrait tel quel,
+    // déjà abonné, et refuserait d'y ajouter les écouteurs (« cannot add `presence` callbacks
+    // for realtime:doc:… after `subscribe()` »). On le ferme et on le retire : canal neuf.
+    const topic = 'realtime:doc:' + id;
+    c.getChannels().filter(x => x.topic === topic).forEach(old => {
+      try { old.unsubscribe().catch(() => {}); } catch (e) { /* déjà fermé */ }
+      try { old.teardown(); } catch (e) { /* déjà fermé */ }
+      try { c.realtime._remove(old); } catch (e) { c.realtime.channels = c.realtime.channels.filter(x => x !== old); }
+    });
     const tab = Math.random().toString(36).slice(2, 8);
     const ch = c.channel('doc:' + id, { config: { private: true, broadcast: { self: false, ack: false }, presence: { key: uid() + ':' + tab } } });
     ch.on('broadcast', { event: 'y' }, m => h.onUpdate && h.onUpdate(m.payload && m.payload.u))
